@@ -122,6 +122,7 @@ INT frontend_exit()
 //--- Begin of Run ----------------------------------------------------------//
 INT begin_of_run(INT run_number, char *error)
 {
+/*
   int rc = load_global_settings(global_conf);
   if (rc != 0) {
     cm_msg(MERROR, "begin_of_run", "could not load global settings");
@@ -135,7 +136,7 @@ INT begin_of_run(INT run_number, char *error)
   }
 
   length_unit = conf.get<double>("lenght_unit");
-
+*/
   return SUCCESS;
 }
 

@@ -12,6 +12,7 @@ else
     echo -e "\e[31mCloning boost.\e[0m"
     cd /usr/local/opt
     git clone --recursive https://github.com/boostorg/boost
+    git checkout boost-1.61.0
 fi
 
 # Build and install boost.
