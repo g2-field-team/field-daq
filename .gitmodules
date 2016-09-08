@@ -1,0 +1,9 @@
+[submodule "common/submodules/field-hardware-lib"]
+	path = common/submodules/field-hardware-lib
+	url = https://github.com/g2-field-team/field-hardware-lib
+[submodule "common/submodules/field-analysis-lib"]
+	path = common/submodules/field-analysis-lib
+	url = https://github.com/g2-field-team/field-analysis-lib
+[submodule "common/submodules/field-core"]
+	path = common/submodules/field-core
+	url = https://github.com/g2-field-team/field-core

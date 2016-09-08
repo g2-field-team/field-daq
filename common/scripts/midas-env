@@ -1,0 +1,11 @@
+#!/bin/bash
+# A short script setting up some MIDAS environment variables
+
+export MIDASHOME=~/Packages/gm2midas/midas
+export MIDASSYS=$MIDASHOME
+export MIDAS_ROOT=$MIDASHOME
+export MIDAS_EXPTAB=/etc/exptab
+export ROMESYS=~/Packages/gm2midas/rome
+
+LD_LIBRARY_PATH=$MIDASSYS/linux/lib:$LD_LIBRARY_PATH
+PATH=$MIDASSYS/linux/bin:$MIDASSYS/utils:$PATH

@@ -65,7 +65,8 @@ TARGETS = $(patsubst src/%.cxx,bin/%,$(wildcard src/*.cxx))
 
 #-------------------------------------------------------------------
 CPPFLAGS = -fpermissive -O2
-CXXFLAGS = -std=c++0x
+#CXXFLAGS = -std=c++0x
+CXXFLAGS = -std=c++11
 
 #-----------------------------------------
 # ROOT flags and libs
@@ -79,12 +80,18 @@ MID_INC = $(MIDASSYS)/include
 MID_LIB = $(MIDASSYS)/$(OS_DIR)/lib
 
 # Libraries && include flags
-LIBS += -L$(MID_LIB) -Lcore/lib `mysql_config --libs`
+#LIBS += -L$(MID_LIB) -Lcore/lib `mysql_config --libs`
+#LIBS += -lmidas-shared  -lmysqlclient -lsqlite3
+#LIBS += -lboost_system -lboost_filesystem
+#LIBS += -lm -lz -lpthread -lodbc
+#CPPFLAGS += -I$(MID_INC) -Icore/include -Iobj -Iinclude `mysql_config --include`
+#CPPFLAGS += -I/usr/local/include/labdaq 
+LIBS += -L$(MID_LIB) -Lcore/lib -L/usr/lib64/mysql -L/usr/local/lib
 LIBS += -lmidas-shared  -lmysqlclient -lsqlite3
 LIBS += -lboost_system -lboost_filesystem
 LIBS += -lm -lz -lpthread -lodbc
-CPPFLAGS += -I$(MID_INC) -Icore/include -Iobj -Iinclude `mysql_config --include`
-CPPFLAGS += -I/usr/local/include/labdaq 
+CPPFLAGS += -I$(MID_INC) -Icore/include -Iobj -Iinclude
+CPPFLAGS += -I/usr/local/include/
 CPPFLAGS += -Wl,-rpath,/usr/local/lib
 
 # Set compilers
