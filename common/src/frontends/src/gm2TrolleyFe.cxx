@@ -389,7 +389,7 @@ void ReadFromDevice(){
   char buffer[5000000];
   hkeyclient=0;
   string Device;
-  int  rc = GALIL_EXAMPLE_OK; //return code
+//  int  rc = GALIL_EXAMPLE_OK; //return code
   /* residule string */
   string ResidualString = string("");
 
@@ -410,7 +410,7 @@ void ReadFromDevice(){
     if (!localRunActive)break;
     //Read Message to buffer
     mlock.lock();
-    rc = GMessage(g, buffer, sizeof(buffer));
+ //   rc = GMessage(g, buffer, sizeof(buffer));
     mlock.unlock();
 //    ftime(&currenttime);
 //    double time = (currenttime.time-starttime.time)*1000 + (currenttime.millitm - starttime.millitm);
