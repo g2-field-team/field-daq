@@ -79,4 +79,17 @@ inline int load_global_settings(boost::property_tree::ptree& conf)
   return rc;
 }
 
+inline long long systime_us() {
+ static timeval t;
+ gettimeofday(&t, nullptr);
+ return (long long)(t.tv_sec)*1000000 + (long long)t.tv_usec;
+}
+
+inline long long steadyclock_us() {
+ static timespec t;
+
+ clock_gettime(CLOCK_MONOTONIC, &t);
+ return (long long)(t.tv_sec)*1000000 + (long long)(t.tv_nsec * 0.001);
+}
+
 #endif
