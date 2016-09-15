@@ -25,14 +25,16 @@ MID_INC = $(MIDASSYS)/include
 MID_LIB = $(MIDASSYS)/linux/lib
 
 # Libraries && include flags
-LIBS += -L$(MID_LIB) -Lcore/lib -L/usr/lib64/mysql -L/usr/local/lib
+LIBS += -L$(MID_LIB) -Lcore/lib -L/usr/lib64/mysql -L/usr/local/lib -L../../submodules/field-hardware-lib/libs
 LIBS += -lmidas-shared  -lmysqlclient -lsqlite3
 LIBS += -lboost_system -lboost_filesystem
 LIBS += -lm -lz -lpthread -lodbc
 LIBS += -lgclib -lgclibo
+LIBS += -lTrolleyInterface
 CPPFLAGS += -I$(MID_INC) -Icore/include -Iobj -Iinclude
 CPPFLAGS += -I/usr/local/opt/boost/include/
 CPPFLAGS += -I/usr/local/include/
+CPPFLAGS += -I../../submodules/field-hardware-lib/includes
 CPPFLAGS += -Wl,-rpath,/usr/local/lib
 
 # Set compilers
