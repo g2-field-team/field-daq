@@ -389,7 +389,6 @@ void ReadFromDevice(){
   short* Frame = new short[MAX_PAYLOAD_DATA];
 
   db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
-
 //  timeb starttime,currenttime;
 //  ftime(&starttime);
   //Read first frame and sync
