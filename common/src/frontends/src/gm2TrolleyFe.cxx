@@ -14,8 +14,6 @@ $Id$
 #include <stdlib.h>
 #include "midas.h"
 #include "mcstd.h"
-#include "gclib.h"
-#include "gclibo.h"
 #include <iostream>
 #include <string>
 #include <iomanip>
@@ -72,8 +70,7 @@ extern "C" {
   INT resume_run(INT run_number, char *error);
   INT frontend_loop();
 
-  INT read_galil_event(char *pevent, INT off);
-  INT read_trigger_event(char *pevent, INT off);
+  INT read_trly_event(char *pevent, INT off);
 
   INT poll_event(INT source, INT count, BOOL test);
   INT interrupt_configure(INT cmd, INT source, POINTER_T adr);
@@ -97,9 +94,9 @@ extern "C" {
 	100,                  /* poll every 0.1 sec */
 	0,                      /* stop run after this event limit */
 	0,                      /* number of sub events */
-	60,                      /* log history, logged once per minute */
+	0,                      /* log history, logged once per minute */
 	"", "", "",},
-      read_galil_event,       /* readout routine */
+      read_trly_event,       /* readout routine */
     },
 
     {""}
@@ -110,45 +107,49 @@ extern "C" {
 }
 #endif
 
-HNDLE hDB, hkeyclient;
+HNDLE hDB;
 
-typedef struct TrlyNMRDataStruct{
-  INT TimeStamp;
-  INT TensionArray[2];
-  INT VelocityArray[3];
-  INT PositionArray[3];
-  INT OutputVArray[3];
-}TrlyNMRDataStruct;
+typedef struct _TrlyDataStruct{
+  //NMR
+  long int NMRTimeStamp;
+  short ProbeNumber;
+  short NSamlpe_NMR;
+  short NMRSamples[MAX_NMR_SAMPLES];
 
-typedef struct BarcodeDataStruct{
-  double TimeStamp;
-  double BarcodeArray[6];
-}BarcodeDataStruct;
+  //Barcode
+  long int BarcodeTimeStamp;
+  short NSample_Barcode_PerCh;
+  short BarcodeSamples[MAX_BARCODE_SAMPLES];
 
-typedef struct TrlyNMRDataStructD{
-  double TensionArray[2];
-  double VelocityArray[3];
-  double PositionArray[3];
-  double OutputVArray[3];
-}TrlyNMRDataStructD;
+  //Monitor
+  bool BarcodeError;
+  short BCToNMROffset;
+  short VMonitor1;
+  short VMonitor2;
+  short TMonitorIn;
+  short TMonitorExt1;
+  short TMonitorExt2;
+  short TMonitorExt3;
+  short PressorSensorCal[7];
+  int PMonitorVal;
+  int PMonitorTemp;
 
-typedef struct BarcodeDataStructD{
-  double TimeStamp;
-  double BarcodeArray[6];
-}BarcodeDataStructD;
+  //Register Readbacks
+  short BarcodeRegisters[5];
+  short TrlyRegisters[16];
 
-vector<TrlyNMRDataStruct> TrlyNMRDataBuffer;
-vector<BarcodeDataStruct> BarcodeDataBuffer;
+}TrlyDataStruct;
+
+vector<TrlyDataStruct> TrlyDataBuffer;
 
 thread read_thread;
 mutex mlock;
 
 void ReadFromDevice();
-bool RunActive;
-int ReadGroupSize = 17;
+bool FEActive;
+//int ReadGroupSize = 17;
 
 ofstream TrolleyOutFile;
-ofstream TrolleyOutFileDirect;
 
 /********************************************************************\
   Callback routines for system transitions
@@ -191,6 +192,10 @@ INT frontend_init()
     cm_msg(MERROR,"init","Trolley Interface connection failed. Error code: %d",err);
   }
 
+  //Start reading thread
+  FEActive=true;
+  read_thread = thread(ReadFromDevice);
+
   return SUCCESS;
 }
 
@@ -198,6 +203,25 @@ INT frontend_init()
 
 INT frontend_exit()
 {
+  mlock.lock();
+  FEActive=false;
+  mlock.unlock();
+//  cm_msg(MINFO,"end_of_run","Trying to join threads.");
+  read_thread.join();
+  cm_msg(MINFO,"exit","All threads joined.");
+  TrlyDataBuffer.clear();
+  cm_msg(MINFO,"exit","Data buffer is emptied before exit.");
+
+  //Disconnect from Trolley interface
+  int err = DeviceDisconnect();
+  if (err==0){
+    //cout << "connection successful\n";
+    cm_msg(MINFO,"exit","Trolley Interface disconnection successful");
+  }
+  else {
+    //   cout << "connection failed \n";
+    cm_msg(MERROR,"exit","Trolley Interface disconnection failed. Error code: %d",err);
+  }
   return SUCCESS;
 }
 
@@ -213,8 +237,6 @@ INT begin_of_run(INT run_number, char *error)
   char filename[1000];
   sprintf(filename,"/home/rhong/gm2/g2-field-team/field-daq/resources/TrolleyTextOut/TrolleyOutput%04d.txt",RunNumber);
   TrolleyOutFile.open(filename,ios::out);
-  sprintf(filename,"/home/rhong/gm2/g2-field-team/field-daq/resources/TrolleyTextOut/DirectTrolleyOutput%04d.txt",RunNumber);
-  TrolleyOutFileDirect.open(filename,ios::out);
   
   //Load script
 /*  GReturn b = G_NO_ERROR;
@@ -225,40 +247,20 @@ INT begin_of_run(INT run_number, char *error)
 //  cout <<"Galil Script to load: " << FullScriptName<<endl;
   cm_msg(MINFO,"begin_of_run","Galil Script to load: %s",FullScriptName.c_str());
   */
-//Get ReadGroupSize from odb
-  INT ReadGroupSize_size = sizeof(ReadGroupSize);
-  db_get_value(hDB,0,"/Equipment/Galil/Settings/ReadGroupSize",&ReadGroupSize,&ReadGroupSize_size,TID_INT, 0);
-//  cout <<"ReadGroup size: " << ReadGroupSize<<endl;
-  cm_msg(MINFO,"begin_of_run","ReadGroup size: %d",ReadGroupSize);
 
-//  GProgramDownload(g,"",0); //to erase prevoius programs
-  //dump the buffer
-/*  int rc = GALIL_EXAMPLE_OK; //return code
-  char buffer[5000000];
-  rc = GMessage(g, buffer, sizeof(buffer));
-  b=GProgramDownloadFile(g,FullScriptName.c_str(),0);
-  GCmd(g, "XQ #TH1,0");*/
-  RunActive=true;
-  //Start thread
-  read_thread = thread(ReadFromDevice);
+  mlock.lock();
+  TrlyDataBuffer.clear();
+  mlock.unlock();
+  cm_msg(MINFO,"begin_of_run","Data buffer is emptied at the beginning of the run.");
+
   return SUCCESS;
 }
 
 /*-- End of Run ----------------------------------------------------*/
 
 INT end_of_run(INT run_number, char *error)
-
 {
-  mlock.lock();
-  RunActive=false;
-  mlock.unlock();
-//  cm_msg(MINFO,"end_of_run","Trying to join threads.");
-  read_thread.join();
-  cm_msg(MINFO,"end_of_run","All threads joined.");
-  TrlyNMRDataBuffer.clear();
   TrolleyOutFile.close();
-  TrolleyOutFileDirect.close();
-  cm_msg(MINFO,"end_of_run","Data buffer is emptied.");
   return SUCCESS;
 }
 
@@ -309,7 +311,7 @@ INT poll_event(INT source, INT count, BOOL test)
   }
 
   mlock.lock();
-  bool check = (TrlyNMRDataBuffer.size()>ReadGroupSize) && (BarcodeDataBuffer.size()>ReadGroupSize);
+  bool check = (TrlyDataBuffer.size()>0);
 //  cout <<"poll "<<GalilDataBuffer.size()<<" "<<int(check)<<endl;
   mlock.unlock();
   if (check)return 1;
@@ -336,7 +338,7 @@ INT interrupt_configure(INT cmd, INT source, POINTER_T adr)
 /*-- Event readout -------------------------------------------------*/
 
 
-INT read_galil_event(char *pevent, INT off){
+INT read_trly_event(char *pevent, INT off){
   INT *pdata;
   double *pdatab;
 
@@ -348,35 +350,32 @@ INT read_galil_event(char *pevent, INT off){
   
   mlock.lock();
   for (int i=0;i<ReadGroupSize;i++){
-    *pdata++ = TrlyNMRDataBuffer[i].TimeStamp;
+    *pdata++ = TrlyDataBuffer[i].TimeStamp;
     for (int j=0;j<2;j++){
-      *pdata++ = TrlyNMRDataBuffer[i].TensionArray[j];
+      *pdata++ = TrlyDataBuffer[i].TensionArray[j];
     }
     for (int j=0;j<2;j++){
-      *pdata++ = TrlyNMRDataBuffer[i].PositionArray[j];
+      *pdata++ = TrlyDataBuffer[i].PositionArray[j];
     }
     for (int j=0;j<2;j++){
-      *pdata++ = TrlyNMRDataBuffer[i].VelocityArray[j];
+      *pdata++ = TrlyDataBuffer[i].VelocityArray[j];
     }
     for (int j=0;j<2;j++){
-      *pdata++ = TrlyNMRDataBuffer[i].OutputVArray[j];
+      *pdata++ = TrlyDataBuffer[i].OutputVArray[j];
     }
   }
-  TrlyNMRDataBuffer.erase(TrlyNMRDataBuffer.begin(),TrlyNMRDataBuffer.begin()+ReadGroupSize);
+  TrlyDataBuffer.erase(TrlyDataBuffer.begin(),TrlyDataBuffer.begin()+ReadGroupSize);
   mlock.unlock();
   bk_close(pevent,pdata);
 
   //Write barcode data to banks
 //  bk_create(pevent, "BARC", TID_DOUBLE, (void **)&pdatab);
-  mlock.lock();
 /*  for (int i=0;i<ReadGroupSize;i++){
     *pdatab++ = BarcodeDataBuffer[i].TimeStamp;
     for (int j=0;j<6;j++){
       *pdatab++ = BarcodeDataBuffer[i].BarcodeArray[j];
     }
   }*/
-  BarcodeDataBuffer.erase(BarcodeDataBuffer.begin(),BarcodeDataBuffer.begin()+ReadGroupSize);
-  mlock.unlock();
 //  bk_close(pevent,pdatab);
 
   return bk_size(pevent);
@@ -385,125 +384,106 @@ INT read_galil_event(char *pevent, INT off){
 //ReadFromDevice
 void ReadFromDevice(){
   int ReadThreadActive = 1;
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
-  char buffer[5000000];
-  hkeyclient=0;
-  string Device;
-  int  rc = GALIL_EXAMPLE_OK; //return code
-  /* residule string */
-  string ResidualString = string("");
+  int LastFrameNumber = 0;
+  //Frame buffer
+  short* Frame = new short[MAX_PAYLOAD_DATA];
 
-  int position =0;
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+
 //  timeb starttime,currenttime;
 //  ftime(&starttime);
+  //Read first frame and sync
+  int rc = DataReceive((void *)Frame);
+  if (rc<0){
+    ReadThreadActive = 0;
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+    return;
+  }
  
   //Readout loop
   int i=0;
-  int jj=0;
-  double Time,Time0;
   while (1){
-    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadLoopIndex",&i,sizeof(i), 1 ,TID_INT); 
-    bool localRunActive;
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/DataFrameIndex",&i,sizeof(i), 1 ,TID_INT); 
+    //Check if the front-end is active
+    bool localFEActive;
     mlock.lock();
-    localRunActive = RunActive;
+    localFEActive = FEActive;
     mlock.unlock();
-    if (!localRunActive)break;
+    if (!localFEActive)break;
+
     //Read Message to buffer
+//    mlock.lock();
+    rc = DataReceive((void *)Frame);
+    if (rc<0){
+      ReadThreadActive = 0;
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+      return;
+    }
+    //    mlock.unlock();
+
+    //Translate buffer into TrlyDataStruct
+    TrlyDataStruct* TrlyDataUnit = new TrlyDataStruct;
+
+    TrlyDataUnit->NMRTimeStamp = *((long int *)(&(Frame[32])));
+    TrlyDataUnit->ProbeNumber = short(0x1F & Frame[11]);
+    TrlyDataUnit->NSamlpe_NMR = Frame[12];
+    short NSamNMR = Frame[12];
+    //Check if this is larger than the MAX
+    if (NSamNMR>MAX_NMR_SAMPLES){
+      ReadThreadActive = 0;
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+      return;
+    }
+    for (short ii=0;ii<NSamNMR;i++){
+      TrlyDataUnit->NMRSamples[ii] = Frame[64+ii];
+    }
+    TrlyDataUnit->BarcodeTimeStamp = *((long int *)(&(Frame[36]))) ;
+    TrlyDataUnit->NSample_Barcode_PerCh = Frame[13];
+    short NSamBarcode = Frame[13]*BARCODE_CH_NUM;
+    //Check if this is larger than the MAX
+    if (NSamBarcode>MAX_BARCODE_SAMPLES){
+      ReadThreadActive = 0;
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+      return;
+    }
+    for (short ii=0;ii<NSamBarcode;i++){
+      TrlyDataUnit->BarcodeSamples[ii] = Frame[64+NSamNMR+ii];
+    }
+    TrlyDataUnit->BarcodeError = bool(0x100 & Frame[11]);
+    TrlyDataUnit->BCToNMROffset = Frame[14];
+    TrlyDataUnit->VMonitor1 = Frame[15];
+    TrlyDataUnit->VMonitor2 = Frame[16];
+    TrlyDataUnit->TMonitorIn = Frame[17];
+    TrlyDataUnit->TMonitorExt1 = Frame[18];
+    TrlyDataUnit->TMonitorExt2 = Frame[19];
+    TrlyDataUnit->TMonitorExt3 = Frame[20];
+    for (short ii=0;ii<7;ii++){
+      TrlyDataUnit->PressorSensorCal[ii] = Frame[21+ii];;
+    }
+    TrlyDataUnit->PMonitorVal = *((int *)(&(Frame[28]))) ;
+    TrlyDataUnit->PMonitorTemp = *((int *)(&(Frame[30])));
+    for (short ii=0;ii<5;ii++){
+      TrlyDataUnit->BarcodeRegisters[ii] = Frame[43+ii];
+    }
+    for (short ii=0;ii<16;ii++){
+      TrlyDataUnit->TrlyRegisters[ii] = Frame[48+ii];
+    }
+
+    //Push to buffer
     mlock.lock();
-    rc = GMessage(g, buffer, sizeof(buffer));
+    TrlyDataBuffer.push_back(*TrlyDataUnit);
     mlock.unlock();
-//    ftime(&currenttime);
-//    double time = (currenttime.time-starttime.time)*1000 + (currenttime.millitm - starttime.millitm);
-//    cout<<buffer<<endl;
+    delete TrlyDataUnit;
+    //Text Output
+    //TrolleyOutFile<<"Trolley "<<int(Time)<<" "<<TrlyDataUnit.TensionArray[0]<<" "<<TrlyDataUnit.TensionArray[1]<<" "<<TrlyDataUnit.PositionArray[0]<<" "<<TrlyDataUnit.PositionArray[1]<<" "<<TrlyDataUnit.VelocityArray[0]<<" "<<TrlyDataUnit.VelocityArray[1]<<" "<<TrlyDataUnit.OutputVArray[0]<<" "<<TrlyDataUnit.OutputVArray[1]<<endl;
 
-//    GalilOutFileDirect<<buffer;
-    string BufString = string(buffer);
-    //Add the residual from last read
-    if (ResidualString.size()!=0)BufString = ResidualString+BufString;
-    ResidualString.clear();
-
-    size_t foundnewline = BufString.find("\n");
-    //  static  bool flag = false;
-
-    int iTrly = 0;
-    int iBarcode = 0;
-    TrlyNMRDataStruct TrlyNMRDataUnit;
-    TrlyNMRDataStructD TrlyNMRDataUnitD;
-    BarcodeDataStruct BarcodeDataUnit;
-
-    jj=0;
-    while (foundnewline!=string::npos){
-      stringstream iss (BufString.substr(0,foundnewline-1));
-      // output returned by Galil is stored in the following variables
-
-      iss >> Device;
-      if(Device.compare("Trolley")==0){
-	//iss >> GalilDataUnit.TimeStamp;
-	iss >> Time;
-	if (i==0 && jj==0)Time0=Time;
-	Time-=Time0;
-	for (int j=0;j<2;j++){
-	  iss >> TrlyNMRDataUnitD.TensionArray[j];
-	}
-	for (int j=0;j<2;j++){
-	  iss >> TrlyNMRDataUnitD.PositionArray[j];
-	}
-	for (int j=0;j<2;j++){
-	  iss >> TrlyNMRDataUnitD.VelocityArray[j];
-	}
-	for (int j=0;j<2;j++){
-	  iss >> TrlyNMRDataUnitD.OutputVArray[j];
-	}
-	//Convert to INT
-	TrlyNMRDataUnit.TimeStamp = INT(Time);
-	for (int j=0;j<2;j++){
-	  TrlyNMRDataUnit.TensionArray[j] = INT(1000* TrlyNMRDataUnitD.TensionArray[j]);
-	}
-	for (int j=0;j<2;j++){
-	  TrlyNMRDataUnit.PositionArray[j] = INT(TrlyNMRDataUnitD.PositionArray[j]);
-	}
-	for (int j=0;j<2;j++){
-	  TrlyNMRDataUnit.VelocityArray[j] = INT(TrlyNMRDataUnitD.VelocityArray[j]);
-	}
-	for (int j=0;j<2;j++){
-	  TrlyNMRDataUnit.OutputVArray[j] = INT(1000*TrlyNMRDataUnitD.OutputVArray[j]);
-	}
-
-	mlock.lock();
-	TrlyNMRDataBuffer.push_back(TrlyNMRDataUnit);
-	mlock.unlock();
-
-	iTrly++;
-	//Write to txt output
-	TrolleyOutFile<<"Trolley "<<int(Time)<<" "<<TrlyNMRDataUnit.TensionArray[0]<<" "<<TrlyNMRDataUnit.TensionArray[1]<<" "<<TrlyNMRDataUnit.PositionArray[0]<<" "<<TrlyNMRDataUnit.PositionArray[1]<<" "<<TrlyNMRDataUnit.VelocityArray[0]<<" "<<TrlyNMRDataUnit.VelocityArray[1]<<" "<<TrlyNMRDataUnit.OutputVArray[0]<<" "<<TrlyNMRDataUnit.OutputVArray[1]<<endl;
-      }else if(Device.compare("Barcode")==0){
-	iss >> BarcodeDataUnit.TimeStamp;
-	for (int j=0;j<6;j++){
-	  iss >> BarcodeDataUnit.BarcodeArray[j];
-	}
-	mlock.lock();
-	BarcodeDataBuffer.push_back(BarcodeDataUnit);
-	mlock.unlock();
-	iBarcode++;
-	//Write to txt output
-	TrolleyOutFile<<"Barcode "<<int(Time)<<" "<<BarcodeDataUnit.BarcodeArray[0]<<" "<<BarcodeDataUnit.BarcodeArray[1]<<" "<<BarcodeDataUnit.BarcodeArray[2]<<" "<<BarcodeDataUnit.BarcodeArray[3]<<" "<<BarcodeDataUnit.BarcodeArray[4]<<" "<<BarcodeDataUnit.BarcodeArray[5]<<endl;
-      }
-
-      BufString = BufString.substr(foundnewline+1,string::npos);
-      foundnewline = BufString.find("\n");
-      jj++;
-    }
     /*db_set_value(hDB,0,"/Equipment/Galil/Monitor/MotorPositions",&GalilDataUnitD.PositionArray,sizeof(GalilDataUnitD.PositionArray), 3 ,TID_DOUBLE); 
-    db_set_value(hDB,0,"/Equipment/Galil/Monitor/MotorVelocities",&GalilDataUnitD.VelocityArray,sizeof(GalilDataUnitD.VelocityArray), 3 ,TID_DOUBLE); 
-    db_set_value(hDB,0,"/Equipment/Galil/Monitor/Tensions",&GalilDataUnitD.TensionArray,sizeof(GalilDataUnitD.TensionArray), 2 ,TID_DOUBLE); 
-    */
-    if (BufString.size()!=0){
-      //  GalilOutFile << "Remaining string: ";
-      ResidualString = BufString;
-      //    cout <<ResidualString<<endl;
-    }
+      db_set_value(hDB,0,"/Equipment/Galil/Monitor/MotorVelocities",&GalilDataUnitD.VelocityArray,sizeof(GalilDataUnitD.VelocityArray), 3 ,TID_DOUBLE); 
+      db_set_value(hDB,0,"/Equipment/Galil/Monitor/Tensions",&GalilDataUnitD.TensionArray,sizeof(GalilDataUnitD.TensionArray), 2 ,TID_DOUBLE); 
+     */
     i++;
   }
   ReadThreadActive = 0;
   db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+  delete []Frame;
 }

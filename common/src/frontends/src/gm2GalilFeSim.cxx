@@ -72,7 +72,6 @@ extern "C" {
   INT frontend_loop();
 
   INT read_galil_event(char *pevent, INT off);
-  INT read_trigger_event(char *pevent, INT off);
 
   INT poll_event(INT source, INT count, BOOL test);
   INT interrupt_configure(INT cmd, INT source, POINTER_T adr);
