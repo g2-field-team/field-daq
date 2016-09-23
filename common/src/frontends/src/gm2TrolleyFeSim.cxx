@@ -1,6 +1,6 @@
 /********************************************************************\
 
-Name:     gm2TrolleyFe.cxx
+Name:     gm2TrolleyFeSim.cxx
 Author :  Ran Hong
 
 Contents:     readout code to talk to Trolley Interface
@@ -41,7 +41,7 @@ extern "C" {
   /*-- Globals -------------------------------------------------------*/
 
   /* The frontend name (client name) as seen by other MIDAS clients   */
-  char *frontend_name = "gm2TrolleyFe";
+  char *frontend_name = "gm2TrolleyFeSim";
   /* The frontend file name, don't change it */
   char *frontend_file_name = __FILE__;
 
@@ -75,14 +75,13 @@ extern "C" {
   INT poll_event(INT source, INT count, BOOL test);
   INT interrupt_configure(INT cmd, INT source, POINTER_T adr);
 
-
   /*-- Equipment list ------------------------------------------------*/
 
 
   EQUIPMENT equipment[] = {
 
 
-    {"TrolleyInterface",                /* equipment name */
+    {"TrolleyInterfaceSim",                /* equipment name */
       {1, 0,                   /* event ID, trigger mask */
 	"SYSTEM",               /* event buffer */
 	EQ_POLLED,            /* equipment type */
@@ -187,6 +186,7 @@ mutex mlock;
 mutex mlockdata;
 
 void ReadFromDevice();
+void SimFrame(int i, short* Frame);
 bool FEActive;
 //int ReadGroupSize = 17;
 
@@ -222,7 +222,7 @@ resume_run:     When a run is resumed. Should enable trigger events.
 INT frontend_init()
 { 
   //Connect to trolley interface
-  int err = DeviceConnect("192.168.1.123");  
+/*  int err = DeviceConnect("192.168.1.123");  
 
   if (err==0){
     //cout << "connection successful\n";
@@ -231,9 +231,10 @@ INT frontend_init()
   else {
     //   cout << "connection failed \n";
     cm_msg(MERROR,"init","Trolley Interface connection failed. Error code: %d",err);
-  }
+  }*/
 
   //Start reading thread
+  cm_msg(MINFO,"init","This is a fake front-end simulating the Trolley Interface");
   FEActive=true;
   read_thread = thread(ReadFromDevice);
 
@@ -254,7 +255,7 @@ INT frontend_exit()
   cm_msg(MINFO,"exit","Data buffer is emptied before exit.");
 
   //Disconnect from Trolley interface
-  int err = DeviceDisconnect();
+/*  int err = DeviceDisconnect();
   if (err==0){
     //cout << "connection successful\n";
     cm_msg(MINFO,"exit","Trolley Interface disconnection successful");
@@ -262,7 +263,7 @@ INT frontend_exit()
   else {
     //   cout << "connection failed \n";
     cm_msg(MERROR,"exit","Trolley Interface disconnection failed. Error code: %d",err);
-  }
+  }*/
   return SUCCESS;
 }
 
@@ -457,7 +458,7 @@ void ReadFromDevice(){
   mlock.unlock();
 
   //Read first frame and sync
-  int rc = DataReceive((void *)Frame);
+/*  int rc = DataReceive((void *)Frame);
   if (rc<0){
     ReadThreadActive = 0;
     mlock.lock();
@@ -465,9 +466,10 @@ void ReadFromDevice(){
     mlock.unlock();
     return;
     mlock.unlock();
-  }
-  memcpy(&LastFrameNumber,&(Frame[9]),sizeof(int));
-  memcpy(&FrameSize,&(Frame[7]),sizeof(int));
+  }*/
+//  memcpy(&LastFrameNumber,&(Frame[9]),sizeof(int));
+//  memcpy(&FrameSize,&(Frame[7]),sizeof(int));
+  LastFrameNumber=-1;
  
   //Readout loop
   int i=0;
@@ -480,16 +482,20 @@ void ReadFromDevice(){
     if (!localFEActive)break;
 
     //Read Frame
-    rc = DataReceive((void *)Frame);
+/*    rc = DataReceive((void *)Frame);
     if (rc<0){
       ReadThreadActive = 0;
       mlock.lock();
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
       mlock.unlock();
       return;
-    }
+    }*/
+    //Simulate frame
+    SimFrame(i,Frame);
     memcpy(&FrameNumber,&(Frame[9]),sizeof(int));
     memcpy(&FrameSize,&(Frame[7]),sizeof(int));
+    
+    FrameNumber = i;
     mlock.lock();
     db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/DataFrameIndex",&FrameNumber,sizeof(FrameNumber), 1 ,TID_INT); 
     mlock.unlock();
@@ -568,10 +574,16 @@ void ReadFromDevice(){
     }
     delete TrlyDataUnit;
     i++;
+    sleep(30000);
   }
   ReadThreadActive = 0;
   mlock.lock();
   db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
   mlock.unlock();
   delete []Frame;
+}
+
+void SimFrame(int i, short* Frame)
+{
+  static unsigned long int deviceTime = 0;
 }
