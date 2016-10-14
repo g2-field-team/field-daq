@@ -19,20 +19,21 @@ CXXFLAGS = -std=c++0x
 ROOTFLAGS = $(shell root-config --cflags)
 ROOTLIBS = $(shell root-config --libs)
 
-#-------------------------------------------------------------------
+#----------------------------------------n---------------------------
 # The following lines define direcories. Adjust if necessary
 MID_INC = $(MIDASSYS)/include
 MID_LIB = $(MIDASSYS)/linux/lib
 
 # Libraries && include flags
-LIBS += -L$(MID_LIB) -Lcore/lib -L/usr/lib64/mysql -L/usr/local/lib -L../../submodules/field-hardware-lib/libs
+LIBS += -L$(MID_LIB) -Lcore/lib -L/usr/lib64/mysql -L/usr/local/lib 
+LIBS += -L../../submodules/field-hardware-lib/libs -L/usr/lib -L$(BOOST_LIB)
 LIBS += -lmidas-shared  -lmysqlclient -lsqlite3
 LIBS += -lboost_system -lboost_filesystem
-LIBS += -lm -lz -lpthread -lodbc
+LIBS += -lm -lz -lpthread -lodbc -lrt
 LIBS += -lgclib -lgclibo
-LIBS += -lTrolleyInterface
-CPPFLAGS += -I$(MID_INC) -Icore/include -Iobj -Iinclude
-CPPFLAGS += -I/usr/local/opt/boost/include/
+LIBS += -lTrolleyInterface -lg2fieldvme -lfid
+CPPFLAGS += -I$(MID_INC) -Icore/include -Iobj -Iinclude -I/usr/include
+CPPFLAGS += -I$(BOOST_INC) -I$(shell echo $(ZMQ_INCLUDE_DIR))
 CPPFLAGS += -I/usr/local/include/
 CPPFLAGS += -I../../submodules/field-hardware-lib/includes
 CPPFLAGS += -Wl,-rpath,/usr/local/lib
