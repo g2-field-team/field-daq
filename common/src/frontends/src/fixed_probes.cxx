@@ -130,7 +130,7 @@ g2field::fixed_t data;
 g2field::online_fixed_t full_data;
 g2field::FixedProbeSequencer *event_manager;
 
-const int nprobes = g2field::NMR_NUM_FIXED_PROBES;
+const int nprobes = g2field::kNmrNumFixedProbes;
 const char *const mbank_name = (char *)"FXPR";
 }
 
@@ -513,10 +513,10 @@ INT read_fixed_probe_event(char *pevent, INT off)
   // Set the time vector.
   if (tm.size() == 0) {
 
-    tm.resize(g2field::NMR_FID_LENGTH_RECORD);
-    wf.resize(g2field::NMR_FID_LENGTH_RECORD);
+    tm.resize(g2field::kNmrFidLengthRecord);
+    wf.resize(g2field::kNmrFidLengthRecord);
 
-    for (int n = 0; n < g2field::NMR_FID_LENGTH_RECORD; ++n) {
+    for (int n = 0; n < g2field::kNmrFidLengthRecord; ++n) {
       tm[n] = 0.001 * n;
     }
   }
@@ -525,12 +525,12 @@ INT read_fixed_probe_event(char *pevent, INT off)
 
   for (int idx = 0; idx < nprobes; ++idx) {
 
-    for (int n = 0; n < g2field::NMR_FID_LENGTH_RECORD; ++n) {
+    for (int n = 0; n < g2field::kNmrFidLengthRecord; ++n) {
       wf[n] = shim_data.trace[idx][n*10 + 1]; // Offset avoid spikes in sis3302
       data.trace[idx][n] = wf[n];
     }
 
-    fid::Fid myfid(tm, wf);
+    fid::Fid myfid(wf, tm);
 
     // Make sure we got an FID signal
     if (myfid.isgood()) {
