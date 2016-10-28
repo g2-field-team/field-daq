@@ -86,12 +86,13 @@ MID_LIB = $(MIDASSYS)/$(OS_DIR)/lib
 #LIBS += -lm -lz -lpthread -lodbc
 #CPPFLAGS += -I$(MID_INC) -Icore/include -Iobj -Iinclude `mysql_config --include`
 #CPPFLAGS += -I/usr/local/include/labdaq 
-LIBS += -L$(MID_LIB) -Lcore/lib -L/usr/lib64/mysql -L/usr/local/lib
+LIBS += -L$(MID_LIB) -Lcore/lib -L/usr/lib64/mysql -L/usr/local/lib -L$(BOOST_LIB)
 LIBS += -lmidas-shared  -lmysqlclient -lsqlite3
 LIBS += -lboost_system -lboost_filesystem
 LIBS += -lm -lz -lpthread -lodbc -lrt
 CPPFLAGS += -I$(MID_INC) -Icore/include -Iobj -Iinclude
-CPPFLAGS += -I/usr/local/opt/boost/
+#CPPFLAGS += -I/usr/local/opt/boost/
+CPPFLAGS += -I$(BOOST_INC)
 CPPFLAGS += -I/usr/local/include/
 CPPFLAGS += -Wl,-rpath,/usr/local/lib
 
