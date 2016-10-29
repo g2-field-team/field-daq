@@ -26,6 +26,11 @@ $Id$
 #include <mutex>
 
 #include "TrolleyInterface.h"
+#include "field_structs.hh"
+#include "field_constants.hh"
+
+#include "TTree.h"
+#include "TFile.h"
 
 using namespace std;
 using namespace TrolleyInterface;
@@ -108,81 +113,9 @@ extern "C" {
 
 HNDLE hDB;
 
-typedef struct _TrlyDataStruct{
-  //NMR
-  unsigned long int NMRTimeStamp;
-  unsigned short ProbeNumber;
-  unsigned short NSample_NMR;
-  short NMRSamples[MAX_NMR_SAMPLES];
-
-  //Barcode
-  unsigned long int BarcodeTimeStamp;
-  unsigned short NSample_Barcode_PerCh;
-  unsigned short BarcodeSamples[MAX_BARCODE_SAMPLES];
-
-  //Supply voltages
-  unsigned short V1Min;
-  unsigned short V1Max;
-  unsigned short V2Min;
-  unsigned short V2Max;
-  unsigned short VMonitor1[MAX_BARCODE_SAMPLES];
-  unsigned short VMonitor2[MAX_BARCODE_SAMPLES];
-
-  //Monitor
-  unsigned long int CycleStartTimeStamp;
-  unsigned short TMonitorIn;
-  unsigned short TMonitorExt1;
-  unsigned short TMonitorExt2;
-  unsigned short TMonitorExt3;
-  unsigned int PMonitorVal;
-  unsigned int PMonitorTemp;
-  unsigned int RFPower1;
-  unsigned int RFPower2;
-
-  //Constructor
-  _TrlyDataStruct(){}
-  _TrlyDataStruct(const _TrlyDataStruct& obj)
-  {
-    //NMR
-    NMRTimeStamp = obj.NMRTimeStamp;
-    ProbeNumber = obj.ProbeNumber;
-    NSample_NMR = obj.NSample_NMR;
-    for (int i=0;i<MAX_NMR_SAMPLES;i++){
-      NMRSamples[i] = obj.NMRSamples[i];
-    }
-
-    //Barcode
-    BarcodeTimeStamp = obj.BarcodeTimeStamp;
-    NSample_Barcode_PerCh = obj.NSample_Barcode_PerCh;
-    for (int i=0;i<MAX_BARCODE_SAMPLES;i++){
-      BarcodeSamples[i] = obj.BarcodeSamples[i];
-    }
-
-    //Supply voltages
-    V1Min = obj.V1Min;
-    V1Max = obj.V1Max;
-    V2Min = obj.V2Min;
-    V2Max = obj.V2Max;
-    for (int i=0;i<MAX_BARCODE_SAMPLES;i++){
-      VMonitor1[i] = obj.VMonitor1[i];
-      VMonitor2[i] = obj.VMonitor2[i];
-    }
-
-    //Monitor
-    CycleStartTimeStamp = obj.CycleStartTimeStamp;
-
-    TMonitorIn = obj.TMonitorIn;
-    TMonitorExt1 = obj.TMonitorExt1;
-    TMonitorExt2 = obj.TMonitorExt2;
-    TMonitorExt3 = obj.TMonitorExt3;
-    PMonitorVal = obj.PMonitorVal;
-    PMonitorTemp = obj.PMonitorTemp;
-    RFPower1 = obj.RFPower1;
-    RFPower2 = obj.RFPower2;
-  }
-}TrlyDataStruct;
-
-vector<TrlyDataStruct> TrlyDataBuffer;
+vector<g2field::trolley_nmr_t> TrlyNMRBuffer;
+vector<g2field::trolley_barcode_t> TrlyBarcodeBuffer;
+vector<g2field::trolley_monitor_t> TrlyMonitorBuffer;
 
 thread read_thread;
 mutex mlock;
@@ -273,7 +206,9 @@ INT begin_of_run(INT run_number, char *error)
   NMROutFile.open(filename,ios::out);
 
   mlock.lock();
-  TrlyDataBuffer.clear();
+  TrlyNMRBuffer.clear();
+  TrlyBarcodeBuffer.clear();
+  TrlyMonitorBuffer.clear();
   mlock.unlock();
   cm_msg(MINFO,"begin_of_run","Data buffer is emptied at the beginning of the run.");
 
@@ -298,7 +233,9 @@ INT end_of_run(INT run_number, char *error)
 //  cm_msg(MINFO,"end_of_run","Trying to join threads.");
   read_thread.join();
   cm_msg(MINFO,"exit","All threads joined.");
-  TrlyDataBuffer.clear();
+  TrlyNMRBuffer.clear();
+  TrlyBarcodeBuffer.clear();
+  TrlyMonitorBuffer.clear();
   cm_msg(MINFO,"exit","Data buffer is emptied before exit.");
 
   //Send Trolley interface command to stop data taking
@@ -355,8 +292,7 @@ INT poll_event(INT source, INT count, BOOL test)
   }
 
   mlock.lock();
-  bool check = (TrlyDataBuffer.size()>0);
-//  cout <<"poll "<<GalilDataBuffer.size()<<" "<<int(check)<<endl;
+  bool check = (TrlyNMRBuffer.size()>0 && TrlyBarcodeBuffer.size()>0 && TrlyMonitorBuffer.size()>0);
   mlock.unlock();
   if (check)return 1;
   else return 0;
@@ -387,10 +323,6 @@ INT read_trly_event(char *pevent, INT off){
   WORD *pBarcodedata;
   WORD *pMonitordata;
 
-  mlockdata.lock();
-  TrlyDataStruct* TrlyDataRead = new TrlyDataStruct(TrlyDataBuffer[0]);
-  TrlyDataBuffer.erase(TrlyDataBuffer.begin());
-  mlockdata.unlock();
 
   //Check consistency
 /*  BarcodeError;
@@ -403,46 +335,27 @@ INT read_trly_event(char *pevent, INT off){
   bk_init32(pevent);
 
   //Write data to banks
+  mlockdata.lock();
   bk_create(pevent, "TLNP", TID_WORD, (void **)&pNMRdata);
-  memcpy(pNMRdata, &(TrlyDataRead->NMRTimeStamp), sizeof(long int));
-  pNMRdata += sizeof(long int)/sizeof(WORD);
-  memcpy(pNMRdata, &(TrlyDataRead->ProbeNumber), sizeof(short));
-  pNMRdata += sizeof(short)/sizeof(WORD);
-  memcpy(pNMRdata, &(TrlyDataRead->NSample_NMR), sizeof(short));
-  pNMRdata += sizeof(short)/sizeof(WORD);
-  memcpy(pNMRdata, &(TrlyDataRead->NMRSamples), sizeof(short)*TrlyDataRead->NSample_NMR);
-  pNMRdata += sizeof(short)*TrlyDataRead->NSample_NMR/sizeof(WORD);
+  memcpy(pNMRdata, &(TrlyNMRBuffer[0]), sizeof(g2field::trolley_nmr_t));
+  pNMRdata += sizeof(g2field::trolley_nmr_t)/sizeof(WORD);
   bk_close(pevent,pNMRdata);
 
   bk_create(pevent, "TLBC", TID_WORD, (void **)&pBarcodedata);
-  memcpy(pBarcodedata, &(TrlyDataRead->BarcodeTimeStamp), sizeof(long int));
-  pBarcodedata += sizeof(long int)/sizeof(WORD);
-  memcpy(pBarcodedata, &(TrlyDataRead->NSample_Barcode_PerCh), sizeof(short));
-  pBarcodedata += sizeof(short)/sizeof(WORD);
-  memcpy(pBarcodedata, &(TrlyDataRead->BarcodeSamples), sizeof(short)*TrlyDataRead->NSample_Barcode_PerCh*BARCODE_CH_NUM);
-  pBarcodedata += sizeof(short)*TrlyDataRead->NSample_Barcode_PerCh*BARCODE_CH_NUM/sizeof(WORD);
+  memcpy(pBarcodedata, &(TrlyBarcodeBuffer[0]), sizeof(g2field::trolley_barcode_t));
+  pBarcodedata += sizeof(g2field::trolley_barcode_t)/sizeof(WORD);
   bk_close(pevent,pBarcodedata);
 
   bk_create(pevent, "TLMN", TID_WORD, (void **)&pMonitordata);
-  memcpy(pMonitordata, &(TrlyDataRead->VMonitor1), sizeof(short));
-  pMonitordata += sizeof(short)/sizeof(WORD);
-  memcpy(pMonitordata, &(TrlyDataRead->VMonitor2), sizeof(short));
-  pMonitordata += sizeof(short)/sizeof(WORD);
-  memcpy(pMonitordata, &(TrlyDataRead->TMonitorIn), sizeof(short));
-  pMonitordata += sizeof(short)/sizeof(WORD);
-  memcpy(pMonitordata, &(TrlyDataRead->TMonitorExt1), sizeof(short));
-  pMonitordata += sizeof(short)/sizeof(WORD);
-  memcpy(pMonitordata, &(TrlyDataRead->TMonitorExt2), sizeof(short));
-  pMonitordata += sizeof(short)/sizeof(WORD);
-  memcpy(pMonitordata, &(TrlyDataRead->TMonitorExt3), sizeof(short));
-  pMonitordata += sizeof(short)/sizeof(WORD);
-  memcpy(pMonitordata, &(TrlyDataRead->PMonitorVal), sizeof(int));
-  pMonitordata += sizeof(int)/sizeof(WORD);
-  memcpy(pMonitordata, &(TrlyDataRead->PMonitorTemp), sizeof(int));
-  pMonitordata += sizeof(int)/sizeof(WORD);
+  memcpy(pMonitordata, &(TrlyMonitorBuffer[0]), sizeof(g2field::trolley_monitor_t));
+  pMonitordata += sizeof(g2field::trolley_monitor_t)/sizeof(WORD);
   bk_close(pevent,pMonitordata);
 
-  delete TrlyDataRead;
+  TrlyNMRBuffer.erase(TrlyNMRBuffer.begin());
+  TrlyBarcodeBuffer.erase(TrlyBarcodeBuffer.begin());
+  TrlyMonitorBuffer.erase(TrlyMonitorBuffer.begin());
+  mlockdata.unlock();
+
   return bk_size(pevent);
 }
 
@@ -520,14 +433,17 @@ void ReadFromDevice(){
     LastFrameNumber=FrameNumber;
 
     //Translate buffer into TrlyDataStruct
-    TrlyDataStruct* TrlyDataUnit = new TrlyDataStruct;
+    g2field::trolley_nmr_t* TrlyNMRDataUnit = new g2field::trolley_nmr_t;
+    g2field::trolley_barcode_t* TrlyBarcodeDataUnit = new g2field::trolley_barcode_t;
+    g2field::trolley_monitor_t* TrlyMonitorDataUnit = new g2field::trolley_monitor_t;
 
-    memcpy(&(TrlyDataUnit->NMRTimeStamp),&(Frame[32]),sizeof(unsigned long int));
-    TrlyDataUnit->ProbeNumber = (0x1F & Frame[11]);
-    TrlyDataUnit->NSample_NMR = Frame[12];
+    memcpy(&(TrlyNMRDataUnit->gps_clock),&(Frame[38]),sizeof(unsigned long int));
+    TrlyNMRDataUnit->probe_index = (0x1F & Frame[11]);
+    TrlyNMRDataUnit->length = Frame[12];
     unsigned short NSamNMR = Frame[12];
     //Check if this is larger than the MAX
-    if (NSamNMR>MAX_NMR_SAMPLES){
+    if (NSamNMR>TRLY_NMR_LENGTH){
+      NSamNMR = TRLY_NMR_LENGTH;
       ReadThreadActive = 0;
       mlock.lock();
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
@@ -536,13 +452,15 @@ void ReadFromDevice(){
       return;
     }
     for (unsigned short ii=0;ii<NSamNMR;ii++){
-      TrlyDataUnit->NMRSamples[ii] = (short)Frame[64+ii];
+      TrlyNMRDataUnit->trace[ii] = (short)Frame[64+ii];
     }
-    memcpy(&(TrlyDataUnit->BarcodeTimeStamp),&(Frame[36]),sizeof(unsigned long int));
-    TrlyDataUnit->NSample_Barcode_PerCh = Frame[13];
-    unsigned short NSamBarcode = Frame[13]*BARCODE_CH_NUM;
+
+    memcpy(&(TrlyBarcodeDataUnit->gps_clock),&(Frame[42]),sizeof(unsigned long int));
+    TrlyBarcodeDataUnit->length_per_ch = Frame[13];
+    unsigned short NSamBarcode = Frame[13]*TRLY_BARCODE_CHANNELS;
     //Check if this is larger than the MAX
-    if (NSamBarcode>MAX_BARCODE_SAMPLES){
+    if (NSamBarcode>TRLY_BARCODE_LENGTH){
+      NSamBarcode = TRLY_BARCODE_LENGTH;
       ReadThreadActive = 0;
       mlock.lock();
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
@@ -551,28 +469,29 @@ void ReadFromDevice(){
       return;
     }
     for (unsigned short ii=0;ii<NSamBarcode;ii++){
-      TrlyDataUnit->BarcodeSamples[ii] = Frame[64+NSamNMR+ii];
+      TrlyBarcodeDataUnit->traces[ii] = Frame[64+Frame[12]+ii];
     }
 
-    TrlyDataUnit->V1Min = Frame[15];
-    TrlyDataUnit->V1Max = Frame[16];
-    TrlyDataUnit->V2Min = Frame[17];
-    TrlyDataUnit->V2Max = Frame[18];
+    memcpy(&(TrlyMonitorDataUnit->gps_clock_cycle_start),&(Frame[34]),sizeof(unsigned long int));
+    memcpy(&(TrlyMonitorDataUnit->PMonitorVal),&(Frame[30]),sizeof(int));
+    memcpy(&(TrlyMonitorDataUnit->PMonitorTemp),&(Frame[32]),sizeof(int));
+    memcpy(&(TrlyMonitorDataUnit->RFPower1),&(Frame[60]),sizeof(int));
+    memcpy(&(TrlyMonitorDataUnit->RFPower2),&(Frame[62]),sizeof(int));
+    TrlyMonitorDataUnit->TMonitorIn = Frame[19];
+    TrlyMonitorDataUnit->TMonitorExt1 = Frame[20];
+    TrlyMonitorDataUnit->TMonitorExt2 = Frame[21];
+    TrlyMonitorDataUnit->TMonitorExt3 = Frame[22];
+    TrlyMonitorDataUnit->V1Min = Frame[15];
+    TrlyMonitorDataUnit->V1Max = Frame[16];
+    TrlyMonitorDataUnit->V2Min = Frame[17];
+    TrlyMonitorDataUnit->V2Max = Frame[18];
+    TrlyMonitorDataUnit->length_per_ch = Frame[13];
     for (unsigned short ii=0;ii<Frame[13];ii++){
-      TrlyDataUnit->VMonitor1[ii] = Frame[64+NSamNMR+NSamBarcode+ii];
+      TrlyMonitorDataUnit->trace_VMonitor1[ii] = Frame[64+Frame[12]+Frame[13]*TRLY_BARCODE_CHANNELS+ii];
     }
     for (unsigned short ii=0;ii<Frame[13];ii++){
-      TrlyDataUnit->VMonitor1[ii] = Frame[64+NSamNMR+NSamBarcode+Frame[13]+ii];
+      TrlyMonitorDataUnit->trace_VMonitor1[ii] = Frame[64+NSamNMR+NSamBarcode+Frame[13]+ii];
     }
-
-    TrlyDataUnit->TMonitorIn = Frame[19];
-    TrlyDataUnit->TMonitorExt1 = Frame[20];
-    TrlyDataUnit->TMonitorExt2 = Frame[21];
-    TrlyDataUnit->TMonitorExt3 = Frame[22];
-    memcpy(&(TrlyDataUnit->PMonitorVal),&(Frame[30]),sizeof(int));
-    memcpy(&(TrlyDataUnit->PMonitorTemp),&(Frame[32]),sizeof(int));
-    memcpy(&(TrlyDataUnit->RFPower1),&(Frame[60]),sizeof(int));
-    memcpy(&(TrlyDataUnit->RFPower2),&(Frame[62]),sizeof(int));
 
     //Data quality monitoring
     BarcodeError = bool(0x100 & Frame[11]);
@@ -588,16 +507,20 @@ void ReadFromDevice(){
 
     //Push to buffer
     mlockdata.lock();
-    TrlyDataBuffer.push_back(*TrlyDataUnit);
+    TrlyNMRBuffer.push_back(*TrlyNMRDataUnit);
+    TrlyBarcodeBuffer.push_back(*TrlyBarcodeDataUnit);
+    TrlyMonitorBuffer.push_back(*TrlyMonitorDataUnit);
     mlockdata.unlock();
     //Text Output
     if (NMROutFile.is_open()){
-      NMROutFile<<TrlyDataUnit->NMRTimeStamp<<" "<<TrlyDataUnit->ProbeNumber<<" "<<TrlyDataUnit->NSample_NMR<<endl;
+      NMROutFile<<TrlyNMRDataUnit->gps_clock<<" "<<TrlyNMRDataUnit->probe_index<<" "<<TrlyNMRDataUnit->length<<endl;
       for (int ii=0;ii<NSamNMR;i++){
-	NMROutFile<<TrlyDataUnit->NMRSamples[ii]<<endl;
+	NMROutFile<<TrlyNMRDataUnit->trace[ii]<<endl;
       }
     }
-    delete TrlyDataUnit;
+    delete TrlyNMRDataUnit;
+    delete TrlyBarcodeDataUnit;
+    delete TrlyMonitorDataUnit;
     i++;
   }
   ReadThreadActive = 0;
