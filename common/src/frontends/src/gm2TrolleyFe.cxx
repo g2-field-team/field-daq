@@ -32,6 +32,8 @@ $Id$
 #include "TTree.h"
 #include "TFile.h"
 
+#define FRONTEND_NAME "Trolley Interface" // Prefer capitalize with spaces
+
 using namespace std;
 using namespace TrolleyInterface;
 
@@ -46,7 +48,7 @@ extern "C" {
   /*-- Globals -------------------------------------------------------*/
 
   /* The frontend name (client name) as seen by other MIDAS clients   */
-  char *frontend_name = "gm2TrolleyFe";
+  char *frontend_name = (char *)FRONTEND_NAME;
   /* The frontend file name, don't change it */
   char *frontend_file_name = __FILE__;
 
@@ -123,9 +125,13 @@ mutex mlockdata;
 
 void ReadFromDevice();
 bool RunActive;
-//int ReadGroupSize = 17;
 
 ofstream NMROutFile;
+
+const char * const nmr_bank_name = "TLNP"; // 4 letters, try to make sensible
+const char * const barcode_bank_name = "TLBC"; // 4 letters, try to make sensible
+const char * const monitor_bank_name = "TLMN"; // 4 letters, try to make sensible
+
 
 /********************************************************************\
   Callback routines for system transitions
@@ -336,17 +342,17 @@ INT read_trly_event(char *pevent, INT off){
 
   //Write data to banks
   mlockdata.lock();
-  bk_create(pevent, "TLNP", TID_WORD, (void **)&pNMRdata);
+  bk_create(pevent, nmr_bank_name, TID_WORD, (void **)&pNMRdata);
   memcpy(pNMRdata, &(TrlyNMRBuffer[0]), sizeof(g2field::trolley_nmr_t));
   pNMRdata += sizeof(g2field::trolley_nmr_t)/sizeof(WORD);
   bk_close(pevent,pNMRdata);
 
-  bk_create(pevent, "TLBC", TID_WORD, (void **)&pBarcodedata);
+  bk_create(pevent, barcode_bank_name, TID_WORD, (void **)&pBarcodedata);
   memcpy(pBarcodedata, &(TrlyBarcodeBuffer[0]), sizeof(g2field::trolley_barcode_t));
   pBarcodedata += sizeof(g2field::trolley_barcode_t)/sizeof(WORD);
   bk_close(pevent,pBarcodedata);
 
-  bk_create(pevent, "TLMN", TID_WORD, (void **)&pMonitordata);
+  bk_create(pevent, monitor_bank_name, TID_WORD, (void **)&pMonitordata);
   memcpy(pMonitordata, &(TrlyMonitorBuffer[0]), sizeof(g2field::trolley_monitor_t));
   pMonitordata += sizeof(g2field::trolley_monitor_t)/sizeof(WORD);
   bk_close(pevent,pMonitordata);
@@ -376,7 +382,7 @@ void ReadFromDevice(){
 
   int FrameSize = 0;
   //Frame buffer
-  unsigned short* Frame = new short[MAX_PAYLOAD_DATA/sizeof(unsigned short)];
+  unsigned short* Frame = new unsigned short[MAX_PAYLOAD_DATA/sizeof(unsigned short)];
 
   int ReadThreadActive = 1;
   mlock.lock();
