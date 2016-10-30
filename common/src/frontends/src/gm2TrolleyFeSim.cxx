@@ -254,7 +254,6 @@ INT begin_of_run(INT run_number, char *error)
   RunActive=true;
   read_thread = thread(ReadFromDevice);
   
-
   return SUCCESS;
 }
 
@@ -273,10 +272,12 @@ INT end_of_run(INT run_number, char *error)
   TrlyMonitorBuffer.clear();
   cm_msg(MINFO,"exit","Data buffer is emptied before exit.");
 
-  pt_norm->Write();
+  if(write_root){
+    pt_norm->Write();
 
-  pf->Write();
-  pf->Close();
+    pf->Write();
+    pf->Close();
+  }
 
   return SUCCESS;
 }

@@ -119,6 +119,10 @@ vector<g2field::trolley_nmr_t> TrlyNMRBuffer;
 vector<g2field::trolley_barcode_t> TrlyBarcodeBuffer;
 vector<g2field::trolley_monitor_t> TrlyMonitorBuffer;
 
+g2field::trolley_nmr_t TrlyNMRCurrent;
+g2field::trolley_barcode_t TrlyBarcodeCurrent;
+g2field::trolley_monitor_t TrlyMonitorCurrent;
+
 thread read_thread;
 mutex mlock;
 mutex mlockdata;
@@ -126,7 +130,9 @@ mutex mlockdata;
 void ReadFromDevice();
 bool RunActive;
 
-ofstream NMROutFile;
+bool write_root = false;
+TFile *pf;
+TTree *pt_norm;
 
 const char * const nmr_bank_name = "TLNP"; // 4 letters, try to make sensible
 const char * const barcode_bank_name = "TLBC"; // 4 letters, try to make sensible
@@ -207,9 +213,37 @@ INT begin_of_run(INT run_number, char *error)
   INT RunNumber_size = sizeof(RunNumber);
   cm_get_experiment_database(&hDB, NULL);
   db_get_value(hDB,0,"/Runinfo/Run number",&RunNumber,&RunNumber_size,TID_INT, 0);
-  char filename[1000];
-  sprintf(filename,"/home/rhong/gm2/g2-field-team/field-daq/resources/TrolleyTextOut/TrolleyOutput%04d.txt",RunNumber);
-  NMROutFile.open(filename,ios::out);
+
+  //Get Root output switch
+  int write_root_size = sizeof(write_root);
+  db_get_value(hDB,0,"/Experiment/Run Parameters/Root Output",&write_root,&write_root_size,TID_BOOL, 0);
+
+  //Get Data dir
+  string DataDir;
+  char str[500];
+  int str_size = sizeof(str);
+  db_get_value(hDB,0,"/Logger/Data dir",&str,&str_size,TID_STRING, 0);
+  DataDir=string(str);
+
+  //Root File Name
+  sprintf(str,"Root/TrolleyInterface_%05d.root",RunNumber);
+  string RootFileName = DataDir + string(str);
+
+  if(write_root){
+    cm_msg(MINFO,"begin_of_run","Writing to root file %s",RootFileName.c_str());
+    pf = new TFile(RootFileName.c_str(), "recreate");
+    pt_norm = new TTree("t_TrolleySim", "Sim Trolley Interface Data");
+    pt_norm->SetAutoSave(5);
+    pt_norm->SetAutoFlush(20);
+
+    string nrm_br_name("TLNP");
+    string barcode_br_name("TLBC");
+    string monitor_br_name("TLMN");
+
+    pt_norm->Branch(nmr_bank_name, &TrlyNMRCurrent, g2field::trolley_nmr_str);
+    pt_norm->Branch(barcode_bank_name, &TrlyBarcodeCurrent, g2field::trolley_barcode_str);
+    pt_norm->Branch(monitor_bank_name, &TrlyMonitorCurrent, g2field::trolley_monitor_str);
+  }
 
   mlock.lock();
   TrlyNMRBuffer.clear();
@@ -224,7 +258,6 @@ INT begin_of_run(INT run_number, char *error)
   //Start reading thread
   RunActive=true;
   read_thread = thread(ReadFromDevice);
-  
 
   return SUCCESS;
 }
@@ -247,7 +280,13 @@ INT end_of_run(INT run_number, char *error)
   //Send Trolley interface command to stop data taking
   DeviceWriteMask(0x40000944,0x00000001,0x00000001);
 
-  NMROutFile.close();
+  if(write_root){
+    pt_norm->Write();
+
+    pf->Write();
+    pf->Close();
+  }
+
   return SUCCESS;
 }
 
@@ -325,18 +364,32 @@ INT interrupt_configure(INT cmd, INT source, POINTER_T adr)
 
 
 INT read_trly_event(char *pevent, INT off){
+  static unsigned int num_events = 0;
   WORD *pNMRdata;
   WORD *pBarcodedata;
   WORD *pMonitordata;
 
-
   //Check consistency
-/*  BarcodeError;
-  BCToNMROffset;
-  PressureSensorCal[7];
-  BarcodeRegisters[5];
-  TrlyRegisters[16];
-*/
+  /*  BarcodeError;
+      BCToNMROffset;
+      PressureSensorCal[7];
+      BarcodeRegisters[5];
+      TrlyRegisters[16];
+      */
+
+  if (write_root) {
+    TrlyNMRCurrent = TrlyNMRBuffer[0];
+    TrlyBarcodeCurrent = TrlyBarcodeBuffer[0];
+    TrlyMonitorCurrent = TrlyMonitorBuffer[0];
+    pt_norm->Fill();
+    num_events++;
+    if (num_events % 10 == 0) {
+      pt_norm->AutoSave("SaveSelf,FlushBaskets");
+      pf->Flush();
+      num_events = 0;
+    }
+  }
+
   //Init bank
   bk_init32(pevent);
 
@@ -517,13 +570,7 @@ void ReadFromDevice(){
     TrlyBarcodeBuffer.push_back(*TrlyBarcodeDataUnit);
     TrlyMonitorBuffer.push_back(*TrlyMonitorDataUnit);
     mlockdata.unlock();
-    //Text Output
-    if (NMROutFile.is_open()){
-      NMROutFile<<TrlyNMRDataUnit->gps_clock<<" "<<TrlyNMRDataUnit->probe_index<<" "<<TrlyNMRDataUnit->length<<endl;
-      for (int ii=0;ii<NSamNMR;i++){
-	NMROutFile<<TrlyNMRDataUnit->trace[ii]<<endl;
-      }
-    }
+
     delete TrlyNMRDataUnit;
     delete TrlyBarcodeDataUnit;
     delete TrlyMonitorDataUnit;
