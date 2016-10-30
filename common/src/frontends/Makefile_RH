@@ -48,14 +48,7 @@ CXX = g++
 
 # Make commands
 
-all: $(OBJECTS) $(TARGETS)
-
-build/%.o: obj/%.cxx obj/%.hh
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) -c $< -o $@
-
-bin/%: src/%.cxx $(MID_LIB)/mfe.o $(OBJECTS)
-	$(CXX) -o $@ $+ $(CPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
-	$(LIBS) $(ROOTLIBS)
+all: bin/gm2TrolleyFe bin/gm2TrolleyFeSim
 
 bin/gm2TrolleyFe: src/gm2TrolleyFe.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(CPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
