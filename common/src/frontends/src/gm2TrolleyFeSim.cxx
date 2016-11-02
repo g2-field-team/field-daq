@@ -32,7 +32,7 @@ $Id$
 #include "TTree.h"
 #include "TFile.h"
 
-#define FRONTEND_NAME "Trolley Interface Simulate" // Prefer capitalize with spaces
+#define FRONTEND_NAME "Sim Trolley Interface" // Prefer capitalize with spaces
 
 using namespace std;
 using namespace TrolleyInterface;
@@ -48,9 +48,9 @@ extern "C" {
   /*-- Globals -------------------------------------------------------*/
 
   /* The frontend name (client name) as seen by other MIDAS clients   */
-  char *frontend_name = (char *)FRONTEND_NAME;
+  const char *frontend_name = FRONTEND_NAME;
   /* The frontend file name, don't change it */
-  char *frontend_file_name = __FILE__;
+  const char *frontend_file_name = __FILE__;
 
   /* frontend_loop is called periodically if this variable is TRUE    */
   BOOL frontend_call_loop = FALSE;
@@ -89,7 +89,7 @@ extern "C" {
   EQUIPMENT equipment[] = {
 
 
-    {"TrolleyInterface",                /* equipment name */
+    {"TrolleyInterfaceSim",                /* equipment name */
       {1, 0,                   /* event ID, trigger mask */
 	"SYSTEM",               /* event buffer */
 	EQ_POLLED,            /* equipment type */
@@ -128,9 +128,9 @@ mutex mlock;
 mutex mlockdata;
 
 void ReadFromDevice();
-bool RunActive;
+BOOL RunActive;
 
-bool write_root = false;
+BOOL write_root = false;
 TFile *pf;
 TTree *pt_norm;
 
@@ -169,7 +169,6 @@ resume_run:     When a run is resumed. Should enable trigger events.
 INT frontend_init()
 { 
   //Connect to fake trolley interface
-  //const char * filename = "/home/rhong/gm2/g2-field-team/field-daq/resources/NMRDataTemp/data_NMR_61682000Hz_11.70dbm-2016-10-27_19-36-42.dat";
   const char * filename = "/home/newg2/Applications/field-daq/resources/NMRDataTemp/data_NMR_61682000Hz_11.70dbm-2016-10-27_19-36-42.dat";
   int err = FileOpen(filename); 
 
@@ -182,6 +181,7 @@ INT frontend_init()
     cm_msg(MERROR,"init","Trolley Interface connection failed. Error code: %d",err);
   }
 
+  //For simulation open the input file at begin_of_run
   return SUCCESS;
 }
 
@@ -189,6 +189,7 @@ INT frontend_init()
 
 INT frontend_exit()
 {
+
   //Disconnect from fake Trolley interface
   int err = FileClose();
   if (err==0){
@@ -224,7 +225,7 @@ INT begin_of_run(INT run_number, char *error)
   DataDir=string(str);
 
   //Root File Name
-  sprintf(str,"Root/TrolleyInterface_%05d.root",RunNumber);
+  sprintf(str,"Root/TrolleyInterfaceSim_%05d.root",RunNumber);
   string RootFileName = DataDir + string(str);
 
   if(write_root){
@@ -361,6 +362,8 @@ INT read_trly_event(char *pevent, INT off){
   WORD *pBarcodedata;
   WORD *pMonitordata;
 
+  INT BufferLoad;
+  INT BufferLoad_size = sizeof(BufferLoad);
 
   //Check consistency
 /*  BarcodeError;
@@ -371,9 +374,11 @@ INT read_trly_event(char *pevent, INT off){
 */
   //Root output
   if (write_root) {
+    mlockdata.lock();
     TrlyNMRCurrent = TrlyNMRBuffer[0];
     TrlyBarcodeCurrent = TrlyBarcodeBuffer[0];
     TrlyMonitorCurrent = TrlyMonitorBuffer[0];
+    mlockdata.unlock();
     pt_norm->Fill();
     num_events++;
     if (num_events % 10 == 0) {
@@ -405,8 +410,12 @@ INT read_trly_event(char *pevent, INT off){
   TrlyNMRBuffer.erase(TrlyNMRBuffer.begin());
   TrlyBarcodeBuffer.erase(TrlyBarcodeBuffer.begin());
   TrlyMonitorBuffer.erase(TrlyMonitorBuffer.begin());
+  //Check current size of the readout buffer
+  BufferLoad = TrlyNMRBuffer.size();
   mlockdata.unlock();
 
+  //update buffer load in odb
+  db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/Buffer Load",&BufferLoad,BufferLoad_size, 1 ,TID_INT); 
   return bk_size(pevent);
 }
 
@@ -416,14 +425,23 @@ void ReadFromDevice(){
   int FrameNumber = 0;
  
   //Monitor data will be synced to ODB
-  bool BarcodeError;
-  bool PowersupplyStatus[3];
-  bool TemperatureInterupt;
+  BOOL BarcodeError = TRUE;
+  BOOL PowersupplyStatus[3];
+  BOOL TemperatureInterupt = TRUE;
   unsigned short PressureSensorCal[7];
   unsigned int NMRCheckSum;
   unsigned int FrameCheckSum;
-  bool NMRCheckSumPassed;
-  bool FrameCheckSumPassed;
+  BOOL NMRCheckSumPassed = FALSE;
+  BOOL FrameCheckSumPassed = FALSE;
+  PowersupplyStatus[0] = FALSE;
+  PowersupplyStatus[1] = FALSE;
+  PowersupplyStatus[2] = FALSE;
+
+  BOOL BarcodeErrorOld;
+  BOOL TemperatureInteruptOld;
+  BOOL PowersupplyStatusOld[3];
+  BOOL NMRCheckSumPassedOld;
+  BOOL FrameCheckSumPassedOld;
 
   int FrameSize = 0;
   //Frame buffer
@@ -431,7 +449,7 @@ void ReadFromDevice(){
 
   int ReadThreadActive = 1;
   mlock.lock();
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+  db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
   mlock.unlock();
 
   //Read first frame and sync
@@ -439,8 +457,12 @@ void ReadFromDevice(){
   if (rc<0){
     ReadThreadActive = 0;
     mlock.lock();
-    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
-    cm_msg(MINFO,"ReadFromDevice","Reading error code %d",rc);
+    db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+      if (rc==errorEOF){
+	cm_msg(MERROR,"ReadFromDevice","End of fake file frontend");
+      }else{
+	cm_msg(MERROR,"ReadFromDevice","Fail from first reading, error code = %d",rc);
+      }
     mlock.unlock();
     return;
   }
@@ -451,7 +473,7 @@ void ReadFromDevice(){
   int i=0;
   while (1){
     //Check if the front-end is active
-    bool localRunActive;
+    BOOL localRunActive;
     mlock.lock();
     localRunActive = RunActive;
     mlock.unlock();
@@ -459,29 +481,30 @@ void ReadFromDevice(){
 
     //Read Frame
     rc = DataReceive((void *)Frame);
-    usleep(1000);
+    usleep(30000);
     if (rc<0){
       ReadThreadActive = 0;
       mlock.lock();
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+      db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+      if (rc==errorEOF){
+	cm_msg(MERROR,"ReadFromDevice","End of fake file frontend");
+      }else{
+	cm_msg(MERROR,"ReadFromDevice","Fail from regular reading, error code = %d",rc);
+      }
       mlock.unlock();
-      //Change to a gental warning
       return;
     }
     memcpy(&FrameNumber,&(Frame[9]),sizeof(int));
     memcpy(&FrameSize,&(Frame[7]),sizeof(int));
 
     mlock.lock();
-    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/DataFrameIndex",&FrameNumber,sizeof(FrameNumber), 1 ,TID_INT); 
+    db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/DataFrameIndex",&FrameNumber,sizeof(FrameNumber), 1 ,TID_INT); 
     mlock.unlock();
 
     if (FrameNumber!=(LastFrameNumber+1)){
-      ReadThreadActive = 0;
       mlock.lock();
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+      cm_msg(MERROR,"ReadFromDevice","Skipping frame at iteration %d",i);
       mlock.unlock();
-      //Change to a gental warning
-      return;
     }
     LastFrameNumber=FrameNumber;
 
@@ -497,12 +520,9 @@ void ReadFromDevice(){
     //Check if this is larger than the MAX
     if (NSamNMR>TRLY_NMR_LENGTH){
       NSamNMR = TRLY_NMR_LENGTH;
-      ReadThreadActive = 0;
       mlock.lock();
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+      cm_msg(MINFO,"ReadFromDevice","NMR sample overflow, length = %d",Frame[12]);
       mlock.unlock();
-      //Change to a gental warning
-      return;
     }
     for (unsigned short ii=0;ii<NSamNMR;ii++){
       TrlyNMRDataUnit->trace[ii] = (short)Frame[64+ii];
@@ -514,12 +534,9 @@ void ReadFromDevice(){
     //Check if this is larger than the MAX
     if (NSamBarcode>TRLY_BARCODE_LENGTH){
       NSamBarcode = TRLY_BARCODE_LENGTH;
-      ReadThreadActive = 0;
       mlock.lock();
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+      cm_msg(MINFO,"ReadFromDevice","Barcode sample overflow, length = %d",Frame[13]);
       mlock.unlock();
-      //Change to a gental warning
-      return;
     }
     for (unsigned short ii=0;ii<NSamBarcode;ii++){
       TrlyBarcodeDataUnit->traces[ii] = Frame[64+Frame[12]+ii];
@@ -530,6 +547,9 @@ void ReadFromDevice(){
     memcpy(&(TrlyMonitorDataUnit->PMonitorTemp),&(Frame[32]),sizeof(int));
     memcpy(&(TrlyMonitorDataUnit->RFPower1),&(Frame[60]),sizeof(int));
     memcpy(&(TrlyMonitorDataUnit->RFPower2),&(Frame[62]),sizeof(int));
+    //check sums are filled later
+    memcpy(&(TrlyMonitorDataUnit->FrameIndex),&(Frame[9]),sizeof(int));
+    TrlyMonitorDataUnit->StatusBits = (Frame[11]>>8);//Get rid of probe index by bit shift
     TrlyMonitorDataUnit->TMonitorIn = Frame[19];
     TrlyMonitorDataUnit->TMonitorExt1 = Frame[20];
     TrlyMonitorDataUnit->TMonitorExt2 = Frame[21];
@@ -547,16 +567,67 @@ void ReadFromDevice(){
     }
 
     //Data quality monitoring
-    BarcodeError = bool(0x100 & Frame[11]);
-    TemperatureInterupt = bool(0x200 & Frame[11]);
-    PowersupplyStatus[0] = bool(0x400 & Frame[11]);
-    PowersupplyStatus[1] = bool(0x800 & Frame[11]);
-    PowersupplyStatus[2] = bool(0x1000 & Frame[11]);
+    //keep previous conditions
+    BarcodeErrorOld = BarcodeError;
+    TemperatureInteruptOld = TemperatureInterupt;
+    PowersupplyStatusOld[0] = PowersupplyStatus[0];
+    PowersupplyStatusOld[1] = PowersupplyStatus[1];
+    PowersupplyStatusOld[2] = PowersupplyStatus[2];
+    NMRCheckSumPassedOld = NMRCheckSumPassed;
+    FrameCheckSumPassedOld = FrameCheckSumPassed;
+
+    //Get new monitor values
+    BarcodeError = BOOL(0x100 & Frame[11]);
+    TemperatureInterupt = !BOOL(0x200 & Frame[11]);//Low active
+    PowersupplyStatus[0] = BOOL(0x400 & Frame[11]);
+    PowersupplyStatus[1] = BOOL(0x800 & Frame[11]);
+    PowersupplyStatus[2] = BOOL(0x1000 & Frame[11]);
     memcpy(&(NMRCheckSum),&(Frame[46]),sizeof(int));
     memcpy(&(FrameCheckSum),&(Frame[64+NSamNMR+NSamBarcode+Frame[13]*2]),sizeof(int));
     for (short ii=0;ii<7;ii++){
-      PressureSensorCal[ii] = Frame[23+ii];;
+      PressureSensorCal[ii] = Frame[23+ii];
     }
+
+    //Set the pressure sensor calibration only once
+    if (i==0){
+      mlock.lock();
+      db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Hardware/Pressure Sensor Calibration",&PressureSensorCal,sizeof(PressureSensorCal), 7 ,TID_SHORT);
+      mlock.unlock();
+    }
+
+    //Checking sums
+    unsigned int sum1=0;
+    unsigned int sum2=0;
+    for (unsigned short ii=0;ii<Frame[12];ii++){
+      sum1+=(unsigned int)Frame[64+ii];
+    }
+    int NWords = FrameSize/2-2;
+    for (int ii=0;ii<NWords;ii++){
+      sum2+=(unsigned int)Frame[ii];
+    }
+    NMRCheckSumPassed = (sum1==NMRCheckSum);
+    FrameCheckSumPassed = (sum2==FrameCheckSum);
+    TrlyMonitorDataUnit->NMRCheckSum = NMRCheckSum;
+    TrlyMonitorDataUnit->FrameCheckSum = FrameCheckSum;
+    TrlyMonitorDataUnit->FrameSum = sum2;
+
+    //Update odb error monitors and sending messages
+    mlock.lock();
+    db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/Barcode Error",&BarcodeError,sizeof(BarcodeError), 1 ,TID_BOOL);
+    db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/Temperature Interupt",&TemperatureInterupt,sizeof(TemperatureInterupt), 1 ,TID_BOOL);
+    db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/Power Supply Status",&PowersupplyStatus,sizeof(PowersupplyStatus), 3 ,TID_BOOL);
+    db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/NMR Check Sum",&NMRCheckSumPassed,sizeof(NMRCheckSumPassed), 1 ,TID_BOOL);
+    db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/Frame Check Sum",&FrameCheckSumPassed,sizeof(FrameCheckSumPassed), 1 ,TID_BOOL);
+    if(BarcodeError && (!BarcodeErrorOld || i==0))cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Barcode reading error. At iteration %d",i);
+    if(TemperatureInterupt && (!TemperatureInteruptOld || i==0))cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Temperature interupt. At iteration %d",i);
+    if(!PowersupplyStatus[0] && (PowersupplyStatusOld[0]) || i==0 )cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Power supply error 1.At iteration %d",i);
+    if(!PowersupplyStatus[1] && (PowersupplyStatusOld[1] || i==0))cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Power supply error 2. At iteration %d",i);
+    if(!PowersupplyStatus[2] && (PowersupplyStatusOld[2]) || i==0)cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Power supply error 3. At iteration %d",i);
+    if(!NMRCheckSumPassed && (NMRCheckSumPassedOld || i==0))cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: NMR check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,NMRCheckSum,NMRCheckSum-sum1);
+    if(!FrameCheckSumPassed && (FrameCheckSumPassedOld || i==0))cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Frame check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,FrameCheckSum,FrameCheckSum-sum2);
+    //if(!NMRCheckSumPassed )cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: NMR check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,NMRCheckSum,NMRCheckSum-sum1);
+    //if(!FrameCheckSumPassed )cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Frame check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,FrameCheckSum,FrameCheckSum-sum2);
+    mlock.unlock();
 
     //Push to buffer
     mlockdata.lock();
@@ -572,7 +643,7 @@ void ReadFromDevice(){
   }
   ReadThreadActive = 0;
   mlock.lock();
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+  db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
   mlock.unlock();
   delete []Frame;
 }
