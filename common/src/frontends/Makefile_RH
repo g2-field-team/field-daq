@@ -31,7 +31,8 @@ LIBS += -lmidas-shared  -lmysqlclient -lsqlite3
 LIBS += -lboost_system -lboost_filesystem
 LIBS += -lm -lz -lpthread -lodbc -lrt
 LIBS += -lgclib -lgclibo
-LIBS += -ltrolleyinterface -lg2fieldvme -lfid
+#LIBS += -lTrolleyInterface -lg2fieldvme -lfid
+LIBS += -ltrolleyinterface
 CPPFLAGS += -I$(MID_INC) -Icore/include -Iobj -Iinclude -I/usr/include
 CPPFLAGS += -I$(BOOST_INC) -I$(shell echo $(ZMQ_INCLUDE_DIR))
 CPPFLAGS += -I/usr/local/include/ -I/usr/local/include/g2field
@@ -46,12 +47,13 @@ CXX = g++
 
 # Make commands
 
-all: $(OBJECTS) $(TARGETS)
+all: bin/gm2TrolleyFe bin/gm2TrolleyFeSim
 
-build/%.o: obj/%.cxx obj/%.hh
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) -c $< -o $@
+bin/gm2TrolleyFe: src/gm2TrolleyFe.cxx $(MID_LIB)/mfe.o
+	$(CXX) -o $@ $+ $(CPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
+	$(LIBS) $(ROOTLIBS)
 
-bin/%: src/%.cxx $(MID_LIB)/mfe.o $(OBJECTS)
+bin/gm2TrolleyFeSim: src/gm2TrolleyFeSim.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(CPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	$(LIBS) $(ROOTLIBS)
 

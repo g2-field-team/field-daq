@@ -1,0 +1,26 @@
+#!/bin/bash
+# Store some useful experiment specific variables that are used by
+# scripts in one place
+
+export EXPT='field-daq'
+export EXPT_IP='daq-sandbox'
+export EXPT_DIR='/home/matthias/Workspace/field-daq/'
+export MSERVER_PORT='7070'
+export MHTTPD_PORT='8080'
+
+export EXT_IP=(
+)
+
+export MIDAS_UTIL=(
+    'mhttpd'
+    'mlogger'
+)
+
+export EXPT_FE=(
+    'fixed_probes'
+)
+
+export EXPT_AN=(
+)
+
+# end script
