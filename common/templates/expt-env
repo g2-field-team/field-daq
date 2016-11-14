@@ -2,24 +2,28 @@
 # Store some useful experiment specific variables that are used by
 # scripts in one place
 
-export EXPT='field-daq'
-export EXPT_IP='daq-sandbox'
-export EXPT_DIR='/home/matthias/Workspace/field-daq/'
-export MSERVER_PORT='7070'
-export MHTTPD_PORT='8080'
+export EXPT='field-daq' # Current experiment
+export EXPT_IP='daq-sandbox' # Current experiment hostname/IP
+export EXPT_DIR='/home/matthias/Workspace/field-daq/' # Base directory
+export MSERVER_PORT='7070' # Port to run mserver through
+export MHTTPD_PORT='8080'  # Main access point for MIDAS webpage
 
-export EXT_IP=(
+# This defines an array of IP/hostnames to whitelist on mhttpd.
+export EXT_IP=( 
 )
 
+# Choose which MIDAS utilities start by default.
 export MIDAS_UTIL=(
     'mhttpd'
     'mlogger'
 )
 
+# Choose which front-ends to launch.
 export EXPT_FE=(
     'fixed_probes'
 )
 
+# Choose midas analyzers to launch.
 export EXPT_AN=(
 )
 
