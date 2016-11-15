@@ -3,7 +3,7 @@
 #define DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else
 
 const char taskName[] = "";
-TaskHandle *taskHandle = 0;
+TaskHandle taskHandle = 0;
 int32 createTask = DAQmxCreateTask (taskName[], &taskHandle);
 
 //create voltage channels
