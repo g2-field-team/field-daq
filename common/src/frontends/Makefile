@@ -56,5 +56,29 @@ bin/%: src/%.cxx $(MID_LIB)/mfe.o $(OBJECTS)
 	$(LIBS) $(ROOTLIBS)
 	ln -s $(shell pwd)/$@ ../../bin/
 
+#-------------------------------------------------------------------
+#Hear belongs to Ran Hong
+RHLIBS += -L$(MID_LIB) -Lcore/lib -L/usr/lib64/mysql -L/usr/local/lib 
+RHLIBS += -L/usr/lib -L$(BOOST_LIB)
+RHLIBS += -lmidas-shared  -lmysqlclient -lsqlite3
+RHLIBS += -lboost_system -lboost_filesystem
+RHLIBS += -lm -lz -lpthread -lodbc -lrt
+RHLIBS += -lgclib -lgclibo -ltrolleyinterface
+RHCPPFLAGS = -fpermissive -O2
+RHCPPFLAGS += -I$(MID_INC) -Icore/include -Iinclude -I/usr/include
+RHCPPFLAGS += -I$(BOOST_INC) -I$(shell echo $(ZMQ_INCLUDE_DIR))
+RHCPPFLAGS += -I/usr/local/include/ -I/usr/local/include/g2field
+RHCPPFLAGS += -Wl,-rpath,/usr/local/lib
+
+allRH: bin/gm2TrolleyFe bin/gm2TrolleyFeSim
+bin/gm2TrolleyFe: src/gm2TrolleyFe.cxx $(MID_LIB)/mfe.o
+	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
+	        $(RHLIBS) $(ROOTLIBS)
+
+bin/gm2TrolleyFeSim: src/gm2TrolleyFeSim.cxx $(MID_LIB)/mfe.o
+	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
+	$(RHLIBS) $(ROOTLIBS)
+
+#-------------------------------------------------------------------
 clean:
 	rm -f *~ $(TARGETS) $(OBJECTS)
