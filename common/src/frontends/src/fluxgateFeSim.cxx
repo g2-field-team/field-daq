@@ -139,7 +139,8 @@ float64 maxVolDC = 10.0;
 INT frontend_init() 
 {
   // this is where it should connect to the DAQ
-  DAQmxErrChk (DAQmxCreateTask("",&taskHandle));
+  //DAQmxErrChk (DAQmxCreateTask("",&taskHandle));
+  cm_msg(MERROR,"frontend_init","DAQ task created");
   
   // DAQmxCreateTask("",&taskHandle);
   // DAQmxCreateAIVoltageChan(taskHandle, "Dev1/ai0", "Voltage", DAQmx_Val_Cfg_Default, -10.0, 10.0, DAQmx_Val_Volts, NULL);
@@ -175,12 +176,15 @@ INT begin_of_run(INT run_number, char *error)
   
   //setup channel and timing parameters
   //create DC channels
-  DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle,physicalChannelDC[],"",DAQmx_Val_RSE,minVolDC,maxVolDC,DAQmx_Val_Volts,NULL));
+  //DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle,physicalChannelDC[],"",DAQmx_Val_RSE,minVolDC,maxVolDC,DAQmx_Val_Volts,NULL));
+  cm_msg(MERROR,"begin_of_run","DAQ AI voltage channels created");
   //create AC channels
   //setup timing
-  DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,"",rate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,sampsPerChanToAcquire));
+  //DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,"",rate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,sampsPerChanToAcquire));
+  cm_msg(MERROR,"begin_of_run","DAQ timing parameters set");
   //start task
-  DAQmxErrChk (DAQmxStartTask(taskHandle));
+  //DAQmxErrChk (DAQmxStartTask(taskHandle));
+  cm_msg(MERROR,"begin_of_run","DAQ task began");
 
   return SUCCESS;
 }
@@ -189,7 +193,8 @@ INT begin_of_run(INT run_number, char *error)
 INT end_of_run(INT run_number, char *error)
 {
   //stop task
-  DAQmxStopTask(taskHandle);
+  //DAQmxStopTask(taskHandle);
+  cm_msg(MERROR,"end_of_run","DAQ task stopped");
   return SUCCESS;
 }
 

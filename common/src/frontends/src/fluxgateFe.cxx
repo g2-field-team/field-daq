@@ -35,7 +35,7 @@ using std::string;
 // @EXAMPLE BEGIN
 #define FRONTEND_NAME "Fluxgate Frontend" // Prefer capitalize with spaces
 const char * const bank_name = "FLUX"; // 4 letters, try to make sensible
-#define DAQmxErrChk(functionCall) if( DAQmxFailed(error=(functionCall)) ) goto Error; else // Error checking for NI DAQmx
+#define DAQMXERRCHECK(functionCall) error=(functionCall); // Error checking for NI DAQmx
 
 // Any structs need to be defined. NEED TO ALTER FOR FLUXGATE
 BANK_LIST trigger_bank_list[] = {
@@ -123,26 +123,37 @@ long long next_event;
 int32 error=0;
 TaskHandle taskHandle=0;
 int32 read;
-float64 data[1000];
 char errBuff[2048]={'\0'};
+int32 numChannels = 12;
 //--- Channel Parameters ----------------------------------------------------//
 //--- Timing Parameters -----------------------------------------------------//
 float64 rate = 8000.0;
-uInt64 sampsPerChanToAcquire = 480000;
-//--- Non-AC Coupled Channels -----------------------------------------------//
+float64 aqTime = 60.0; //time to acquire in seconds
+uInt64 sampsPerChanToAcquire = static_cast<uInt64>(rate*aqTime);
+size_t dataSize = static_cast<size_t>(sampsPerChanToAcquire*numChannels)
+std::vector<float64> data(dataSize);
+//--- DC Coupled Channels ---------------------------------------------------//
 const char physicalChannelDC[] = "Dev1/ai0:11"; //creates AI channels 0-11
 float64 minVolDC = -10.0;
 float64 maxVolDC = 10.0;
+//--- AC Coupled Channels ---------------------------------------------------//
 }
 
 //--- Frontend Init ---------------------------------------------------------//
 INT frontend_init() 
 {
   // this is where it should connect to the DAQ
-  DAQmxErrChk (DAQmxCreateTask("",&taskHandle));
+  DAQMXERRCHECK(DAQmxCreateTask("",&taskHandle));
+  
   
   // DAQmxCreateTask("",&taskHandle);
   // DAQmxCreateAIVoltageChan(taskHandle, "Dev1/ai0", "Voltage", DAQmx_Val_Cfg_Default, -10.0, 10.0, DAQmx_Val_Volts, NULL);
+  
+  if( DAQmxFailed(error) ) {
+	  DAQmxGetExtendedErrorInfo(errBuff,2048);
+	  cm_msg(MERROR,"frontend_init",errBuff);
+  } else {cm_msg(MERROR,"frontend_init","DAQ task created");}
+  
   return SUCCESS;
 }
 
@@ -175,12 +186,15 @@ INT begin_of_run(INT run_number, char *error)
   
   //setup channel and timing parameters
   //create DC channels
-  DAQmxErrChk (DAQmxCreateAIVoltageChan(taskHandle,physicalChannelDC[],"",DAQmx_Val_RSE,minVolDC,maxVolDC,DAQmx_Val_Volts,NULL));
+  DAQMXERRCHECK (DAQmxCreateAIVoltageChan(taskHandle,physicalChannelDC[],"",DAQmx_Val_RSE,minVolDC,maxVolDC,DAQmx_Val_Volts,NULL));
+  cm_msg(MERROR,"begin_of_run","DAQ AI voltage channels created");
   //create AC channels
   //setup timing
-  DAQmxErrChk (DAQmxCfgSampClkTiming(taskHandle,"",rate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,sampsPerChanToAcquire));
+  DAQMXERRCHECK (DAQmxCfgSampClkTiming(taskHandle,"",rate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,sampsPerChanToAcquire));
+  cm_msg(MERROR,"begin_of_run","DAQ timing parameters set");
   //start task
-  DAQmxErrChk (DAQmxStartTask(taskHandle));
+  DAQMXERRCHECK (DAQmxStartTask(taskHandle));
+  cm_msg(MERROR,"begin_of_run","DAQ task began");
 
   return SUCCESS;
 }
@@ -189,7 +203,8 @@ INT begin_of_run(INT run_number, char *error)
 INT end_of_run(INT run_number, char *error)
 {
   //stop task
-  DAQmxStopTask(taskHandle);
+  //DAQmxStopTask(taskHandle);
+  cm_msg(MERROR,"end_of_run","DAQ task stopped");
   return SUCCESS;
 }
 
