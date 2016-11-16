@@ -6,7 +6,7 @@ Email:  aetb@umich.edu
 
 About:  Addresses NI PCIe daq card, reads multiple channels of data, performs simple manipulations on the data, saves a SQL header, and .mid file.
 
-To do: Alter make file to include NI driver header, alter field_structs.hh to include fluxgate structures, find SQL database management
+To do: find SQL database management
         
 \*****************************************************************************/
 
@@ -28,7 +28,8 @@ using std::string;
 
 //--- project includes ------------------------------------------------------//
 #include "frontend_utils.hh"
-#include "field_structs.hh" //need to add fluxgate data structure
+#include "field_structs.hh
+#include "field_constants.hh"
 
 //--- globals ---------------------------------------------------------------//
 
@@ -48,25 +49,18 @@ extern "C" {
   
   // The frontend name (client name) as seen by other MIDAS clients
   char *frontend_name = (char*)FRONTEND_NAME;
-
   // The frontend file name, don't change it.
   char *frontend_file_name = (char*)__FILE__;
-  
   // frontend_loop is called periodically if this variable is TRUE
   BOOL frontend_call_loop = FALSE;
-  
   // A frontend status page is displayed with this frequency in ms.
   INT display_period = 1000;
-  
   // maximum event size produced by this frontend
   INT max_event_size = 0x8000; // 32 kB @EXAMPLE - adjust if neeeded
-
   // maximum event size for fragmented events (EQ_FRAGMENTED)
   INT max_event_size_frag = 0x800000; // DEPRECATED
-  
   // buffer size to hold events
   INT event_buffer_size = 0x800000;
-  
   // Function declarations
   INT frontend_init();
   INT frontend_exit();
@@ -74,10 +68,9 @@ extern "C" {
   INT end_of_run(INT run_number, char *error);
   INT pause_run(INT run_number, char *error);
   INT resume_run(INT run_number, char *error);
-
   INT frontend_loop();
-  INT read_event(char *pevent, INT off); //renamed from read_trigger_event
-  INT poll_event(INT source, INT count, BOOL test); //do I actually need this?
+  INT read_fluxgate_event(char *pevent, INT off);
+  INT poll_event(INT source, INT count, BOOL test);
   INT interrupt_configure(INT cmd, INT source, PTYPE adr);
 
   // Equipment list for fluxgate, changed from POLLED to PERIODIC
@@ -98,7 +91,7 @@ extern "C" {
          1,             // don't log history 
          "", "", "",
        },
-       read_event,      // readout routine 
+       read_fluxgate_event,      // readout routine 
        NULL,
        NULL,
        NULL, 
@@ -124,11 +117,11 @@ int32 error=0;
 TaskHandle taskHandle=0;
 int32 read;
 char errBuff[2048]={'\0'};
-int32 numChannels = 12;
+int32 numChannels = FLUX_NUM_CHANNELS;
 //--- Channel Parameters ----------------------------------------------------//
 //--- Timing Parameters -----------------------------------------------------//
-float64 rate = 8000.0;
-float64 aqTime = 60.0; //time to acquire in seconds
+float64 rate = FLUX_RATE;
+float64 aqTime = FLUX_TRACE_PERIOD; //time to acquire in seconds
 uInt64 sampsPerChanToAcquire = static_cast<uInt64>(rate*aqTime);
 size_t dataSize = static_cast<size_t>(sampsPerChanToAcquire*numChannels)
 std::vector<float64> data(dataSize);
@@ -203,7 +196,7 @@ INT begin_of_run(INT run_number, char *error)
 INT end_of_run(INT run_number, char *error)
 {
   //stop task
-  //DAQmxStopTask(taskHandle);
+  DAQmxStopTask(taskHandle);
   cm_msg(MERROR,"end_of_run","DAQ task stopped");
   return SUCCESS;
 }
@@ -284,32 +277,33 @@ INT interrupt_configure(INT cmd, INT source, PTYPE adr)
 
 //--- Event readout -------------------------------------------------*/
 
-INT read_event(char *pevent, INT off)
+INT read_fluxgate_event(char *pevent, INT off)
 {
   BYTE *pdata;
-  g2::point_t point;
+  WORD *pfluxdata
 
-  // And MIDAS output.
-  bk_init32(pevent);
+  
 
   // Let MIDAS allocate the struct.
   bk_create(pevent, bank_name, TID_BYTE, &pdata);
 
   // Grab a timestamp.
-  last_event = steadyclock_us();
+  //last_event = steadyclock_us();
 
   // Fill the struct.
-  point.timestamp = last_event;
-  point.x = (double)rand() / RAND_MAX * (point_max - point_min) + point_min;
-  point.y = (double)rand() / RAND_MAX * (point_max - point_min) + point_min;
-  point.z = (double)rand() / RAND_MAX * (point_max - point_min) + point_min;
+  //point.timestamp = last_event;
+  //point.x = (double)rand() / RAND_MAX * (point_max - point_min) + point_min;
+  //point.y = (double)rand() / RAND_MAX * (point_max - point_min) + point_min;
+  //point.z = (double)rand() / RAND_MAX * (point_max - point_min) + point_min;
 
-  // Copy the struct
-  memcpy(pdata, &point.timestamp, sizeof(point));
-  pdata += sizeof(point);
-
-  // Need to increment pointer and close.
+  // And MIDAS output.
+  bk_init32(pevent);
+  // Copy the fluxgate data.
+  bk_create(pevent, bank_name, TID_WORD, &pfluxdata);
+  memcpy(pfluxdata, &data, sizeof(data));
+  pdata += sizeof(data) / sizeof(WORD);
   bk_close(pevent, pdata);
+  
 
   return bk_size(pevent);
 }
