@@ -8,3 +8,13 @@ else
     echo -e "\e[31mAdding devtoolset to PATH\e[0m"
     echo -e "\nexport PATH=/opt/rh/devtoolset-2/root/usr/bin:\$PATH\n" >> ~/.bashrc
 fi
+
+echo -e "\e[31mAdding UPS init file to bashrc.\e[0m"
+
+if [ "$(grep 'upsrc' ~/.bashrc)" ]; then
+    echo -e "\e[31mUPS init script already being sourced\e[0m"
+else
+    echo -e "\e[31mCopying UPS init script and adding source call\e[0m"
+    cp ../src/upsrc ~/.upsrc
+    echo -e "\n# Setup UPS packages\n. .upsrc" >> ~/.bashrc
+fi

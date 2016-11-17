@@ -54,7 +54,7 @@ build/%.o: obj/%.cxx obj/%.hh
 bin/%: src/%.cxx $(MID_LIB)/mfe.o $(OBJECTS)
 	$(CXX) -o $@ $+ $(CPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	$(LIBS) $(ROOTLIBS)
-	ln -s $(shell pwd)/$@ ../../bin/
+	ln -sf $(shell pwd)/$@ ../../bin/
 
 #-------------------------------------------------------------------
 #Hear belongs to Ran Hong
