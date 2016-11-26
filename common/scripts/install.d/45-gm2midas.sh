@@ -6,7 +6,7 @@ echo -e "\n\e[31mInstalling MIDAS/ROME\e[0m"
 
 if [ ! -e "~/.midas-env" ]; then
     echo -e "\e[31mCopying MIDAS environment variables file.\e[0m"
-    cp ../midas-env ~/.midas-env
+    cp ../src/midas-env ~/.midas-env
 fi
 
 if [ "$(grep midas-env ~/.bashrc)" ]; then
