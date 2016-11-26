@@ -70,7 +70,7 @@ RHCPPFLAGS += -I$(BOOST_INC) -I$(shell echo $(ZMQ_INCLUDE_DIR))
 RHCPPFLAGS += -I/usr/local/include/ -I/usr/local/include/g2field
 RHCPPFLAGS += -Wl,-rpath,/usr/local/lib
 
-allRH: bin/gm2TrolleyFe bin/gm2TrolleyFeSim
+allRH: bin/gm2TrolleyFe bin/gm2TrolleyFeSim bin/gm2GalilFe
 bin/gm2TrolleyFe: src/gm2TrolleyFe.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	        $(RHLIBS) $(ROOTLIBS)
@@ -78,6 +78,10 @@ bin/gm2TrolleyFe: src/gm2TrolleyFe.cxx $(MID_LIB)/mfe.o
 bin/gm2TrolleyFeSim: src/gm2TrolleyFeSim.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	$(RHLIBS) $(ROOTLIBS)
+
+bin/gm2GalilFe: src/gm2GalilFe.cxx $(MID_LIB)/mfe.o
+	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
+	        $(RHLIBS) $(ROOTLIBS)
 
 #-------------------------------------------------------------------
 clean:

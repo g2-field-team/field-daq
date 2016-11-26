@@ -118,11 +118,6 @@ typedef struct GalilDataStruct{
   INT OutputVArray[3];
 }GalilDataStruct;
 
-typedef struct BarcodeDataStruct{
-  double TimeStamp;
-  double BarcodeArray[6];
-}BarcodeDataStruct;
-
 typedef struct GalilDataStructD{
   double TensionArray[2];
   double VelocityArray[3];
@@ -131,7 +126,6 @@ typedef struct GalilDataStructD{
 }GalilDataStructD;
 
 vector<GalilDataStruct> GalilDataBuffer;
-vector<BarcodeDataStruct> BarcodeDataBuffer;
 
 thread read_thread;
 mutex mlock;
@@ -213,9 +207,9 @@ INT begin_of_run(INT run_number, char *error)
   cm_get_experiment_database(&hDB, NULL);
   db_get_value(hDB,0,"/Runinfo/Run number",&RunNumber,&RunNumber_size,TID_INT, 0);
   char filename[1000];
-  sprintf(filename,"/home/rhong/gm2/g2-field-team/field-daq/resources/GalilTextOut/GalilOutput%04d.txt",RunNumber);
+  sprintf(filename,"/home/newg2/Applications/field-daq/resources/GalilTextOut/GalilOutput%04d.txt",RunNumber);
   GalilOutFile.open(filename,ios::out);
-  sprintf(filename,"/home/rhong/gm2/g2-field-team/field-daq/resources/GalilTextOut/DirectGalilOutput%04d.txt",RunNumber);
+  sprintf(filename,"/home/newg2/Applications/field-daq/resources/GalilTextOut/DirectGalilOutput%04d.txt",RunNumber);
   GalilOutFileDirect.open(filename,ios::out);
   
   //Load script
@@ -223,7 +217,7 @@ INT begin_of_run(INT run_number, char *error)
   char ScriptName[500];
   INT ScriptName_size = sizeof(ScriptName);
   db_get_value(hDB,0,"/Equipment/Galil/Settings/CmdScript",ScriptName,&ScriptName_size,TID_STRING,0);
-  string FullScriptName = string("/home/rhong/gm2/g2-field-team/field-daq/resources/GalilMotionScripts/")+string(ScriptName)+string(".dmc");
+  string FullScriptName = string("/home/newg2/Applications/field-daq/resources/GalilMotionScripts/")+string(ScriptName)+string(".dmc");
 //  cout <<"Galil Script to load: " << FullScriptName<<endl;
   cm_msg(MINFO,"begin_of_run","Galil Script to load: %s",FullScriptName.c_str());
 //Get ReadGroupSize from odb
@@ -248,7 +242,6 @@ INT begin_of_run(INT run_number, char *error)
 /*-- End of Run ----------------------------------------------------*/
 
 INT end_of_run(INT run_number, char *error)
-
 {
   mlock.lock();
   GCmd(g,"AB");
@@ -323,8 +316,8 @@ INT poll_event(INT source, INT count, BOOL test)
   }
 
   mlock.lock();
-  bool check = (GalilDataBuffer.size()>ReadGroupSize) && (BarcodeDataBuffer.size()>ReadGroupSize);
-//  cout <<"poll "<<GalilDataBuffer.size()<<" "<<int(check)<<endl;
+  bool check = (GalilDataBuffer.size()>ReadGroupSize);
+  if (check)cout <<"poll "<<GalilDataBuffer.size()<<" "<<int(check)<<endl;
   mlock.unlock();
   if (check)return 1;
   else return 0;
@@ -380,19 +373,6 @@ INT read_galil_event(char *pevent, INT off){
   mlock.unlock();
   bk_close(pevent,pdata);
 
-  //Write barcode data to banks
-//  bk_create(pevent, "BARC", TID_DOUBLE, (void **)&pdatab);
-  mlock.lock();
-/*  for (int i=0;i<ReadGroupSize;i++){
-    *pdatab++ = BarcodeDataBuffer[i].TimeStamp;
-    for (int j=0;j<6;j++){
-      *pdatab++ = BarcodeDataBuffer[i].BarcodeArray[j];
-    }
-  }*/
-  BarcodeDataBuffer.erase(BarcodeDataBuffer.begin(),BarcodeDataBuffer.begin()+ReadGroupSize);
-  mlock.unlock();
-//  bk_close(pevent,pdatab);
-
   return bk_size(pevent);
 }
 
@@ -426,11 +406,13 @@ void GetGalilMessage(const GCon &g){
     mlock.lock();
     rc = GMessage(g, buffer, sizeof(buffer));
     mlock.unlock();
-//    ftime(&currenttime);
-//    double time = (currenttime.time-starttime.time)*1000 + (currenttime.millitm - starttime.millitm);
-//    cout<<buffer<<endl;
+    //if time out, sleep so that other threads are not blocked
+    if (rc==-1100)sleep(1);
+    //    ftime(&currenttime);
+    //    double time = (currenttime.time-starttime.time)*1000 + (currenttime.millitm - starttime.millitm);
+    //cout<<buffer<<endl;
 
-//    GalilOutFileDirect<<buffer;
+    //    GalilOutFileDirect<<buffer;
     string BufString = string(buffer);
     //Add the residual from last read
     if (ResidualString.size()!=0)BufString = ResidualString+BufString;
@@ -440,10 +422,8 @@ void GetGalilMessage(const GCon &g){
     //  static  bool flag = false;
 
     int iGalil = 0;
-    int iBarcode = 0;
     GalilDataStruct GalilDataUnit;
     GalilDataStructD GalilDataUnitD;
-    BarcodeDataStruct BarcodeDataUnit;
 
     jj=0;
     while (foundnewline!=string::npos){
@@ -451,7 +431,7 @@ void GetGalilMessage(const GCon &g){
       // output returned by Galil is stored in the following variables
 
       iss >> Device;
-      if(Device.compare("Trolley")==0){
+      if(Device.compare("Galil")==0){
 	//iss >> GalilDataUnit.TimeStamp;
 	iss >> Time;
 	if (i==0 && jj==0)Time0=Time;
@@ -490,26 +470,21 @@ void GetGalilMessage(const GCon &g){
 	iGalil++;
 	//Write to txt output
 	GalilOutFile<<"Trolley "<<int(Time)<<" "<<GalilDataUnit.TensionArray[0]<<" "<<GalilDataUnit.TensionArray[1]<<" "<<GalilDataUnit.PositionArray[0]<<" "<<GalilDataUnit.PositionArray[1]<<" "<<GalilDataUnit.VelocityArray[0]<<" "<<GalilDataUnit.VelocityArray[1]<<" "<<GalilDataUnit.OutputVArray[0]<<" "<<GalilDataUnit.OutputVArray[1]<<endl;
-      }else if(Device.compare("Barcode")==0){
-	iss >> BarcodeDataUnit.TimeStamp;
-	for (int j=0;j<6;j++){
-	  iss >> BarcodeDataUnit.BarcodeArray[j];
-	}
-	mlock.lock();
-	BarcodeDataBuffer.push_back(BarcodeDataUnit);
-	mlock.unlock();
-	iBarcode++;
-	//Write to txt output
-	GalilOutFile<<"Barcode "<<int(Time)<<" "<<BarcodeDataUnit.BarcodeArray[0]<<" "<<BarcodeDataUnit.BarcodeArray[1]<<" "<<BarcodeDataUnit.BarcodeArray[2]<<" "<<BarcodeDataUnit.BarcodeArray[3]<<" "<<BarcodeDataUnit.BarcodeArray[4]<<" "<<BarcodeDataUnit.BarcodeArray[5]<<endl;
       }
 
       BufString = BufString.substr(foundnewline+1,string::npos);
       foundnewline = BufString.find("\n");
       jj++;
     }
+    //Monitors
+    mlock.lock();
     db_set_value(hDB,0,"/Equipment/Galil/Monitor/MotorPositions",&GalilDataUnitD.PositionArray,sizeof(GalilDataUnitD.PositionArray), 3 ,TID_DOUBLE); 
     db_set_value(hDB,0,"/Equipment/Galil/Monitor/MotorVelocities",&GalilDataUnitD.VelocityArray,sizeof(GalilDataUnitD.VelocityArray), 3 ,TID_DOUBLE); 
     db_set_value(hDB,0,"/Equipment/Galil/Monitor/Tensions",&GalilDataUnitD.TensionArray,sizeof(GalilDataUnitD.TensionArray), 2 ,TID_DOUBLE); 
+    //Monitor the buffer load
+    INT BufferLoad = GalilDataBuffer.size();
+    db_set_value(hDB,0,"/Equipment/Galil/Monitor/BufferLoad",&BufferLoad,sizeof(BufferLoad), 1 ,TID_INT); 
+    mlock.unlock();
     if (BufString.size()!=0){
       //  GalilOutFile << "Remaining string: ";
       ResidualString = BufString;

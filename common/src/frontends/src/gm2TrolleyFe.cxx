@@ -182,6 +182,10 @@ INT frontend_init()
   }
   //Send Trolley interface command to stop data taking
   DeviceWriteMask(0x40000944,0x00000001,0x00000001);
+  //Configure command
+  DeviceWrite(0x40000404,0x0039);
+  //Configure power
+  DeviceWrite(0x4000047C,0x0004);
 
   return SUCCESS;
 }
@@ -256,6 +260,11 @@ INT begin_of_run(INT run_number, char *error)
   //Send Trolley interface command to start data taking
   DevicePurgeData();
   DeviceWriteMask(0x40000944,0x00000001,0x00000000);
+  //Turn on LED, V=1V
+  DeviceWrite(0x40000470,410);
+  DeviceWriteMask(0x40000404,0x00000100,0x00000100);
+  sleep(1);
+  DeviceWriteMask(0x40000404,0x00000100,0x00000000);
 
   //Start reading thread
   RunActive=true;
@@ -279,6 +288,11 @@ INT end_of_run(INT run_number, char *error)
   TrlyMonitorBuffer.clear();
   cm_msg(MINFO,"exit","Data buffer is emptied before exit.");
 
+  //Turn off LED
+  DeviceWrite(0x40000470,1024);
+  DeviceWriteMask(0x40000404,0x00000100,0x00000100);
+  sleep(1);
+  DeviceWriteMask(0x40000404,0x00000100,0x00000000);
   //Send Trolley interface command to stop data taking
   DeviceWriteMask(0x40000944,0x00000001,0x00000001);
 
@@ -607,6 +621,9 @@ void ReadFromDevice(){
     for (int ii=0;ii<NWords;ii++){
       sum2+=(unsigned int)Frame[ii];
     }
+    //Correction for 0x7FFF
+    sum2+=0x7FFF;
+    //////////////////////
     NMRCheckSumPassed = (sum1==NMRCheckSum);
     FrameCheckSumPassed = (sum2==FrameCheckSum);
     TrlyMonitorDataUnit->NMRCheckSum = NMRCheckSum;
