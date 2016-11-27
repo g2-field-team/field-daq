@@ -132,7 +132,7 @@ mutex mlock;
 
 void GetGalilMessage(const GCon &g);
 bool RunActive;
-int ReadGroupSize = 50;
+int GALILREADGROUPSIZE = 50;
 
 GCon g = 0; //var used to refer to a unique connection. A valid connection is nonzero.
 
@@ -220,11 +220,11 @@ INT begin_of_run(INT run_number, char *error)
   string FullScriptName = string("/home/newg2/Applications/field-daq/resources/GalilMotionScripts/")+string(ScriptName)+string(".dmc");
 //  cout <<"Galil Script to load: " << FullScriptName<<endl;
   cm_msg(MINFO,"begin_of_run","Galil Script to load: %s",FullScriptName.c_str());
-//Get ReadGroupSize from odb
-  INT ReadGroupSize_size = sizeof(ReadGroupSize);
-  db_get_value(hDB,0,"/Equipment/Galil/Settings/ReadGroupSize",&ReadGroupSize,&ReadGroupSize_size,TID_INT, 0);
-//  cout <<"ReadGroup size: " << ReadGroupSize<<endl;
-  cm_msg(MINFO,"begin_of_run","ReadGroup size: %d",ReadGroupSize);
+//Get GALILREADGROUPSIZE from odb
+  INT GALILREADGROUPSIZE_size = sizeof(GALILREADGROUPSIZE);
+  db_get_value(hDB,0,"/Equipment/Galil/Settings/GALILREADGROUPSIZE",&GALILREADGROUPSIZE,&GALILREADGROUPSIZE_size,TID_INT, 0);
+//  cout <<"ReadGroup size: " << GALILREADGROUPSIZE<<endl;
+  cm_msg(MINFO,"begin_of_run","ReadGroup size: %d",GALILREADGROUPSIZE);
 
   GProgramDownload(g,"",0); //to erase prevoius programs
   //dump the buffer
@@ -316,7 +316,7 @@ INT poll_event(INT source, INT count, BOOL test)
   }
 
   mlock.lock();
-  bool check = (GalilDataBuffer.size()>ReadGroupSize);
+  bool check = (GalilDataBuffer.size()>GALILREADGROUPSIZE);
   if (check)cout <<"poll "<<GalilDataBuffer.size()<<" "<<int(check)<<endl;
   mlock.unlock();
   if (check)return 1;
@@ -354,7 +354,7 @@ INT read_galil_event(char *pevent, INT off){
   bk_create(pevent, "GALI", TID_DWORD, (void **)&pdata);
   
   mlock.lock();
-  for (int i=0;i<ReadGroupSize;i++){
+  for (int i=0;i<GALILREADGROUPSIZE;i++){
     *pdata++ = GalilDataBuffer[i].TimeStamp;
     for (int j=0;j<2;j++){
       *pdata++ = GalilDataBuffer[i].TensionArray[j];
@@ -369,7 +369,7 @@ INT read_galil_event(char *pevent, INT off){
       *pdata++ = GalilDataBuffer[i].OutputVArray[j];
     }
   }
-  GalilDataBuffer.erase(GalilDataBuffer.begin(),GalilDataBuffer.begin()+ReadGroupSize);
+  GalilDataBuffer.erase(GalilDataBuffer.begin(),GalilDataBuffer.begin()+GALILREADGROUPSIZE);
   mlock.unlock();
   bk_close(pevent,pdata);
 
@@ -379,7 +379,7 @@ INT read_galil_event(char *pevent, INT off){
 //GetGalilMessage
 void GetGalilMessage(const GCon &g){
   int ReadThreadActive = 1;
-  db_set_value(hDB,0,"/Equipment/Galil/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+  db_set_value(hDB,0,"/Equipment/Galil/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
   char buffer[5000000];
   hkeyclient=0;
   string Device;
@@ -396,7 +396,7 @@ void GetGalilMessage(const GCon &g){
   int jj=0;
   double Time,Time0;
   while (1){
-    db_set_value(hDB,0,"/Equipment/Galil/Monitor/ReadLoopIndex",&i,sizeof(i), 1 ,TID_INT); 
+    db_set_value(hDB,0,"/Equipment/Galil/Monitor/Read Loop Index",&i,sizeof(i), 1 ,TID_INT); 
     bool localRunActive;
     mlock.lock();
     localRunActive = RunActive;
@@ -478,8 +478,8 @@ void GetGalilMessage(const GCon &g){
     }
     //Monitors
     mlock.lock();
-    db_set_value(hDB,0,"/Equipment/Galil/Monitor/MotorPositions",&GalilDataUnitD.PositionArray,sizeof(GalilDataUnitD.PositionArray), 3 ,TID_DOUBLE); 
-    db_set_value(hDB,0,"/Equipment/Galil/Monitor/MotorVelocities",&GalilDataUnitD.VelocityArray,sizeof(GalilDataUnitD.VelocityArray), 3 ,TID_DOUBLE); 
+    db_set_value(hDB,0,"/Equipment/Galil/Monitor/Motor Positions",&GalilDataUnitD.PositionArray,sizeof(GalilDataUnitD.PositionArray), 3 ,TID_DOUBLE); 
+    db_set_value(hDB,0,"/Equipment/Galil/Monitor/Motor Velocities",&GalilDataUnitD.VelocityArray,sizeof(GalilDataUnitD.VelocityArray), 3 ,TID_DOUBLE); 
     db_set_value(hDB,0,"/Equipment/Galil/Monitor/Tensions",&GalilDataUnitD.TensionArray,sizeof(GalilDataUnitD.TensionArray), 2 ,TID_DOUBLE); 
     //Monitor the buffer load
     INT BufferLoad = GalilDataBuffer.size();
@@ -493,5 +493,5 @@ void GetGalilMessage(const GCon &g){
     i++;
   }
   ReadThreadActive = 0;
-  db_set_value(hDB,0,"/Equipment/Galil/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+  db_set_value(hDB,0,"/Equipment/Galil/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
 }

@@ -476,7 +476,7 @@ void ReadFromDevice(){
 
   int ReadThreadActive = 1;
   mlock.lock();
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
   mlock.unlock();
 
   //Read first frame and sync
@@ -484,7 +484,7 @@ void ReadFromDevice(){
   if (rc<0){
     ReadThreadActive = 0;
     mlock.lock();
-    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
     cm_msg(MERROR,"ReadFromDevice","Fail from first reading, error code = %d",rc);
     mlock.unlock();
     return;
@@ -507,7 +507,7 @@ void ReadFromDevice(){
     if (rc<0){
       ReadThreadActive = 0;
       mlock.lock();
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
       cm_msg(MERROR,"ReadFromDevice","Fail from regular reading, error code = %d",rc);
       mlock.unlock();
       return;
@@ -515,7 +515,7 @@ void ReadFromDevice(){
     memcpy(&FrameNumber,&(Frame[9]),sizeof(int));
     memcpy(&FrameSize,&(Frame[7]),sizeof(int));
     mlock.lock();
-    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/DataFrameIndex",&FrameNumber,sizeof(FrameNumber), 1 ,TID_INT); 
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Data Frame Index",&FrameNumber,sizeof(FrameNumber), 1 ,TID_INT); 
     mlock.unlock();
 
     if (FrameNumber!=(LastFrameNumber+1)){
@@ -663,7 +663,7 @@ void ReadFromDevice(){
   }
   ReadThreadActive = 0;
   mlock.lock();
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
   mlock.unlock();
   delete []Frame;
 }
