@@ -228,7 +228,7 @@ INT begin_of_run(INT run_number, char *error)
   DataDir=string(str);
 
   //Root File Name
-  sprintf(str,"Root/SimTrolleyInterface_%05d.root",RunNumber);
+  sprintf(str,"Root/TrolleyInterface_%05d.root",RunNumber);
   string RootFileName = DataDir + string(str);
 
   if(write_root){
