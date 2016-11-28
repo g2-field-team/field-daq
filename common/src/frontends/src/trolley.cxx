@@ -26,8 +26,8 @@ $Id$
 #include <mutex>
 
 #include "TrolleyInterface.h"
-#include "field_structs.hh"
 #include "field_constants.hh"
+#include "field_structs.hh"
 
 #include "TTree.h"
 #include "TFile.h"
@@ -180,12 +180,22 @@ INT frontend_init()
     cm_msg(MERROR,"init","Trolley Interface connection failed. Error code: %d",err);
     return FE_ERR_HW;
   }
+
+  //Makesure the measurements are stopped
+  DeviceWrite(reg_command,0x0000);
   //Send Trolley interface command to stop data taking
-  DeviceWriteMask(0x40000944,0x00000001,0x00000001);
-  //Configure command
-  DeviceWrite(0x40000404,0x0039);
+  DeviceWriteMask(reg_event_data_control,0x00000001,0x00000000);
   //Configure power
-  DeviceWrite(0x4000047C,0x0004);
+  DeviceWrite(reg_power_control2,0x0004);
+  //Configure Probe
+  DeviceWrite(0x400004C0,17);
+  DeviceWrite(0x40000440,0);
+  DeviceWrite(reg_bc_refcm,1024);
+  DeviceWrite(reg_command,0x0100);
+  DeviceWrite(reg_command,0x0200);
+  sleep(1);
+  DeviceWrite(reg_command,0x0000);
+  DevicePurgeData();
 
   return SUCCESS;
 }
@@ -195,7 +205,8 @@ INT frontend_init()
 INT frontend_exit()
 {
   //Send Trolley interface command to stop data taking
-  DeviceWriteMask(0x40000944,0x00000001,0x00000001);
+  DeviceWriteMask(reg_event_data_control,0x00000001,0x00000001);
+  DeviceWrite(reg_command,0x0000);
   //Disconnect from Trolley interface
   int err = DeviceDisconnect();
   if (err==0){
@@ -241,10 +252,6 @@ INT begin_of_run(INT run_number, char *error)
     pt_norm->SetAutoSave(5);
     pt_norm->SetAutoFlush(20);
 
-    string nrm_br_name("TLNP");
-    string barcode_br_name("TLBC");
-    string monitor_br_name("TLMN");
-
     pt_norm->Branch(nmr_bank_name, &TrlyNMRCurrent, g2field::trolley_nmr_str);
     pt_norm->Branch(barcode_bank_name, &TrlyBarcodeCurrent, g2field::trolley_barcode_str);
     pt_norm->Branch(monitor_bank_name, &TrlyMonitorCurrent, g2field::trolley_monitor_str);
@@ -258,13 +265,18 @@ INT begin_of_run(INT run_number, char *error)
   cm_msg(MINFO,"begin_of_run","Data buffer is emptied at the beginning of the run.");
 
   //Send Trolley interface command to start data taking
-  DevicePurgeData();
-  DeviceWriteMask(0x40000944,0x00000001,0x00000000);
+  DeviceWrite(reg_command,0x0039);
+  //  DeviceWriteMask(0x40000944,0x00000001,0x00000000);
   //Turn on LED, V=1V
-  DeviceWrite(0x40000470,410);
-  DeviceWriteMask(0x40000404,0x00000100,0x00000100);
+  double LED_Voltage = 0.0;
+  int LED_V_size = sizeof(LED_Voltage);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/LED Voltage",&LED_Voltage,&LED_V_size,TID_DOUBLE, 0);
+  int led_v = int(1024.0*LED_Voltage/2.5);
+
+  DeviceWrite(reg_bc_refcm,led_v);
+  DeviceWriteMask(reg_command,0x00000100,0x00000100);
   sleep(1);
-  DeviceWriteMask(0x40000404,0x00000100,0x00000000);
+  DeviceWriteMask(reg_command,0x00000100,0x00000000);
 
   //Start reading thread
   RunActive=true;
@@ -289,12 +301,17 @@ INT end_of_run(INT run_number, char *error)
   cm_msg(MINFO,"exit","Data buffer is emptied before exit.");
 
   //Turn off LED
-  DeviceWrite(0x40000470,1024);
-  DeviceWriteMask(0x40000404,0x00000100,0x00000100);
+  DeviceWrite(reg_bc_refcm,1024);
+  DeviceWriteMask(reg_command,0x00000100,0x00000100);
   sleep(1);
-  DeviceWriteMask(0x40000404,0x00000100,0x00000000);
+  DeviceWriteMask(reg_command,0x00000100,0x00000000);
   //Send Trolley interface command to stop data taking
-  DeviceWriteMask(0x40000944,0x00000001,0x00000001);
+  DeviceWriteMask(reg_command,0x00000001,0x00000001);
+  //Clear buffer
+  DeviceWrite(reg_command,0x0200);
+  sleep(1);
+  DeviceWrite(reg_command,0x0000);
+  DevicePurgeData();
 
   if(write_root){
     pt_norm->Write();

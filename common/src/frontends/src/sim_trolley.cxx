@@ -169,7 +169,10 @@ resume_run:     When a run is resumed. Should enable trigger events.
 INT frontend_init()
 { 
   //Connect to fake trolley interface
-  const char * filename = "/home/newg2/Applications/field-daq/resources/NMRDataTemp/data_NMR_61682000Hz_11.70dbm-2016-10-27_19-36-42.dat";
+  char filename[500];
+  INT filename_size = sizeof(filename);
+  db_get_value(hDB,0,"/Equipment/SimTrolleyInterface/Settings/Data Source",filename,&filename_size,TID_STRING,0);
+
   int err = FileOpen(filename); 
 
   if (err==0){
@@ -605,6 +608,9 @@ void ReadFromDevice(){
     for (int ii=0;ii<NWords;ii++){
       sum2+=(unsigned int)Frame[ii];
     }
+    //Correction for 0x7FFF
+    sum2+=0x7FFF;
+    //////////////////////
     NMRCheckSumPassed = (sum1==NMRCheckSum);
     FrameCheckSumPassed = (sum2==FrameCheckSum);
     TrlyMonitorDataUnit->NMRCheckSum = NMRCheckSum;

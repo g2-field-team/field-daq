@@ -26,6 +26,12 @@ $Id$
 #include <sstream>
 #include <thread>
 #include <mutex>
+#include "field_constants.hh"
+#include "field_structs.hh"
+#include "TTree.h"
+#include "TFile.h"
+
+#define FRONTEND_NAME "Galil Motion Control" // Prefer capitalize with spaces
 
 #define GALIL_EXAMPLE_OK G_NO_ERROR //return code for correct code execution
 #define GALIL_EXAMPLE_ERROR -100
@@ -42,9 +48,9 @@ extern "C" {
   /*-- Globals -------------------------------------------------------*/
 
   /* The frontend name (client name) as seen by other MIDAS clients   */
-  char *frontend_name = "gm2GalilFe";
+  const char *frontend_name = FRONTEND_NAME;
   /* The frontend file name, don't change it */
-  char *frontend_file_name = __FILE__;
+  const char *frontend_file_name = __FILE__;
 
   /* frontend_loop is called periodically if this variable is TRUE    */
   BOOL frontend_call_loop = FALSE;
@@ -95,7 +101,7 @@ extern "C" {
 	100,                  /* poll every 0.1 sec */
 	0,                      /* stop run after this event limit */
 	0,                      /* number of sub events */
-	60,                      /* log history, logged once per minute */
+	0,                      /* log history, logged once per minute */
 	"", "", "",},
       read_galil_event,       /* readout routine */
     },
@@ -110,34 +116,22 @@ extern "C" {
 
 HNDLE hDB, hkeyclient;
 
-typedef struct GalilDataStruct{
-  INT TimeStamp;
-  INT TensionArray[2];
-  INT VelocityArray[3];
-  INT PositionArray[3];
-  INT OutputVArray[3];
-}GalilDataStruct;
+BOOL write_root = false;
+TFile *pf;
+TTree *pt_norm;
 
-typedef struct GalilDataStructD{
-  double TensionArray[2];
-  double VelocityArray[3];
-  double PositionArray[3];
-  double OutputVArray[3];
-}GalilDataStructD;
-
-vector<GalilDataStruct> GalilDataBuffer;
+vector<g2field::galil_data_t> GalilDataBuffer;
+const char * const galil_bank_name = "GALI"; // 4 letters, try to make sensible
+g2field::galil_data_t GalilDataCurrent;
 
 thread read_thread;
 mutex mlock;
+mutex mlockdata;
 
 void GetGalilMessage(const GCon &g);
 bool RunActive;
-int GALILREADGROUPSIZE = 50;
 
 GCon g = 0; //var used to refer to a unique connection. A valid connection is nonzero.
-
-ofstream GalilOutFile;
-ofstream GalilOutFileDirect;
 
 /********************************************************************\
   Callback routines for system transitions
@@ -206,25 +200,42 @@ INT begin_of_run(INT run_number, char *error)
   INT RunNumber_size = sizeof(RunNumber);
   cm_get_experiment_database(&hDB, NULL);
   db_get_value(hDB,0,"/Runinfo/Run number",&RunNumber,&RunNumber_size,TID_INT, 0);
-  char filename[1000];
-  sprintf(filename,"/home/newg2/Applications/field-daq/resources/GalilTextOut/GalilOutput%04d.txt",RunNumber);
-  GalilOutFile.open(filename,ios::out);
-  sprintf(filename,"/home/newg2/Applications/field-daq/resources/GalilTextOut/DirectGalilOutput%04d.txt",RunNumber);
-  GalilOutFileDirect.open(filename,ios::out);
+
+  //Get Root output switch
+  int write_root_size = sizeof(write_root);
+  db_get_value(hDB,0,"/Experiment/Run Parameters/Root Output",&write_root,&write_root_size,TID_BOOL, 0);
+
+  //Get Data dir
+  string DataDir;
+  char str[500];
+  int str_size = sizeof(str);
+  db_get_value(hDB,0,"/Logger/Data dir",&str,&str_size,TID_STRING, 0);
+  DataDir=string(str);
+
+  //Root File Name
+  sprintf(str,"Root/GalilOutput_%05d.root",RunNumber);
+  string RootFileName = DataDir + string(str);
+
+  if(write_root){
+    cm_msg(MINFO,"begin_of_run","Writing to root file %s",RootFileName.c_str());
+    pf = new TFile(RootFileName.c_str(), "recreate");
+    pt_norm = new TTree("t_Galil", "Galil Data");
+    pt_norm->SetAutoSave(5);
+    pt_norm->SetAutoFlush(20);
+
+    pt_norm->Branch(galil_bank_name, &GalilDataCurrent, g2field::galil_data_str);
+  }
   
   //Load script
   GReturn b = G_NO_ERROR;
   char ScriptName[500];
   INT ScriptName_size = sizeof(ScriptName);
   db_get_value(hDB,0,"/Equipment/Galil/Settings/CmdScript",ScriptName,&ScriptName_size,TID_STRING,0);
-  string FullScriptName = string("/home/newg2/Applications/field-daq/resources/GalilMotionScripts/")+string(ScriptName)+string(".dmc");
-//  cout <<"Galil Script to load: " << FullScriptName<<endl;
+  char DirectName[500];
+  INT DirectName_size = sizeof(DirectName);
+  db_get_value(hDB,0,"/Equipment/Galil/Settings/Script Directory",DirectName,&DirectName_size,TID_STRING,0);
+  string FullScriptName = string(DirectName)+string(ScriptName)+string(".dmc");
   cm_msg(MINFO,"begin_of_run","Galil Script to load: %s",FullScriptName.c_str());
-//Get GALILREADGROUPSIZE from odb
-  INT GALILREADGROUPSIZE_size = sizeof(GALILREADGROUPSIZE);
-  db_get_value(hDB,0,"/Equipment/Galil/Settings/GALILREADGROUPSIZE",&GALILREADGROUPSIZE,&GALILREADGROUPSIZE_size,TID_INT, 0);
-//  cout <<"ReadGroup size: " << GALILREADGROUPSIZE<<endl;
-  cm_msg(MINFO,"begin_of_run","ReadGroup size: %d",GALILREADGROUPSIZE);
 
   GProgramDownload(g,"",0); //to erase prevoius programs
   //dump the buffer
@@ -260,9 +271,15 @@ INT end_of_run(INT run_number, char *error)
   read_thread.join();
   cm_msg(MINFO,"end_of_run","All threads joined.");
   GalilDataBuffer.clear();
-  GalilOutFile.close();
-  GalilOutFileDirect.close();
   cm_msg(MINFO,"end_of_run","Data buffer is emptied.");
+
+  if(write_root){
+    pt_norm->Write();
+
+    pf->Write();
+    pf->Close();
+  }
+
   return SUCCESS;
 }
 
@@ -315,10 +332,10 @@ INT poll_event(INT source, INT count, BOOL test)
     return 0;
   }
 
-  mlock.lock();
+  mlockdata.lock();
   bool check = (GalilDataBuffer.size()>GALILREADGROUPSIZE);
-  if (check)cout <<"poll "<<GalilDataBuffer.size()<<" "<<int(check)<<endl;
-  mlock.unlock();
+  //if (check)cout <<"poll "<<GalilDataBuffer.size()<<" "<<int(check)<<endl;
+  mlockdata.unlock();
   if (check)return 1;
   else return 0;
 }
@@ -344,33 +361,34 @@ INT interrupt_configure(INT cmd, INT source, POINTER_T adr)
 
 
 INT read_galil_event(char *pevent, INT off){
-  INT *pdata;
-  double *pdatab;
+  WORD *pdata;
+
+  //Write to root files
+  if (write_root) {
+    for (int i=0;i<GALILREADGROUPSIZE;i++){
+      mlockdata.lock();
+      GalilDataCurrent = GalilDataBuffer[i];
+      mlockdata.unlock();
+      pt_norm->Fill();
+    }
+    pt_norm->AutoSave("SaveSelf,FlushBaskets");
+    pf->Flush();
+  }
+
 
   //Init bank
   bk_init32(pevent);
 
   //Write data to banks
-  bk_create(pevent, "GALI", TID_DWORD, (void **)&pdata);
+  bk_create(pevent, galil_bank_name, TID_WORD, (void **)&pdata);
   
-  mlock.lock();
+  mlockdata.lock();
   for (int i=0;i<GALILREADGROUPSIZE;i++){
-    *pdata++ = GalilDataBuffer[i].TimeStamp;
-    for (int j=0;j<2;j++){
-      *pdata++ = GalilDataBuffer[i].TensionArray[j];
-    }
-    for (int j=0;j<2;j++){
-      *pdata++ = GalilDataBuffer[i].PositionArray[j];
-    }
-    for (int j=0;j<2;j++){
-      *pdata++ = GalilDataBuffer[i].VelocityArray[j];
-    }
-    for (int j=0;j<2;j++){
-      *pdata++ = GalilDataBuffer[i].OutputVArray[j];
-    }
+    memcpy(pdata, &(GalilDataBuffer[i]), sizeof(g2field::galil_data_t));
+    pdata += sizeof(g2field::galil_data_t)/sizeof(WORD);
   }
   GalilDataBuffer.erase(GalilDataBuffer.begin(),GalilDataBuffer.begin()+GALILREADGROUPSIZE);
-  mlock.unlock();
+  mlockdata.unlock();
   bk_close(pevent,pdata);
 
   return bk_size(pevent);
@@ -382,15 +400,11 @@ void GetGalilMessage(const GCon &g){
   db_set_value(hDB,0,"/Equipment/Galil/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
   char buffer[5000000];
   hkeyclient=0;
-  string Device;
+  string Header;
   int  rc = GALIL_EXAMPLE_OK; //return code
   /* residule string */
   string ResidualString = string("");
 
-  int position =0;
-//  timeb starttime,currenttime;
-//  ftime(&starttime);
- 
   //Readout loop
   int i=0;
   int jj=0;
@@ -412,7 +426,6 @@ void GetGalilMessage(const GCon &g){
     //    double time = (currenttime.time-starttime.time)*1000 + (currenttime.millitm - starttime.millitm);
     //cout<<buffer<<endl;
 
-    //    GalilOutFileDirect<<buffer;
     string BufString = string(buffer);
     //Add the residual from last read
     if (ResidualString.size()!=0)BufString = ResidualString+BufString;
@@ -422,55 +435,64 @@ void GetGalilMessage(const GCon &g){
     //  static  bool flag = false;
 
     int iGalil = 0;
-    GalilDataStruct GalilDataUnit;
-    GalilDataStructD GalilDataUnitD;
+    g2field::galil_data_t GalilDataUnit;
+    g2field::galil_data_d_t GalilDataUnitD;
 
     jj=0;
     while (foundnewline!=string::npos){
       stringstream iss (BufString.substr(0,foundnewline-1));
       // output returned by Galil is stored in the following variables
 
-      iss >> Device;
-      if(Device.compare("Galil")==0){
+      iss >> Header;
+      if(Header.compare("Galil")==0){
 	//iss >> GalilDataUnit.TimeStamp;
 	iss >> Time;
 	if (i==0 && jj==0)Time0=Time;
 	Time-=Time0;
 	for (int j=0;j<2;j++){
-	  iss >> GalilDataUnitD.TensionArray[j];
+	  iss >> GalilDataUnitD.Tensions[j];
 	}
 	for (int j=0;j<2;j++){
-	  iss >> GalilDataUnitD.PositionArray[j];
+	  iss >> GalilDataUnitD.Positions[j];
 	}
 	for (int j=0;j<2;j++){
-	  iss >> GalilDataUnitD.VelocityArray[j];
+	  iss >> GalilDataUnitD.Velocities[j];
 	}
 	for (int j=0;j<2;j++){
-	  iss >> GalilDataUnitD.OutputVArray[j];
+	  iss >> GalilDataUnitD.OutputVs[j];
 	}
 	//Convert to INT
-	GalilDataUnit.TimeStamp = INT(Time);
+	GalilDataUnit.TimeStamp = ULong64_t(Time);
 	for (int j=0;j<2;j++){
-	  GalilDataUnit.TensionArray[j] = INT(1000* GalilDataUnitD.TensionArray[j]);
+	  GalilDataUnit.Tensions[j] = Int_t(1000* GalilDataUnitD.Tensions[j]);
 	}
 	for (int j=0;j<2;j++){
-	  GalilDataUnit.PositionArray[j] = INT(GalilDataUnitD.PositionArray[j]);
+	  GalilDataUnit.Positions[j] = Int_t(GalilDataUnitD.Positions[j]);
 	}
 	for (int j=0;j<2;j++){
-	  GalilDataUnit.VelocityArray[j] = INT(GalilDataUnitD.VelocityArray[j]);
+	  GalilDataUnit.Velocities[j] = Int_t(GalilDataUnitD.Velocities[j]);
 	}
 	for (int j=0;j<2;j++){
-	  GalilDataUnit.OutputVArray[j] = INT(1000*GalilDataUnitD.OutputVArray[j]);
+	  GalilDataUnit.OutputVs[j] = Int_t(1000*GalilDataUnitD.OutputVs[j]);
 	}
 
-	mlock.lock();
+	mlockdata.lock();
 	GalilDataBuffer.push_back(GalilDataUnit);
-	mlock.unlock();
+	mlockdata.unlock();
 
 	iGalil++;
-	//Write to txt output
-	GalilOutFile<<"Trolley "<<int(Time)<<" "<<GalilDataUnit.TensionArray[0]<<" "<<GalilDataUnit.TensionArray[1]<<" "<<GalilDataUnit.PositionArray[0]<<" "<<GalilDataUnit.PositionArray[1]<<" "<<GalilDataUnit.VelocityArray[0]<<" "<<GalilDataUnit.VelocityArray[1]<<" "<<GalilDataUnit.OutputVArray[0]<<" "<<GalilDataUnit.OutputVArray[1]<<endl;
+      }else if(Header.compare("Error")==0){
+	mlock.lock();
+	GCmd(g,"AB");
+	mlock.unlock();
+	cm_msg(MINFO,"Galil Message",BufString.substr(0,foundnewline-1).c_str());
+	ReadThreadActive = 0;
+	db_set_value(hDB,0,"/Equipment/Galil/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL);
+	return ;
+      }else{
+	cm_msg(MINFO,"Galil Message",BufString.substr(0,foundnewline-1).c_str());
       }
+
 
       BufString = BufString.substr(foundnewline+1,string::npos);
       foundnewline = BufString.find("\n");
@@ -478,15 +500,14 @@ void GetGalilMessage(const GCon &g){
     }
     //Monitors
     mlock.lock();
-    db_set_value(hDB,0,"/Equipment/Galil/Monitor/Motor Positions",&GalilDataUnitD.PositionArray,sizeof(GalilDataUnitD.PositionArray), 3 ,TID_DOUBLE); 
-    db_set_value(hDB,0,"/Equipment/Galil/Monitor/Motor Velocities",&GalilDataUnitD.VelocityArray,sizeof(GalilDataUnitD.VelocityArray), 3 ,TID_DOUBLE); 
-    db_set_value(hDB,0,"/Equipment/Galil/Monitor/Tensions",&GalilDataUnitD.TensionArray,sizeof(GalilDataUnitD.TensionArray), 2 ,TID_DOUBLE); 
+    db_set_value(hDB,0,"/Equipment/Galil/Monitor/Motor Positions",&GalilDataUnitD.Positions,sizeof(GalilDataUnitD.Positions), 3 ,TID_DOUBLE); 
+    db_set_value(hDB,0,"/Equipment/Galil/Monitor/Motor Velocities",&GalilDataUnitD.Velocities,sizeof(GalilDataUnitD.Velocities), 3 ,TID_DOUBLE); 
+    db_set_value(hDB,0,"/Equipment/Galil/Monitor/Tensions",&GalilDataUnitD.Tensions,sizeof(GalilDataUnitD.Tensions), 2 ,TID_DOUBLE); 
     //Monitor the buffer load
     INT BufferLoad = GalilDataBuffer.size();
     db_set_value(hDB,0,"/Equipment/Galil/Monitor/BufferLoad",&BufferLoad,sizeof(BufferLoad), 1 ,TID_INT); 
     mlock.unlock();
     if (BufString.size()!=0){
-      //  GalilOutFile << "Remaining string: ";
       ResidualString = BufString;
       //    cout <<ResidualString<<endl;
     }
