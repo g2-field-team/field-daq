@@ -343,6 +343,9 @@ INT interrupt_configure(INT cmd, INT source, POINTER_T adr)
 /*-- Event readout -------------------------------------------------*/
 
 INT read_event(char *pevent, INT off){
+  ReadyToRead = false;
+  //Execute the DAQ command
+  sleep(2);
   ReadyToMove = true;
   return bk_size(pevent);
 }
