@@ -4,8 +4,8 @@ mkdir "/Equipment/GalilPlatform/AutoControl"
 mkdir "/Equipment/GalilPlatform/ManualControl"
 
 cd "/Equipment/GalilPlatform/Settings"
-create STRING "CmdScript"[1][256]
-create STRING "Script Directory"[1][256]
+create STRING "CmdScript[1][256]"
+create STRING "Script Directory[1][256]"
 set "Script Directory" "/home/newg2/Applications/field-daq/online/GalilMotionScripts/"
 
 cd "/Equipment/GalilPlatform/Monitors"

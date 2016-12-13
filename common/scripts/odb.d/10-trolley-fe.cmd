@@ -22,5 +22,5 @@ set "LED Voltage" 1.0
 cd /
 cp "/Equipment/TrolleyInterface" "/Equipment/SimTrolleyInterface"
 
-create STRING "/Equipment/SimTrolleyInterface/Settings/Data Source"[1][256]
+create STRING "/Equipment/SimTrolleyInterface/Settings/Data Source[1][256]"
 set "/Equipment/SimTrolleyInterface/Settings/Data Source" "/home/newg2/Applications/field-daq/resources/NMRDataTemp/data_NMR_61682000Hz_11.70dbm-2016-10-27_19-36-42.dat"

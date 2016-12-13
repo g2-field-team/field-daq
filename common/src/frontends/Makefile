@@ -70,7 +70,7 @@ RHCPPFLAGS += -I$(BOOST_INC) -I$(shell echo $(ZMQ_INCLUDE_DIR))
 RHCPPFLAGS += -I/usr/local/include/ -I/usr/local/include/g2field
 RHCPPFLAGS += -Wl,-rpath,/usr/local/lib
 
-allRH: bin/trolley bin/sim_trolley bin/galil bin/sim_galil
+allRH: bin/trolley bin/sim_trolley bin/galil bin/sim_galil bin/abs-probe bin/galil-platform
 bin/trolley: src/trolley.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	        $(RHLIBS) $(ROOTLIBS)
@@ -86,6 +86,16 @@ bin/galil: src/galil.cxx $(MID_LIB)/mfe.o
 bin/sim_galil: src/sim_galil.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	        $(RHLIBS) $(ROOTLIBS)
+
+bin/abs-probe: src/abs-probe.cxx $(MID_LIB)/mfe.o
+	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
+		$(RHLIBS) $(ROOTLIBS)
+
+bin/galil-platform: src/galil-platform.cxx $(MID_LIB)/mfe.o
+	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
+	        $(RHLIBS) $(ROOTLIBS)
+
+
 #-------------------------------------------------------------------
 clean:
 	rm -f *~ $(TARGETS) $(OBJECTS)

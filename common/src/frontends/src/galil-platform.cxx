@@ -44,9 +44,9 @@ extern "C" {
   /*-- Globals -------------------------------------------------------*/
 
   /* The frontend name (client name) as seen by other MIDAS clients   */
-  char *frontend_name = FRONTEND_NAME	;
+  const char *frontend_name = FRONTEND_NAME	;
   /* The frontend file name, don't change it */
-  char *frontend_file_name = __FILE__;
+  const char *frontend_file_name = __FILE__;
 
   /* frontend_loop is called periodically if this variable is TRUE    */
   BOOL frontend_call_loop = FALSE;

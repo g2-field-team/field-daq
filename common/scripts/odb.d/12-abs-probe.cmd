@@ -2,7 +2,7 @@ mkdir "Equipment/AbsoluteProbe/Settings"
 cd "Equipment/AbsoluteProbe/Settings"
 create BOOL "Global On"
 set "Global On" false
-create STRING "NMRProbe Program Dir"[1][256]
+create STRING "NMRProbe Program Dir[1][256]"
 set "NMRProbe Program Dir" "/home/newg2/Applications/field-daq/online/AbsoluteProbe/"
 mkdir "FPGA Timing"
 mkdir "LO"

@@ -42,9 +42,9 @@ extern "C" {
   /*-- Globals -------------------------------------------------------*/
 
   /* The frontend name (client name) as seen by other MIDAS clients   */
-  char *frontend_name = FRONTEND_NAME;
+  const char *frontend_name = FRONTEND_NAME;
   /* The frontend file name, don't change it */
-  char *frontend_file_name = __FILE__;
+  const char *frontend_file_name = __FILE__;
 
   /* frontend_loop is called periodically if this variable is TRUE    */
   BOOL frontend_call_loop = FALSE;
@@ -198,9 +198,9 @@ INT begin_of_run(INT run_number, char *error)
   db_get_value(hDB,0,key,&temp_str,&Size,TID_STRING,FALSE);
   
   string config_tag = string(temp_str);
-  string conf_path  = NMRProbePorgramDir + string("input/configs/") + config_tag + string(".cnf");
-  string prefix     = NMRProbePorgramDir + string("input/configs/files/");
-  string common_path= NMRProbePorgramDir + string("input/");
+  string conf_path  = NMRProbeProgramDir + string("input/configs/") + config_tag + string(".cnf");
+  string prefix     = NMRProbeProgramDir + string("input/configs/files/");
+  string common_path= NMRProbeProgramDir + string("input/");
 
   //file paths
   string global_path= prefix + global_fn + "_" + config_tag + ".dat";
