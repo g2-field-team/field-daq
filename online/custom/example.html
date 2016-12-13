@@ -1,0 +1,46 @@
+<html>
+<head>
+<title>My Title</title>
+<script src='mhttpd.js'> 
+</script>
+<script>
+var updatePeriod = 10000; // in msec
+var updateTimerId = 0;
+var counter = 0;
+
+function update()  {
+  clearTimeout(updateTimerId);
+  load();
+  if (updatePeriod > 0)
+    updateTimerId = setTimeout('update()', updatePeriod);
+}
+function load()   {
+  counter++;
+  document.getElementById('LastUpdated').innerHTML = "Updating..." + new Date;
+  document.getElementById('counter').innerHTML = 'Counter: '+ counter
+
+    mjsonrpc_db_get_values(["/Runinfo","/Experiment/name"]).then(function(rpc) {
+	var runinfo= rpc.result.data[0]
+	var name =  rpc.result.data[1]
+	document.getElementById("name").innerHTML ='Experiment name ='+ name
+	document.getElementById("state").innerHTML ='Run State='+ runinfo.state
+	document.getElementById("rn").innerHTML ='Run number='+ runinfo["run number"]
+	document.getElementById("status").innerHTML = 'Status: '+ rpc.result.status
+	}).catch(function(error) {
+	  mjsonrpc_error_alert(error);
+	  });
+}
+</script>
+</head>
+<body>
+<h2> Javascript code example using mjson_db_get_values with Promises </h2>
+<p id="LastUpdated">Last updated: never</p>
+<p id="rn">Run Number : unknown</p>
+<p id="state">Run State : unknown</p>
+<p id="name">Experiment name : unknown</p>
+<p id="status">Status : unknown</p>
+<p id="counter">Counter: zero</p>
+  <script>
+update()
+  </script>
+  </body>
