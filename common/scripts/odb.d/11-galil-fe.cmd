@@ -2,8 +2,8 @@ mkdir "/Equipment/Galil/Settings"
 mkdir "/Equipment/Galil/Monitor"
 
 cd "/Equipment/Galil/Settings"
-create STRING "CmdScript"
-create STRING "Script Directory"
+create STRING "CmdScript"[1][256]
+create STRING "Script Directory"[1][256]
 set "Script Directory" "/home/newg2/Applications/field-daq/online/GalilMotionScripts/"
 
 cd "/Equipment/Galil/Monitor"
