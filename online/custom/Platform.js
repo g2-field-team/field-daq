@@ -8,7 +8,7 @@ function update()  {
     updateTimerId = setTimeout('update()', updatePeriod);
 }
 function load()   {
-  mjsonrpc_db_get_values(["/Equipment/Galil/Monitors/Positions","/Equipment/Galil/Monitors/Velocities","/Equipment/Galil/Monitors/ControlVoltages"]).then(function(rpc) {
+  mjsonrpc_db_get_values(["/Equipment/GalilPlatform/Monitors/Positions","/Equipment/GalilPlatform/Monitors/Velocities","/Equipment/GalilPlatform/Monitors/ControlVoltages"]).then(function(rpc) {
       var Ps= String(rpc.result.data[0]);
       Ps = Ps.split(',');
       document.getElementById("PX").innerHTML = Ps[0];
@@ -41,7 +41,7 @@ function SetAutoMotorControl(){
   document.getElementById("ValAutoCtrlY").innerHTML = document.getElementById("SetAutoCtrlY").value;
   document.getElementById("ValAutoCtrlZ").innerHTML = document.getElementById("SetAutoCtrlZ").value;
   document.getElementById("ValAutoCtrlS").innerHTML = document.getElementById("SetAutoCtrlS").value;
-  mjsonrpc_db_paste(["/Equipment/Galil/AutoControl/RelPos[0-3]"],[[DeltaX,DeltaY,DeltaZ,DeltaS]]).then(function(rpc){;}).catch(function(error) {
+  mjsonrpc_db_paste(["/Equipment/GalilPlatform/AutoControl/RelPos[0-3]"],[[DeltaX,DeltaY,DeltaZ,DeltaS]]).then(function(rpc){;}).catch(function(error) {
       mjsonrpc_error_alert(error);
       });
   var NX = document.getElementById("StepNumberX").value;
@@ -52,7 +52,7 @@ function SetAutoMotorControl(){
   document.getElementById("ValStepNumberY").innerHTML = document.getElementById("StepNumberY").value;
   document.getElementById("ValStepNumberZ").innerHTML = document.getElementById("StepNumberZ").value;
   document.getElementById("ValStepNumberS").innerHTML = document.getElementById("StepNumberS").value;
-  mjsonrpc_db_paste(["/Equipment/Galil/AutoControl/StepNumber[0-3]"],[[NX,NY,NZ,NS]]).then(function(rpc){;}).catch(function(error) {
+  mjsonrpc_db_paste(["/Equipment/GalilPlatform/AutoControl/StepNumber[0-3]"],[[NX,NY,NZ,NS]]).then(function(rpc){;}).catch(function(error) {
       mjsonrpc_error_alert(error);
       });
   document.getElementById('SetConfirm').innerHTML = 'Confirmed';
@@ -63,7 +63,7 @@ function ManualMotorControlAbs(){
   var DeltaY = document.getElementById("ManAbsY").value;
   var DeltaZ = document.getElementById("ManAbsZ").value;
   var DeltaS = document.getElementById("ManAbsS").value;
-  mjsonrpc_db_paste(["/Equipment/Galil/ManualControl/AbsPos[0-3]","/Equipment/Galil/ManualControl/Cmd"],[[DeltaX,DeltaY,DeltaZ,DeltaS],1]).then(function(rpc){;}).catch(function(error) {
+  mjsonrpc_db_paste(["/Equipment/GalilPlatform/ManualControl/AbsPos[0-3]","/Equipment/GalilPlatform/ManualControl/Cmd"],[[DeltaX,DeltaY,DeltaZ,DeltaS],1]).then(function(rpc){;}).catch(function(error) {
       mjsonrpc_error_alert(error);
       });
 }
@@ -77,7 +77,7 @@ function ManualDefineOrigin(){
   var DeltaY = document.getElementById("ManAbsY").value;
   var DeltaZ = document.getElementById("ManAbsZ").value;
   var DeltaS = document.getElementById("ManAbsS").value;
-  mjsonrpc_db_paste(["/Equipment/Galil/ManualControl/AbsPos[0-3]","/Equipment/Galil/ManualControl/Cmd"],[[DeltaX,DeltaY,DeltaZ,DeltaS],3]).then(function(rpc){;}).catch(function(error) {
+  mjsonrpc_db_paste(["/Equipment/GalilPlatform/ManualControl/AbsPos[0-3]","/Equipment/GalilPlatform/ManualControl/Cmd"],[[DeltaX,DeltaY,DeltaZ,DeltaS],3]).then(function(rpc){;}).catch(function(error) {
       mjsonrpc_error_alert(error);
       });
 }
@@ -87,7 +87,7 @@ function ManualMotorControlRel(){
   var DeltaY = document.getElementById("ManRelY").value;
   var DeltaZ = document.getElementById("ManRelZ").value;
   var DeltaS = document.getElementById("ManRelS").value;
-  mjsonrpc_db_paste(["/Equipment/Galil/ManualControl/RelPos[0-3]","/Equipment/Galil/ManualControl/Cmd"],[[DeltaX,DeltaY,DeltaZ,DeltaS],2]).then(function(rpc){;}).catch(function(error) {
+  mjsonrpc_db_paste(["/Equipment/GalilPlatform/ManualControl/RelPos[0-3]","/Equipment/GalilPlatform/ManualControl/Cmd"],[[DeltaX,DeltaY,DeltaZ,DeltaS],2]).then(function(rpc){;}).catch(function(error) {
       mjsonrpc_error_alert(error);
       });
 }
