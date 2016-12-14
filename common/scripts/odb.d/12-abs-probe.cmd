@@ -1,5 +1,7 @@
 mkdir "Equipment/AbsoluteProbe/Settings"
 cd "Equipment/AbsoluteProbe/Settings"
+create BOOL "Scanning Mode"
+set "Scanning Mode" false
 create BOOL "Global On"
 set "Global On" false
 create STRING "NMRProbe Program Dir[1][256]"
@@ -100,3 +102,8 @@ set "PTS160 Frequency" 0
 set "PTS160 Frequency Unit" "kHz"
 set "Config Label" "Label"
 set "Comments" "Comments"
+
+mkdir "/Equipment/AbsoluteProbe/Monitor"
+cd "/Equipment/AbsoluteProbe/Monitor"
+create BOOL "ReadyToRead"
+set "ReadyToRead" FALSE

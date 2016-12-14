@@ -255,8 +255,10 @@ INT begin_of_run(INT run_number, char *error)
  
   IX=IY=IZ=IS=0;
 
-  ReadyToMove = true;
-  
+  ReadyToMove = false;
+  BOOL temp_bool = BOOL(ReadyToMove);
+  db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/ReadyToMove",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
+
   return SUCCESS;
 }
 
@@ -317,6 +319,10 @@ INT poll_event(INT source, INT count, BOOL test)
     return 0;
   }
 
+  BOOL temp_bool;
+  INT Size = sizeof(temp_bool);
+  db_get_value(hDB,0,"/Equipment/GalilPlatform/Monitors/ReadyToMove",&temp_bool,&Size,TID_BOOL,FALSE);
+  ReadyToMove = bool(temp_bool);
   if (ReadyToMove)return 1;
   else return 0;
 }
@@ -342,6 +348,9 @@ INT interrupt_configure(INT cmd, INT source, POINTER_T adr)
 
 INT read_event(char *pevent, INT off){
   ReadyToMove = false;
+  BOOL temp_bool = BOOL(ReadyToMove);
+  db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/ReadyToMove",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
+
   char CmdBuffer[500];
   //Regeister current position from odb
   INT CurrentPositions[4];
@@ -376,7 +385,12 @@ INT read_event(char *pevent, INT off){
 	GCmd(g,"BGC");
 	IS++;
 	if (IS==StepNumber[3]){
-	  ReadyToMove = false;
+	  IS=0;
+	  //move back to S0
+	  sprintf(CmdBuffer,"PRD=%d",-(StepNumber[3]-1)*StepSize[3]);
+	  GCmd(g,CmdBuffer);
+	  GCmd(g,"BGD");
+	  //Reach the destination
 	  return bk_size(pevent);
 	}else{
 	  //move forward in S
@@ -410,6 +424,8 @@ INT read_event(char *pevent, INT off){
     sleep(1);
   }
   ReadyToRead = true;
+  temp_bool = BOOL(ReadyToRead);
+  db_set_value(hDB,0,"/Equipment/AbsoluteProbe/Monitor/ReadyToRead",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
   return bk_size(pevent);
 }
 

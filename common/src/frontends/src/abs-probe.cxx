@@ -4,7 +4,7 @@ Name:         abs-probe.cxx
 Created by:   Matteo Bartolini
 Modified by:  Ran Hong
 
-Contents:     readout code to talk to Galil motion control
+Contents:     Wrapping David Flay's NMR-DAQ into Midas
 
 $Id$
 
@@ -35,8 +35,6 @@ using namespace std;
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-  // i am defining some Galil libraries variables
 
   //----------------------------------------------------------
   /*-- Globals -------------------------------------------------------*/
@@ -264,6 +262,8 @@ INT begin_of_run(INT run_number, char *error)
   chdir(NMRProbeProgramDir.c_str());
 
   ReadyToRead = true;
+  BOOL temp_bool = BOOL(ReadyToRead);
+  db_set_value(hDB,0,"/Equipment/AbsoluteProbe/Monitor/ReadyToRead",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
 
   return SUCCESS;
 }
@@ -325,6 +325,10 @@ INT poll_event(INT source, INT count, BOOL test)
     return 0;
   }
 
+  BOOL temp_bool;
+  INT Size = sizeof(temp_bool);
+  db_get_value(hDB,0,"/Equipment/AbsoluteProbe/Monitor/ReadyToRead",&temp_bool,&Size,TID_BOOL,FALSE);
+  ReadyToRead = bool(temp_bool);
   if (ReadyToRead)return 1;
   else return 0;
 }
@@ -350,13 +354,28 @@ INT interrupt_configure(INT cmd, INT source, POINTER_T adr)
 
 INT read_event(char *pevent, INT off){
   ReadyToRead = false;
+  BOOL temp_bool = BOOL(ReadyToRead);
+  db_set_value(hDB,0,"/Equipment/AbsoluteProbe/Monitor/ReadyToRead",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
   //Execute the DAQ command
   string cmd = "./muon_g2_nmr /dev/sis1100_00remote 0x5500ffff";
 //  system(cmd.c_str());
   system("ls");
-  sleep(2);
-  ReadyToMove = true;
-  ReadyToRead = true;
+
+  //Check if scanning
+  INT Size = sizeof(temp_bool);
+  db_get_value(hDB,0,"/Equipment/AbsoluteProbe/Settings/Scanning Mode",&temp_bool,&Size,TID_BOOL,FALSE);
+  BOOL ScanningMode = temp_bool;
+
+  if (ScanningMode){
+    ReadyToMove = true;
+    temp_bool = BOOL(ReadyToMove);
+    db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/ReadyToMove",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
+  }else{
+    sleep(2);
+    ReadyToRead = true;
+    temp_bool = BOOL(ReadyToRead);
+    db_set_value(hDB,0,"/Equipment/AbsoluteProbe/Monitor/ReadyToRead",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
+  }
   return bk_size(pevent);
 }
 

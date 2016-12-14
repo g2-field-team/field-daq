@@ -14,6 +14,9 @@ create BOOL "Active"
 create INT "Positions[4]"
 create INT "Velocities[4]"
 create INT "ControlVoltages[4]"
+create BOOL "ReadyToMove"
+
+set "ReadyToMove" FALSE
 
 cd "/Equipment/GalilPlatform/ManualControl"
 create INT "cmd"
