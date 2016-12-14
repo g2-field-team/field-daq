@@ -104,28 +104,51 @@ RUNINFO runinfo;
 namespace{
   
   int event_number = 0;
-  bool write_root = false;
   bool write_midas = true;
   
-  TFile *pf;
-  TTree *pt;
-
   std::atomic<bool> run_in_progress;
 
   boost::property_tree::ptree conf;
   
   g2field::surface_coil_t data; //Surface coil data type defined in field_structs.hh
 
-  const int ncoils = g2field::kNumSCoils; //Defined in field_constants.hh
+  const int nCoils = g2field::kNumSCoils; //Defined in field_constants.hh
+  Double_t setPoint; //If difference between value and set point is larger than this, need to change the current. Value stored in odb
+
+  Double_t bot_set_values[nCoils];
+  Double_t top_set_values[nCoils];
+
+  Double_t bot_currents[nCoils];
+  Double_t top_currents[nCoils];
 }
 
-//void trigger_loop();
+int read_coil_currents(Double_t val_array[]);
+int set_coil_currents(Double_t val_array[], Double_t set_array[], int index);
 
-//int load_device_class();
+int read_coil_currents(Double_t val_array[]){
+  for(int i=0;i<nCoils;i++){
+    val_array[i] = 0.0; //This is where the actual readout routine will go
+  }
+
+  return SUCCESS;
+}
+
+int set_coil_currents(Double_t val_array[], Double_t set_array[], int index){
+  val_array[index] = set_array[index];
+
+  return SUCCESS;
+}
 
 //--- Frontend Init ---------------------------------------------------------//
-INT frontent_init()
+INT frontend_init()
 {
+  INT rc = load_settings(frontend_name, conf);
+  if(rc != SUCCESS){
+    return rc;
+  }
+  
+  //ESTABLISH COMMUNICATION WITH DRIVER BOARD HERE
+
   run_in_progress = false;
   
   cm_msg(MINFO, "init","Sim Surface Coils initialization complete");
@@ -145,70 +168,64 @@ INT frontend_exit()
 //--- Begin of Run ----------------------------------------------------------//
 INT begin_of_run(INT run_number, char *error)
 {
-  using namespace boost;
-
-  //ODB parameters
   HNDLE hDB, hkey;
-  char str[256];
-  int size;
-  BOOL flag;
 
-  //Set up the data
-  std::string datadir;
-  std::string filename;
-
-  //Grab the database handle
   cm_get_experiment_database(&hDB, NULL);
 
-  //Get the run info out of the ODB
-  db_find_key(hDB, 0, "/Runinfo", &hkey);
-  if (db_open_record(hDB, hkey, &runinfo, sizeof(runinfo), MODE_READ,
-		     NULL, NULL) != DB_SUCCESS) {
-    cm_msg(MERROR,"begin_of_run","Can't open \"/Runinfo\" in ODB");
-    return CM_DB_ERROR;
+  //Get bottom set currents
+  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Bottom Set Currents", &hkey);
+
+  if(hkey == NULL){
+    cm_msg(MERROR, "begin_of_run", "unable to find Bottom Set Currents key");
   }
 
-  //Get the data directory from the ODB
-  snprintf(str, sizeof(str), "/Logger/Data dir");
-  db_find_key(hDB, 0, str, &hkey);
-
-  if(hkey){
-    size = sizeof(str);
-    db_get_data(hDB, hkey, str, &size, TID_STRING);
-    datadir = std::string(str);
+  for(int i=0;i<nCoils;i++){
+    bot_set_values[i] = 0;
+    top_set_values[i] = 0;
   }
 
-  //Set the filename
-  snprintf(str, sizeof(str), "root.surface_coil_run_%05d.root",runinfo.run_number);
+  int bot_size = sizeof(bot_set_values);
+  
+  db_get_data(hDB, hkey, &bot_set_values, &bot_size, TID_FLOAT);
+  
+  //Now we also need to get the top set currents
+  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Top Set Currents", &hkey);
 
-  //Join the directory and filename using boost filesystem
-  filename = (filesystem::path(datadir) / filesystem::path(str)).string();
-
-  //Get the parameter for root output
-  db_find_key(hDB, 0, "Experiment/Run Parameters/Root Output", &hkey);	      
-
-   if(hkey) {
-     size = sizeof(flag);
-     db_get_data(hDB, hkey, &flag, &size, TID_BOOL);
-
-     write_root = flag;
-   } else {
-     
-     write_root = true;
-   }
-
-  if (write_root){
-    
-    //Set up the ROOT data output.
-    pf = new TFile(filename.c_str(), "recreate");
-    pt = new TTree("t_srfccl","Sim Surface Coil Data");
-    pt->SetAutoSave(5);
-    pt->SetAutoFlush(20);
-
-    std::string br_name("surface_coils");
-
-    pt->Branch(br_name.c_str(), &data.sys_clock[0], g2field::sc_str);
+  if(hkey == NULL){
+    cm_msg(MERROR, "begin_of_run", "unable to find Top Set Currents key");
   }
+
+  int top_size = sizeof(top_set_values);
+
+  db_get_data(hDB, hkey, &top_set_values, &top_size, TID_FLOAT);
+
+  //Finally, also need to get the allowable difference
+  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Allowed Difference", &hkey);
+
+  setPoint = 0;
+  int setpt_size = sizeof(setPoint);
+
+  db_get_data(hDB, hkey, &setPoint, &setpt_size, TID_FLOAT);
+
+  for(int i=0; i<nCoils;i++){
+    bot_currents[i] = 0;
+    top_currents[i] = 0;
+  }
+  //Read coil currents
+  read_coil_currents(bot_currents);
+  read_coil_currents(top_currents);
+
+  //Check that the initial currents match the set points. If not, reset any necessary channels 
+  for(int i=0;i<nCoils;i++){
+    if(abs(bot_currents[i]-bot_set_values[i])>setPoint){
+       set_coil_currents(bot_currents,bot_set_values,i);
+    }
+    if(abs(top_currents[i]-top_set_values[i])>setPoint){
+      set_coil_currents(top_currents,top_set_values,i);
+    }
+  }
+
+//ADD ALARM IF CHANNEL CAN'T BE SET
 
   event_number = 0;
   run_in_progress = true;
@@ -221,15 +238,7 @@ INT begin_of_run(INT run_number, char *error)
 //--- End of Run -------------------------------------------------------------//
 INT end_of_run(INT run_number, char *error)
 {
-  //Make sure we write the ROOT data
-  if (run_in_progress && write_root){
-    
-    pt->Write();
-    pf->Write();
-    pf->Close();
-
-    delete pf;
-  }
+  //DISABLE COMMUNICATION?
 
   run_in_progress = false;
 
@@ -273,7 +282,7 @@ INT poll_event(INT source, INT count, BOOL test)
   //fake calibration
   if(test) {
     for(int i=0;i<count;i++){
-      usleep(1000);
+      usleep(10);
     }
     return 0;
   }
@@ -301,6 +310,39 @@ INT interrupt_configure(INT cmd, INT source, PTYPE adr)
 //--- Event Readout ----------------------------------------------------------//
 INT read_surface_coils(char *pevent, INT c)
 {
+  HNDLE hDB, hkey;
+  char bk_name[10]; //bank name
+  DWORD *pdata; //place to store data
+  
+  //initialize MIDAS bank
+  bk_init32(pevent);
+
+  sprintf(bk_name, "SCCS");
+  bk_create(pevent, bk_name, TID_DOUBLE, (void **)&pdata);
+
+  //Read the data
+  for(int i=0;i<nCoils;i++){
+    bot_currents[i]=0;
+    top_currents[i]=0;
+  }
+
+  read_coil_currents(bot_currents);
+  read_coil_currents(top_currents);
+
+  data.sys_clock = hw::systime_us(); 
+    
+  for(int idx = 0; idx < nCoils; ++idx){
+    data.bot_coil_currents[idx] = bot_currents[idx]; 
+    data.top_coil_currents[idx] = top_currents[idx];
+    //Add a check here to see if the currents match set point
+    //Alarm if not? Reset current?
+  }
+
+  memcpy(pdata, &data, sizeof(data));
+  pdata += sizeof(data) / sizeof(DWORD);
+
+  bk_close(pevent, pdata);
+
   cm_msg(MINFO, "read_surface_coils", "Finished generating event");
   return bk_size(pevent);
 
