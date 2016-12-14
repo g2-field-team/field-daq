@@ -117,6 +117,7 @@ bool ReadyToRead = false;
 
 //Globals
 string EOFstr = "end_of_file";
+string NMRProbeProgramDir;
 bool IsDebug = false;
 
 //Print out functions
@@ -182,7 +183,7 @@ INT begin_of_run(INT run_number, char *error)
   snprintf(key,512,"%s%s",ODB_Setting_Base,"NMRProbe Program Dir");
   Size = sizeof(temp_str);
   db_get_value(hDB,0,key,&temp_str,&Size,TID_STRING,FALSE);
-  string NMRProbeProgramDir = string(temp_str);
+  NMRProbeProgramDir = string(temp_str);
 
   //file lables
   string global_fn     = "global_on_off";
@@ -258,6 +259,11 @@ INT begin_of_run(INT run_number, char *error)
   link_cmd = string("ln -s ") + com_path + string(" ") + common_com_path;
   system(rm_cmd.c_str());
   system(link_cmd.c_str());
+
+  //Change directory to NMRDAQ
+  chdir(NMRProbeProgramDir.c_str());
+
+  ReadyToRead = true;
 
   return SUCCESS;
 }
@@ -345,8 +351,12 @@ INT interrupt_configure(INT cmd, INT source, POINTER_T adr)
 INT read_event(char *pevent, INT off){
   ReadyToRead = false;
   //Execute the DAQ command
+  string cmd = "./muon_g2_nmr /dev/sis1100_00remote 0x5500ffff";
+//  system(cmd.c_str());
+  system("ls");
   sleep(2);
   ReadyToMove = true;
+  ReadyToRead = true;
   return bk_size(pevent);
 }
 

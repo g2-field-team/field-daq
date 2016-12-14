@@ -12,7 +12,7 @@ function NMRDropdownSelectGeneral(name,content) {
 function LoadToOdb(){
   //FPGA Timing
   for (i=1;i<=4;i++){
-    var odb_base = "/Equipment/NMRProbes/Settings/FPGA Timing/";
+    var odb_base = "/Equipment/AbsoluteProbe/Settings/FPGA Timing/";
     var odb_dir = odb_base + "S" + i +"/";
     //Configuration
     var key = "Configuration";
@@ -125,7 +125,7 @@ function LoadToOdb(){
   }
 
   //LO Settings
-  var odb_dir = "/Equipment/NMRProbes/Settings/LO/";
+  var odb_dir = "/Equipment/AbsoluteProbe/Settings/LO/";
   //Frequency
   var key = "Frequency";
   var id = "LOFreq";
@@ -183,7 +183,7 @@ function LoadToOdb(){
       mjsonrpc_error_alert(error);
       });
   //Digitizer Settings
-  odb_dir = "/Equipment/NMRProbes/Settings/Digitizer/";
+  odb_dir = "/Equipment/AbsoluteProbe/Settings/Digitizer/";
   //Struck ID
   key = "Struck ID";
   id = "StruckID";
@@ -230,7 +230,7 @@ function LoadToOdb(){
       mjsonrpc_error_alert(error);
       });
   //Utilities
-  odb_dir = "/Equipment/NMRProbes/Settings/Utilities/";
+  odb_dir = "/Equipment/AbsoluteProbe/Settings/Utilities/";
   //Debug Mode
   key = "Debug Mode";
   id = "DebugMode";
