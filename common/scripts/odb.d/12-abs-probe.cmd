@@ -1,5 +1,11 @@
 mkdir "Equipment/AbsoluteProbe/Settings"
 cd "Equipment/AbsoluteProbe/Settings"
+create BOOL "Simulation Switch"
+set "Simulation Switch" false
+create INT "Flay Run Number Limit"
+set "Flay Run Number Limit" 1
+create INT "Expected Sample Number"
+set "Expected Sample Number" 600000
 create BOOL "Scanning Mode"
 set "Scanning Mode" false
 create BOOL "Global On"

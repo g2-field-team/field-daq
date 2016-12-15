@@ -26,6 +26,11 @@ $Id$
 #include <sstream>
 #include <thread>
 #include <mutex>
+#include "field_constants.hh"
+#include "field_structs.hh"
+
+#include "TTree.h"
+#include "TFile.h"
 
 #define FRONTEND_NAME "Absolute Probe" // Prefer capitalize with spaces
 
@@ -51,13 +56,13 @@ extern "C" {
   INT display_period = 3000;
 
   /* maximum event size produced by this frontend */
-  INT max_event_size = 100000;
+  INT max_event_size = 10000000;
 
   /* maximum event size for fragmented events (EQ_FRAGMENTED) */
   INT max_event_size_frag = 5 * 1024 * 1024;
 
   /* buffer size to hold events */
-  INT event_buffer_size = 100 * 10000;
+  INT event_buffer_size = 100 * 1000000;
 
 
   /*-- Function declarations -----------------------------------------*/
@@ -112,11 +117,28 @@ const char * ODB_Setting_Base = "/Equipment/AbsoluteProbe/Settings/";
 //Flags
 bool ReadyToMove = false;
 bool ReadyToRead = false;
+bool DAQReady = false;
 
 //Globals
+const char * const abs_bank_name = "ABPB"; // 4 letters, try to make sensible: ABsolute ProBe
+
 string EOFstr = "end_of_file";
 string NMRProbeProgramDir;
 bool IsDebug = false;
+unsigned int Flay_run_number;
+unsigned int Flay_run_number_local;
+unsigned int Flay_run_number_limit;
+unsigned int NPulses;
+unsigned int NSamples;
+unsigned int ExpectedLength=600000;
+vector <short> probe_number;
+vector <unsigned long int> time_stamp;
+g2field::absolute_nmr_info_t AbsProbeData;
+UShort_t AbsNMRTrace[ABS_NMR_LENGTH];
+
+BOOL write_root = false;
+TFile *pf;
+TTree *pt_norm;
 
 //Print out functions
 
@@ -175,8 +197,50 @@ INT begin_of_run(INT run_number, char *error)
   cm_get_experiment_database(&hDB, NULL);
   db_get_value(hDB,0,"/Runinfo/Run number",&RunNumber,&Size,TID_INT, FALSE);
 
+  //Get Root output switch
+  int write_root_size = sizeof(write_root);
+  db_get_value(hDB,0,"/Experiment/Run Parameters/Root Output",&write_root,&write_root_size,TID_BOOL, 0);
+
+  //Get Data dir
+  string DataDir;
+  char str[500];
+  int str_size = sizeof(str);
+  db_get_value(hDB,0,"/Logger/Data dir",&str,&str_size,TID_STRING, 0);
+  DataDir=string(str);
+
+  //Root File Name
+  sprintf(str,"Root/AbsoluteProbe_%05d.root",RunNumber);
+  string RootFileName = DataDir + string(str);
+
+  //Get expected sample number
   char key[512];
   char temp_str[512];
+  int temp_int;
+
+  snprintf(key,512,"%s%s",ODB_Setting_Base,"Expected Sample Number");
+  Size = sizeof(temp_int);
+  db_get_value(hDB,0,key,&temp_int,&Size,TID_INT,FALSE);
+  ExpectedLength = temp_int;
+
+  if(write_root){
+    cm_msg(MINFO,"begin_of_run","Writing to root file %s",RootFileName.c_str());
+    pf = new TFile(RootFileName.c_str(), "recreate");
+    pt_norm = new TTree("t_AbsProbe", "Absolute Probe Data");
+    pt_norm->SetAutoSave(5);
+    pt_norm->SetAutoFlush(20);
+
+    pt_norm->Branch(abs_bank_name, &AbsProbeData, g2field::absolute_nmr_info_str);
+    char str_buff[100];
+    sprintf(str_buff,"trace[%d]/s",ExpectedLength);
+    pt_norm->Branch("NMRTrace",&(AbsNMRTrace[0]),str_buff);
+  }
+
+  //Get Flay Run number limit
+  snprintf(key,512,"%s%s",ODB_Setting_Base,"Flay Run Number Limit");
+  Size = sizeof(temp_int);
+  db_get_value(hDB,0,key,&temp_int,&Size,TID_INT,FALSE);
+  Flay_run_number_limit = temp_int;
+  Flay_run_number_local = 0;
 
   snprintf(key,512,"%s%s",ODB_Setting_Base,"NMRProbe Program Dir");
   Size = sizeof(temp_str);
@@ -264,6 +328,7 @@ INT begin_of_run(INT run_number, char *error)
   ReadyToRead = true;
   BOOL temp_bool = BOOL(ReadyToRead);
   db_set_value(hDB,0,"/Equipment/AbsoluteProbe/Monitor/ReadyToRead",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
+  DAQReady = true;
 
   return SUCCESS;
 }
@@ -271,8 +336,14 @@ INT begin_of_run(INT run_number, char *error)
 /*-- End of Run ----------------------------------------------------*/
 
 INT end_of_run(INT run_number, char *error)
-
 {
+  if(write_root){
+    pt_norm->Write();
+
+    pf->Write();
+    pf->Close();
+  }
+
   return SUCCESS;
 }
 
@@ -353,25 +424,150 @@ INT interrupt_configure(INT cmd, INT source, POINTER_T adr)
 /*-- Event readout -------------------------------------------------*/
 
 INT read_event(char *pevent, INT off){
+  static int IPulse = 0;
+  WORD *pAbsNMRdata;
+  //Make the poll function return false during reading routine
   ReadyToRead = false;
   BOOL temp_bool = BOOL(ReadyToRead);
   db_set_value(hDB,0,"/Equipment/AbsoluteProbe/Monitor/ReadyToRead",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
-  //Execute the DAQ command
-  string cmd = "./muon_g2_nmr /dev/sis1100_00remote 0x5500ffff";
-//  system(cmd.c_str());
-  system("ls");
 
   //Check if scanning
   INT Size = sizeof(temp_bool);
   db_get_value(hDB,0,"/Equipment/AbsoluteProbe/Settings/Scanning Mode",&temp_bool,&Size,TID_BOOL,FALSE);
   BOOL ScanningMode = temp_bool;
 
-  if (ScanningMode){
-    ReadyToMove = true;
-    temp_bool = BOOL(ReadyToMove);
-    db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/ReadyToMove",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
+  //Check if it is a simulation
+  db_get_value(hDB,0,"/Equipment/AbsoluteProbe/Settings/Simulation Switch",&temp_bool,&Size,TID_BOOL,FALSE);
+  BOOL SimulationSwitch = temp_bool;
+
+  //Execute the DAQ command
+  if (DAQReady){
+    string cmd = "./muon_g2_nmr /dev/sis1100_00remote 0x5500ffff";
+    if (!SimulationSwitch)system(cmd.c_str());
+    else cout << "This is a simulation."<<endl;
+    //system("ls");
+    DAQReady = false; // Do not execute DAQ until all pulses are read in
+
+    //Read DAQ summary
+    string buffer_str;
+    char buffer_array[512];
+    char filename[512];
+    snprintf(filename,512,"./data/summary.dat");
+    ifstream fsummary;
+    fsummary.open(filename,ios::in);
+    fsummary >> buffer_str;
+    fsummary >> Flay_run_number;
+    fsummary.getline(buffer_array,512);
+    fsummary.getline(buffer_array,512);
+    fsummary.getline(buffer_array,512);
+    fsummary.getline(buffer_array,512);
+    fsummary >> buffer_str;
+    fsummary >> NPulses;
+    fsummary.getline(buffer_array,512);
+    fsummary >> buffer_str;
+    fsummary >> NSamples;
+    fsummary.close();
+
+    //Load probe numbers for each pulse
+    probe_number.clear();
+    ifstream fmech_sw;
+    snprintf(filename,512,"./data/run-%05d/mech-sw.dat",Flay_run_number);
+    fmech_sw.open(filename,ios::in);
+    for (int i=0;i<NPulses;i++){
+      short a,b,c;
+      fmech_sw>>a>>b>>c;
+      probe_number.push_back(c);
+    }
+    fmech_sw.close();
+
+    //Load time stamps
+    time_stamp.clear();
+    ifstream ftime_stamp;
+    snprintf(filename,512,"./data/run-%05d/timestamps.dat",Flay_run_number);
+    ftime_stamp.open(filename,ios::in);
+    for (int i=0;i<NPulses;i++){
+      unsigned long int a,b,c,d;
+      ftime_stamp>>a>>b>>c>>d;
+      time_stamp.push_back(d);
+    }
+    ftime_stamp.close();
+    cm_msg(MINFO,"read_event","Flay run number = %d, NPulses = %d, NSamples = %d",Flay_run_number,NPulses,NSamples);
+    if (NSamples>ExpectedLength){
+      cm_msg(MINFO,"read_event","Number of samples=%d, larger than expected %d",NSamples,ExpectedLength);
+    }
+
+    IPulse = 1;
+    Flay_run_number_local++;
+  }
+
+  //Fill data struct first
+
+  AbsProbeData.time_stamp = time_stamp[IPulse-1];
+  AbsProbeData.length = NSamples;
+  AbsProbeData.flay_run_number = Flay_run_number;
+  AbsProbeData.probe_index = probe_number[IPulse-1];
+  //Fill positions
+  INT temp_pos[4];
+  Size = sizeof(temp_pos);
+  db_get_value(hDB,0,"/Equipment/GalilPlatform/Monitors/Positions",temp_pos,&Size,TID_INT,0);
+  for (int i=0;i<4;i++){
+    AbsProbeData.Pos[i] = temp_pos[i];
+  }
+
+  //Fill trace
+  for (int i=0;i<ABS_NMR_LENGTH;i++){
+    AbsNMRTrace[i]=0;//clear trace first
+  }
+
+  char datafilename[512];
+  snprintf(datafilename,512,"./data/run-%05d/%d.bin",Flay_run_number,IPulse);
+//  cm_msg(MINFO,"read_event","Filename %s",datafilename);
+  ifstream fdata;
+  //readout
+  fdata.open(datafilename,ios::binary);
+  unsigned short value;
+  for (unsigned int i=0;i<NSamples;i++){
+    fdata.read((char*)&value,sizeof(value));
+    AbsNMRTrace[i]=value;
+  }
+  fdata.close();
+
+  //write to root
+  if (write_root) {
+    pt_norm->Fill();
+    pt_norm->AutoSave("SaveSelf,FlushBaskets");
+    pf->Flush();
+  }
+
+  //Creating bank
+  bk_init32(pevent);
+  bk_create(pevent, abs_bank_name, TID_WORD, (void **)&pAbsNMRdata);
+  //Fill in info
+  memcpy(pAbsNMRdata, &AbsProbeData, sizeof(g2field::absolute_nmr_info_t));
+  pAbsNMRdata += sizeof(g2field::absolute_nmr_info_t)/sizeof(WORD);
+  //Fill in trace`
+  memcpy(pAbsNMRdata, &(AbsNMRTrace[0]),sizeof(UShort_t)*NSamples);
+  pAbsNMRdata += sizeof(UShort_t)*NSamples/sizeof(WORD);
+  bk_close(pevent,pAbsNMRdata);
+
+  //Decide what to do in next reading
+  if (IPulse==NPulses){
+    if (Flay_run_number<Flay_run_number_limit){
+      IPulse=0;
+      DAQReady=true;
+      if (ScanningMode){
+	ReadyToMove = true;
+	temp_bool = BOOL(ReadyToMove);
+	db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/ReadyToMove",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
+      }else{
+	sleep(2);
+	ReadyToRead = true;
+	temp_bool = BOOL(ReadyToRead);
+	db_set_value(hDB,0,"/Equipment/AbsoluteProbe/Monitor/ReadyToRead",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
+      }
+    }
   }else{
-    sleep(2);
+    IPulse++;
     ReadyToRead = true;
     temp_bool = BOOL(ReadyToRead);
     db_set_value(hDB,0,"/Equipment/AbsoluteProbe/Monitor/ReadyToRead",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
