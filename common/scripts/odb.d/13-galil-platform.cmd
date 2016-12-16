@@ -19,12 +19,11 @@ create BOOL "ReadyToMove"
 set "ReadyToMove" FALSE
 
 cd "/Equipment/GalilPlatform/ManualControl"
-create INT "cmd"
+create INT "Cmd"
 create INT "AbsPos[4]"
 create INT "RelPos[4]"
 
 cd "/Equipment/GalilPlatform/AutoControl"
-create INT "cmd"
 create INT "RelPos[4]"
 create INT "StepNumber[4]"
 

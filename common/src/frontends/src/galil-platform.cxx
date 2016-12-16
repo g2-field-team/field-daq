@@ -480,7 +480,7 @@ void GalilMonitor(const GCon &g){
       // output returned by Galil is stored in the following variables
 
       iss >> Header;
-      if(Header.compare("Galil")==0){
+      if(Header.compare("PV")==0){
 	//iss >> GalilDataUnit.TimeStamp;
 	iss >> Time;
 	if (i==0 && jj==0)Time0=Time;
@@ -491,9 +491,6 @@ void GalilMonitor(const GCon &g){
 	for (int j=0;j<4;j++){
 	  iss >> GalilDataUnitD.VelocityArray[j];
 	}
-	for (int j=0;j<4;j++){
-	  iss >> GalilDataUnitD.OutputVArray[j];
-	}
 	//Convert to INT
 	GalilDataUnit.TimeStamp = INT(Time);
 	for (int j=0;j<4;j++){
@@ -502,8 +499,18 @@ void GalilMonitor(const GCon &g){
 	for (int j=0;j<4;j++){
 	  GalilDataUnit.VelocityArray[j] = INT(GalilDataUnitD.VelocityArray[j]);
 	}
+      }else if(Header.compare("C")==0){
+	//iss >> GalilDataUnit.TimeStamp;
+	iss >> Time;
+	if (i==0 && jj==0)Time0=Time;
+	Time-=Time0;
 	for (int j=0;j<4;j++){
-	  GalilDataUnit.OutputVArray[j] = INT(GalilDataUnitD.OutputVArray[j]);
+	  iss >> GalilDataUnitD.OutputVArray[j];
+	}
+	//Convert to INT
+	GalilDataUnit.TimeStamp = INT(Time);
+	for (int j=0;j<4;j++){
+	  GalilDataUnit.OutputVArray[j] = INT(GalilDataUnitD.OutputVArray[j]*1000);
 	}
       }
 
@@ -543,7 +550,7 @@ void GalilMonitor(const GCon &g){
       command=0;
       db_set_value(hDB,0,"/Equipment/GalilPlatform/ManualControl/Cmd",&command,sizeof(command), 1 ,TID_INT); 
     }else if (command == 3){
-      GCmd(g,"DP");
+      GCmd(g,"DP 0,0,0,0");
       command=0;
       db_set_value(hDB,0,"/Equipment/GalilPlatform/ManualControl/Cmd",&command,sizeof(command), 1 ,TID_INT); 
     }
