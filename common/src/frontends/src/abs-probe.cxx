@@ -552,7 +552,7 @@ INT read_event(char *pevent, INT off){
 
   //Decide what to do in next reading
   if (IPulse==NPulses){
-    if (Flay_run_number<Flay_run_number_limit){
+    if (Flay_run_number_local<Flay_run_number_limit){
       IPulse=0;
       DAQReady=true;
       if (ScanningMode){
