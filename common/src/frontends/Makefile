@@ -95,6 +95,10 @@ bin/galil-platform: src/galil-platform.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	        $(RHLIBS) $(ROOTLIBS)
 
+# bin/yokogawa: src/yokogawa.cxx $(MID_LIB)/mfe.o
+# 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
+# 		$(RHLIBS) $(ROOTLIBS)
+
 
 #-------------------------------------------------------------------
 clean:
