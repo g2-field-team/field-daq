@@ -70,7 +70,16 @@ RHCPPFLAGS += -I$(BOOST_INC) -I$(shell echo $(ZMQ_INCLUDE_DIR))
 RHCPPFLAGS += -I/usr/local/include/ -I/usr/local/include/g2field
 RHCPPFLAGS += -Wl,-rpath,/usr/local/lib
 
+DFLIBS += -lyokogawainterface
+# these look the same as Ran's, but let's copy them over here just in case I want to change it later. 
+DFCPPFLAGS = -fpermissive -O2
+DFCPPFLAGS += -I$(MID_INC) -Icore/include -Iinclude -I/usr/include
+DFCPPFLAGS += -I$(BOOST_INC) -I$(shell echo $(ZMQ_INCLUDE_DIR))
+DFCPPFLAGS += -I/usr/local/include/ -I/usr/local/include/g2field
+DFCPPFLAGS += -Wl,-rpath,/usr/local/lib
+
 allRH: bin/trolley bin/sim_trolley bin/galil bin/sim_galil bin/abs-probe bin/galil-platform
+allDF: bin/yokogawa
 bin/trolley: src/trolley.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	        $(RHLIBS) $(ROOTLIBS)
@@ -95,10 +104,9 @@ bin/galil-platform: src/galil-platform.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	        $(RHLIBS) $(ROOTLIBS)
 
-# bin/yokogawa: src/yokogawa.cxx $(MID_LIB)/mfe.o
-# 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
-# 		$(RHLIBS) $(ROOTLIBS)
-
+bin/yokogawa: src/yokogawa.cxx $(MID_LIB)/mfe.o
+	$(CXX) -o $@ $+ $(DFCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
+		$(DFLIBS) $(ROOTLIBS)
 
 #-------------------------------------------------------------------
 clean:
