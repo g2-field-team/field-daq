@@ -252,6 +252,9 @@ INT begin_of_run(INT run_number, char *error)
   INT StepNumber_size = sizeof(StepNumber);
   db_get_value(hDB,0,"/Equipment/GalilPlatform/AutoControl/RelPos",StepSize,&StepSize_size,TID_INT,0);
   db_get_value(hDB,0,"/Equipment/GalilPlatform/AutoControl/StepNumber",StepNumber,&StepNumber_size,TID_INT,0);
+
+  cm_msg(MINFO,"read_event","Step Sizes: %d %d %d %d",StepSize[0],StepSize[1],StepSize[2],StepSize[3]);
+  cm_msg(MINFO,"read_event","Step Numbers: %d %d %d %d",StepNumber[0],StepNumber[1],StepNumber[2],StepNumber[3]);
  
   IX=IY=IZ=IS=0;
 
@@ -355,72 +358,92 @@ INT read_event(char *pevent, INT off){
   //Regeister current position from odb
   INT CurrentPositions[4];
   INT CurrentPositions_size = sizeof(CurrentPositions);
-  db_get_value(hDB,0,"/Equipment/Galil/Monitors/Positions",CurrentPositions,&CurrentPositions_size,TID_INT,0);
+  db_get_value(hDB,0,"/Equipment/GalilPlatform/Monitors/Positions",CurrentPositions,&CurrentPositions_size,TID_INT,0);
   INT CurrentVelocities[4];
   INT CurrentVelocities_size = sizeof(CurrentPositions);
-  db_get_value(hDB,0,"/Equipment/Galil/Monitors/Velocities",CurrentVelocities,&CurrentVelocities_size,TID_INT,0);
+  db_get_value(hDB,0,"/Equipment/GalilPlatform/Monitors/Velocities",CurrentVelocities,&CurrentVelocities_size,TID_INT,0);
   //Take a measurement
+ // cm_msg(MINFO,"read_event","Step Indices: %d %d %d %d",IX,IY,IZ,IS);
   
   //Move platform
-  IX++;
-  if (IX==StepNumber[0]){
+  //Must enclose the GCmd commands with mutex locks!!!!!
+  if (IX>=StepNumber[0]){
     IX=0;
     //move back to X0
-    sprintf(CmdBuffer,"PRA=%d",-(StepNumber[0]-1)*StepSize[0]);
+    sprintf(CmdBuffer,"PRA=%d",-StepNumber[0]*StepSize[0]);
+    mlock.lock();
     GCmd(g,CmdBuffer);
     GCmd(g,"BGA");
-    IY++;
-    if (IY==StepNumber[1]){
+    mlock.unlock();
+    if (IY>=StepNumber[1]){
       IY=0;
       //move back to Y0
-      sprintf(CmdBuffer,"PRB=%d",-(StepNumber[1]-1)*StepSize[1]);
+      sprintf(CmdBuffer,"PRB=%d",-StepNumber[1]*StepSize[1]);
+      mlock.lock();
       GCmd(g,CmdBuffer);
       GCmd(g,"BGB");
-      IZ++;
-      if (IZ==StepNumber[2]){
+      mlock.unlock();
+      if (IZ>=StepNumber[2]){
 	IZ=0;
 	//move back to Z0
-	sprintf(CmdBuffer,"PRC=%d",-(StepNumber[2]-1)*StepSize[2]);
+	sprintf(CmdBuffer,"PRC=%d",-StepNumber[2]*StepSize[2]);
+        mlock.lock();
 	GCmd(g,CmdBuffer);
 	GCmd(g,"BGC");
-	IS++;
-	if (IS==StepNumber[3]){
+        mlock.unlock();
+	if (IS>=StepNumber[3]){
 	  IS=0;
 	  //move back to S0
-	  sprintf(CmdBuffer,"PRD=%d",-(StepNumber[3]-1)*StepSize[3]);
+	  sprintf(CmdBuffer,"PRD=%d",-StepNumber[3]*StepSize[3]);
+          mlock.lock();
 	  GCmd(g,CmdBuffer);
 	  GCmd(g,"BGD");
+          mlock.unlock();
 	  //Reach the destination
 	  return bk_size(pevent);
 	}else{
 	  //move forward in S
 	  sprintf(CmdBuffer,"PRD=%d",StepSize[3]);
+          mlock.lock();
 	  GCmd(g,CmdBuffer);
 	  GCmd(g,"BGD");
+          mlock.unlock();
+	  IS++;
 	}
       }else{
 	//move forward in Z
 	sprintf(CmdBuffer,"PRC=%d",StepSize[2]);
+        mlock.lock();
 	GCmd(g,CmdBuffer);
 	GCmd(g,"BGC");
+        mlock.unlock();
+        IZ++;
       }
     }else{
       //move forward in Y
       sprintf(CmdBuffer,"PRB=%d",StepSize[1]);
+      mlock.lock();
       GCmd(g,CmdBuffer);
       GCmd(g,"BGB");
+      mlock.unlock();
+      IY++;
     }
   }else{
     //move forward in X
     sprintf(CmdBuffer,"PRA=%d",StepSize[0]);
+    mlock.lock();
     GCmd(g,CmdBuffer);
     GCmd(g,"BGA");
+    mlock.unlock();
+    IX++;
   }
 
+  sleep(1);
   //Check if motion is stopped
   while(1){
     db_get_value(hDB,0,"/Equipment/GalilPlatform/Monitors/Velocities",CurrentVelocities,&CurrentVelocities_size,TID_INT,0);
     if (CurrentVelocities[0]==0 && CurrentVelocities[1]==0 && CurrentVelocities[2]==0 && CurrentVelocities[3]==0)break;
+  //  cm_msg(MINFO,"read_event","V = %d",CurrentVelocities[0]);
     sleep(1);
   }
   ReadyToRead = true;
@@ -478,6 +501,7 @@ void GalilMonitor(const GCon &g){
     while (foundnewline!=string::npos){
       stringstream iss (BufString.substr(0,foundnewline-1));
       // output returned by Galil is stored in the following variables
+      //cout << BufString.substr(0,foundnewline-1)<<endl;
 
       iss >> Header;
       if(Header.compare("PV")==0){

@@ -301,6 +301,7 @@ function LoadToOdb(){
       mjsonrpc_error_alert(error);
       });
   //Global On/Off
+  odb_dir = "/Equipment/AbsoluteProbe/Settings/";
   key = "Global On";
   id = "GlobalON";
   value = document.getElementById(id).checked;
