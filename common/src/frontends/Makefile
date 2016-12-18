@@ -70,8 +70,13 @@ RHCPPFLAGS += -I$(BOOST_INC) -I$(shell echo $(ZMQ_INCLUDE_DIR))
 RHCPPFLAGS += -I/usr/local/include/ -I/usr/local/include/g2field
 RHCPPFLAGS += -Wl,-rpath,/usr/local/lib
 
-DFLIBS += -lyokogawainterface
 # these look the same as Ran's, but let's copy them over here just in case I want to change it later. 
+DFLIBS += -L$(MID_LIB) -Lcore/lib -L/usr/lib64/mysql -L/usr/local/lib 
+DFLIBS += -L/usr/lib -L$(BOOST_LIB)
+DFLIBS += -lmidas-shared  -lmysqlclient -lsqlite3
+DFLIBS += -lboost_system -lboost_filesystem
+DFLIBS += -lm -lz -lpthread -lodbc -lrt
+DFLIBS += -lyokogawainterface
 DFCPPFLAGS = -fpermissive -O2
 DFCPPFLAGS += -I$(MID_INC) -Icore/include -Iinclude -I/usr/include
 DFCPPFLAGS += -I$(BOOST_INC) -I$(shell echo $(ZMQ_INCLUDE_DIR))
