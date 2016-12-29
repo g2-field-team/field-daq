@@ -120,7 +120,7 @@ bool ReadyToRead = false;
 bool DAQReady = false;
 
 //Globals
-const char * const abs_bank_name = "ABPB"; // 4 letters, try to make sensible: ABsolute ProBe
+const char * const abs_bank_name = "ABPR"; // 4 letters, try to make sensible: ABsolute ProBe
 
 string EOFstr = "end_of_file";
 string NMRProbeProgramDir;
