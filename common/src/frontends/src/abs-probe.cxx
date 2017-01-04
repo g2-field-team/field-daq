@@ -199,17 +199,17 @@ INT begin_of_run(INT run_number, char *error)
 
   //Get Root output switch
   int write_root_size = sizeof(write_root);
-  db_get_value(hDB,0,"/Experiment/Run Parameters/Root Output",&write_root,&write_root_size,TID_BOOL, 0);
+  db_get_value(hDB,0,"/Equipment/AbsoluteProbe/Settings/Root Output",&write_root,&write_root_size,TID_BOOL, 0);
 
   //Get Data dir
   string DataDir;
   char str[500];
   int str_size = sizeof(str);
-  db_get_value(hDB,0,"/Logger/Data dir",&str,&str_size,TID_STRING, 0);
+  db_get_value(hDB,0,"/Equipment/AbsoluteProbe/Settings/Root Dir",&str,&str_size,TID_STRING, 0);
   DataDir=string(str);
 
   //Root File Name
-  sprintf(str,"Root/AbsoluteProbe_%05d.root",RunNumber);
+  sprintf(str,"AbsoluteProbe_%05d.root",RunNumber);
   string RootFileName = DataDir + string(str);
 
   //Get expected sample number
@@ -545,7 +545,7 @@ INT read_event(char *pevent, INT off){
   //Fill in info
   memcpy(pAbsNMRdata, &AbsProbeData, sizeof(g2field::absolute_nmr_info_t));
   pAbsNMRdata += sizeof(g2field::absolute_nmr_info_t)/sizeof(WORD);
-  //Fill in trace`
+  //Fill in trace
   memcpy(pAbsNMRdata, &(AbsNMRTrace[0]),sizeof(UShort_t)*NSamples);
   pAbsNMRdata += sizeof(UShort_t)*NSamples/sizeof(WORD);
   bk_close(pevent,pAbsNMRdata);

@@ -5,6 +5,10 @@ cd "/Equipment/Galil/Settings"
 create STRING "CmdScript[1][256]"
 create STRING "Script Directory[1][256]"
 set "Script Directory" "/home/newg2/Applications/field-daq/online/GalilMotionScripts/"
+create BOOL "Root Output"
+set "Root Output" false
+create STRING "Root Dir[1][256]"
+set "Root Dir" "/home/newg2/Applications/field-daq/resources/Root/"
 
 cd "/Equipment/Galil/Monitor"
 

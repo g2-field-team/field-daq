@@ -18,6 +18,10 @@ create INT "Buffer Load"
 cd "/Equipment/TrolleyInterface/Settings"
 create DOUBLE "LED Voltage"
 set "LED Voltage" 1.0
+create BOOL "Root Output"
+set "Root Output" false
+create STRING "Root Dir[1][256]"
+set "Root Dir" "/home/newg2/Applications/field-daq/resources/Root/"
 
 cd /
 cp "/Equipment/TrolleyInterface" "/Equipment/SimTrolleyInterface"

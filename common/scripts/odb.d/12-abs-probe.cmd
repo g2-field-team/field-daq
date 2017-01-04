@@ -10,6 +10,10 @@ create BOOL "Scanning Mode"
 set "Scanning Mode" false
 create BOOL "Global On"
 set "Global On" false
+create BOOL "Root Output"
+set "Root Output" false
+create STRING "Root Dir[1][256]"
+set "Root Dir" "/home/newg2/Applications/field-daq/resources/Root/"
 create STRING "NMRProbe Program Dir[1][256]"
 set "NMRProbe Program Dir" "/home/newg2/Applications/field-daq/online/AbsoluteProbe/"
 mkdir "FPGA Timing"
