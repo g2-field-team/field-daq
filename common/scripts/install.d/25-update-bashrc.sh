@@ -16,5 +16,17 @@ if [ "$(grep 'upsrc' ~/.bashrc)" ]; then
 else
     echo -e "\e[31mCopying UPS init script and adding source call\e[0m"
     cp ../src/upsrc ~/.upsrc
-    echo -e "\n# Setup UPS packages\n. .upsrc" >> ~/.bashrc
+    echo -e "\n# Setup UPS packages\n. ~/.upsrc" >> ~/.bashrc
 fi
+
+echo -e "\e[31mAdding daq environment setup file to bashrc.\e[0m"
+
+if [ "$(grep 'daq-env' ~/.bashrc)" ]; then
+    echo -e "\e[31mdaq environment script already being sourced\e[0m"
+else
+    echo -e "\e[31mCopying daq environment script and adding source call\e[0m"
+    cp ../src/daq-env ~/.daq-env
+    echo -e "\n# Setup daq environment\n. ~/.daq-env" >> ~/.bashrc
+fi
+
+. ~/.bashrc

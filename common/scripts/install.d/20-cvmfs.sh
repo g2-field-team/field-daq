@@ -30,6 +30,8 @@ cp -r /etc/cvmfs/config.d /etc/cvmfs/backup-config.d
 rm -f /etc/cvmfs/config.d/*
 echo -e 'CVMFS_SERVER_URL="http://cvmfs-s1bnl.opensciencegrid.org:8000/cvmfs/@fqrn@;http://cvmfs-s1fnal.opensciencegrid.org:8000/cvmfs/@fqrn@;http://cvmfs-s1goc.opensciencegrid.org:8000/cvmfs/@fqrn@"' > /etc/cvmfs/config.d/gm2.opensciencegrid.org.conf
 
+sudo mkdir -p /cvmfs/gm2.opensciencegrid.org
+
 echo -e "\e[31mMount cvmfs with \n\nsudo mount -t cvmfs gm2.opensciencegrid.org /cvmfs/gm2.opensciencegrid.org\n\n\e[0m"
 echo -e "\e[31mTesting contents of mount\e[0m"
 
