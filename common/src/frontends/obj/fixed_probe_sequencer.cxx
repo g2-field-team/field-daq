@@ -25,7 +25,9 @@ FixedProbeSequencer::~FixedProbeSequencer()
     delete val;
   }
 
-  delete nmr_pulser_trg_;
+  if (nmr_pulser_trg_ != nullptr) {
+    delete nmr_pulser_trg_;
+  }
 }
 
 int FixedProbeSequencer::Init()
@@ -38,6 +40,8 @@ int FixedProbeSequencer::Init()
   mux_round_configured_ = false;
   analyze_fids_online_ = false;
   use_fast_fids_class_ = false;
+
+  nmr_pulser_trg_ = nullptr;
 
   // Change the logfile if there is one in the config.
   boost::property_tree::ptree conf;
@@ -70,22 +74,7 @@ int FixedProbeSequencer::BeginOfRun()
   }
 
   int sis_idx = 0;
-  // for (auto &v : conf.get_child("devices.sis_3302")) {
-
-  //   std::string name(v.first);
-  //   std::string dev_conf_file = std::string(v.second.data());
-
-  //   if (dev_conf_file[0] != '/') {
-  //     dev_conf_file = hw::conf_dir + std::string(v.second.data());
-  //   }
-
-  //   sis_idx_map_[name] = sis_idx++;
-
-  //   LogDebug("loading hw: %s, %s", name.c_str(), dev_conf_file.c_str());
-  //   workers_.PushBack(new hw::Sis3302(name, dev_conf_file));
-  // }
-
-  for (auto &v : conf.get_child("devices.sis_3316")) {
+  for (auto &v : conf.get_child("devices.sis_3302")) {
 
     std::string name(v.first);
     std::string dev_conf_file = std::string(v.second.data());
@@ -97,10 +86,27 @@ int FixedProbeSequencer::BeginOfRun()
     sis_idx_map_[name] = sis_idx++;
 
     LogDebug("loading hw: %s, %s", name.c_str(), dev_conf_file.c_str());
-    workers_.PushBack(new hw::Sis3316(name, 
+    workers_.PushBack(new hw::Sis3302(name, 
 				      dev_conf_file, 
 				      NMR_FID_LENGTH_ONLINE));
   }
+
+  // for (auto &v : conf.get_child("devices.sis_3316")) {
+
+  //   std::string name(v.first);
+  //   std::string dev_conf_file = std::string(v.second.data());
+
+  //   if (dev_conf_file[0] != '/') {
+  //     dev_conf_file = hw::conf_dir + std::string(v.second.data());
+  //   }
+
+  //   sis_idx_map_[name] = sis_idx++;
+
+  //   LogDebug("loading hw: %s, %s", name.c_str(), dev_conf_file.c_str());
+  //   workers_.PushBack(new hw::Sis3316(name, 
+  // 				      dev_conf_file, 
+  // 				      NMR_FID_LENGTH_ONLINE));
+  // }
 
   sis_idx = 0;
   // for (auto &v : conf.get_child("devices.sis_3350")) {
@@ -188,10 +194,10 @@ int FixedProbeSequencer::BeginOfRun()
   }
 
   mux_boards_.resize(0);
-  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_A));
-  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_B));
-  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_C));
-  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_D));
+  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_A, false));
+  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_B, false));
+  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_C, false));
+  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_D, false));
 
   std::map<char, int> bid_map;
   bid_map['a'] = 0;
@@ -224,6 +230,7 @@ int FixedProbeSequencer::BeginOfRun()
   starter_thread_ = std::thread(&FixedProbeSequencer::StarterLoop, this);
 
   go_time_ = true;
+  LogMessage("Starting workers");
   workers_.StartRun();
 
   // Pop stale events

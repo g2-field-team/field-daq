@@ -23,10 +23,10 @@ function load()   {
       document.getElementById("VS").innerHTML = Vs[3];
       var Cs= String(rpc.result.data[2]);
       Cs = Cs.split(',');
-      document.getElementById("CX").innerHTML = Cs[0];
-      document.getElementById("CY").innerHTML = Cs[1];
-      document.getElementById("CZ").innerHTML = Cs[2];
-      document.getElementById("CS").innerHTML = Cs[3];
+      document.getElementById("CX").innerHTML = Cs[0]/1000.0;
+      document.getElementById("CY").innerHTML = Cs[1]/1000.0;
+      document.getElementById("CZ").innerHTML = Cs[2]/1000.0;
+      document.getElementById("CS").innerHTML = Cs[3]/1000.0;
       }).catch(function(error) {
 	mjsonrpc_error_alert(error);
 	});

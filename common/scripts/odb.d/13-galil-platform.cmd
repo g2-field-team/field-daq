@@ -5,6 +5,7 @@ mkdir "/Equipment/GalilPlatform/ManualControl"
 
 cd "/Equipment/GalilPlatform/Settings"
 create STRING "CmdScript[1][256]"
+set "CmdScript" "Platform"
 create STRING "Script Directory[1][256]"
 set "Script Directory" "/home/newg2/Applications/field-daq/online/GalilMotionScripts/"
 create BOOL "Root Output"
