@@ -9,17 +9,15 @@ sudo touch /etc/exptab
 # Check if the example was already initialized.
 if [ "$(grep g2-field /etc/exptab)" ]; then
     echo -e "\e[31mExperiment already in exptab\e[0m"
-    exit
+else
+    echo -e "\e[31mAdding experiment to exptab\e[0m"
+# echo "${EXPT_NAME} ${EXPT_DIR}/resources ${USER}" | sudo tee --append /etc/exptab
 fi
-
-# Add the sample experiment
-echo -e "\e[31mAdding experiment to exptab\e[0m"
-#echo "${EXPT_NAME} ${EXPT_DIR}/resources ${USER}" | sudo tee --append /etc/exptab
 
 # Make sure the ODB is initialized.
 odbedit -e g2-field -s 20000000 -c 'clean'
 
 ./init-odb.sh
 
-cd ..
-cp templates/expt-env .expt-env
+# Copy the environment variables for expt (may need adjusting).
+cp ../templates/expt-env ../.expt-env
