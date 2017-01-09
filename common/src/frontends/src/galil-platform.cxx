@@ -26,6 +26,8 @@ $Id$
 #include <sstream>
 #include <thread>
 #include <mutex>
+#include "field_constants.hh"
+#include "field_structs.hh"
 
 #define GALIL_EXAMPLE_OK G_NO_ERROR //return code for correct code execution
 #define GALIL_EXAMPLE_ERROR -100
@@ -85,7 +87,7 @@ extern "C" {
   EQUIPMENT equipment[] = {
 
    {"GalilPlatform",                /* equipment name */
-      {1, 0,                   /* event ID, trigger mask */
+      {EVENTID_GALIL_PLATFORM, 0,                   /* event ID, trigger mask */
 	"SYSTEM",               /* event buffer */
 	EQ_POLLED,            /* equipment type */
 	0,                      /* event source */
