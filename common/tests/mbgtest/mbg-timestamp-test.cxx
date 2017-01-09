@@ -1,3 +1,11 @@
+// This program tests the functionality and accuracy of calling
+// the meinberg utility program in the backgroun and parsing
+// the output.
+// Results: 
+// - accuracy: ~1ms
+// - parsing: the mbg string is in the format 
+//   <seconds(hex)>.<fraction-of-second*INT_MAX(hex)>.
+
 #include "frontend_utils.hh"
 
 int main(int argc, char* argv[])
