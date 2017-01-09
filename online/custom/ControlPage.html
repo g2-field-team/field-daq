@@ -3,7 +3,7 @@
 <html>
 <head>
    <title> ANL Test Magnet Platfrom Control and Monitor</title>
-   <link rel="stylesheet" type="text/css" href="testcss.css">
+   <link rel="stylesheet" type="text/css" href="controlpage.css">
    <script src='mhttpd.js'></script>
    <script src='Platform.js'></script>
    <script src='NMRControl.js'></script>
@@ -71,7 +71,10 @@ update();
 
 <section id="MotorControl">
 <table class="table-fill" id="MotorConfig">
-<th colspan="6"> Manual Motor Control</th>
+<th colspan="6"> Manual Motor Control
+<button type="button" onclick="AbortMotion()" id="AbortButton">Abort</button>
+<button type="button" onclick="ResetSystem()" id="ResetButton">Reset</button>
+</th>
 <tr>
 <td colspan="1" ></td>
 <td colspan="1" >Axis X</td>

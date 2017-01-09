@@ -2,6 +2,13 @@ mkdir "/Equipment/GalilPlatform/Settings"
 mkdir "/Equipment/GalilPlatform/Monitors"
 mkdir "/Equipment/GalilPlatform/AutoControl"
 mkdir "/Equipment/GalilPlatform/ManualControl"
+mkdir "/Equipment/GalilPlatform/Emergency"
+
+cd "/Equipment/GalilPlatform/Emergency"
+create INT Abort
+create INT Reset
+set Abort 0
+set Reset 0
 
 cd "/Equipment/GalilPlatform/Settings"
 create STRING "CmdScript[1][256]"

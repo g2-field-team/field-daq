@@ -32,6 +32,20 @@ function load()   {
 	});
 } 
 
+function AbortMotion(){
+  var value=1;
+  mjsonrpc_db_paste(["/Equipment/GalilPlatform/Emergency/Abort"],[value]).then(function(rpc){;}).catch(function(error) {
+      mjsonrpc_error_alert(error);
+      });
+}
+
+function ResetSystem(){
+  var value=1;
+  mjsonrpc_db_paste(["/Equipment/GalilPlatform/Emergency/Reset"],[value]).then(function(rpc){;}).catch(function(error) {
+      mjsonrpc_error_alert(error);
+      });
+}
+
 function SetAutoMotorControl(){
   var DeltaX = document.getElementById("SetAutoCtrlX").value;
   var DeltaY = document.getElementById("SetAutoCtrlY").value;
@@ -55,7 +69,7 @@ function SetAutoMotorControl(){
   mjsonrpc_db_paste(["/Equipment/GalilPlatform/AutoControl/StepNumber[0-3]"],[[NX,NY,NZ,NS]]).then(function(rpc){;}).catch(function(error) {
       mjsonrpc_error_alert(error);
       });
-  document.getElementById('SetConfirm').innerHTML = 'Confirmed';
+  //document.getElementById('SetConfirm').innerHTML = 'Confirmed';
 }
 
 function ManualMotorControlAbs(){

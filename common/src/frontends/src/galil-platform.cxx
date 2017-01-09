@@ -134,6 +134,7 @@ thread monitor_thread;
 //Flags
 bool ReadyToMove = false;
 bool ReadyToRead = false;
+bool PreventManualCtrl = false;
 
 mutex mlock;
 
@@ -211,6 +212,7 @@ INT frontend_init()
   monitor_thread = thread(GalilMonitor,g);
 //  GTimeout(g,2000);//adjust timeout
   //-------------end code to communicate with Galil------------------
+  PreventManualCtrl = false;
 
   return SUCCESS;
 }
@@ -261,6 +263,7 @@ INT begin_of_run(INT run_number, char *error)
   ReadyToMove = false;
   BOOL temp_bool = BOOL(ReadyToMove);
   db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/ReadyToMove",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
+  PreventManualCtrl = true;
 
   return SUCCESS;
 }
@@ -268,8 +271,8 @@ INT begin_of_run(INT run_number, char *error)
 /*-- End of Run ----------------------------------------------------*/
 
 INT end_of_run(INT run_number, char *error)
-
 {
+  PreventManualCtrl = false;
   return SUCCESS;
 }
 
@@ -463,6 +466,7 @@ void GalilMonitor(const GCon &g){
   /* residule string */
   string ResidualString = string("");
   INT command = 0;
+  INT emergency = 0;
 
   int position =0;
 //  timeb starttime,currenttime;
@@ -551,6 +555,29 @@ void GalilMonitor(const GCon &g){
     db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/Velocities",&GalilDataUnit.VelocityArray,sizeof(GalilDataUnit.VelocityArray), 4 ,TID_INT); 
     db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/ControlVoltages",&GalilDataUnit.OutputVArray,sizeof(GalilDataUnit.OutputVArray), 4 ,TID_INT); 
 
+    //Check emergencies
+    INT emergency_size = sizeof(emergency);
+    //Abort
+    db_get_value(hDB,0,"/Equipment/GalilPlatform/Emergency/Abort",&emergency,&emergency_size,TID_INT,0);
+    if (emergency == 1){
+      mlock.lock();
+      GCmd(g,"AB");
+      mlock.unlock();
+      cm_msg(MINFO,"Emergency","Motion Aborted.");
+    }
+    emergency=0;
+    db_set_value(hDB,0,"/Equipment/GalilPlatform/Emergency/Abort",&emergency,sizeof(emergency), 1 ,TID_INT); 
+    //Reset
+    db_get_value(hDB,0,"/Equipment/GalilPlatform/Emergency/Reset",&emergency,&emergency_size,TID_INT,0);
+    if (emergency == 1){
+      mlock.lock();
+      GCmd(g,"RS");
+      mlock.unlock();
+      cm_msg(MINFO,"Emergency","Galil system reset.");
+    }
+    emergency=0;
+    db_set_value(hDB,0,"/Equipment/GalilPlatform/Emergency/Reset",&emergency,sizeof(emergency), 1 ,TID_INT); 
+
     //Check commandand execute;
     INT command_size = sizeof(command);
     db_get_value(hDB,0,"/Equipment/GalilPlatform/ManualControl/Cmd",&command,&command_size,TID_INT,0);
@@ -560,8 +587,14 @@ void GalilMonitor(const GCon &g){
       INT P_size = sizeof(AbsPos);
       db_get_value(hDB,0,"/Equipment/GalilPlatform/ManualControl/AbsPos",AbsPos,&P_size,TID_INT,0);
       sprintf(CmdBuffer,"PA %d,%d,%d,%d",AbsPos[0],AbsPos[1],AbsPos[2],AbsPos[3]);
-      GCmd(g,CmdBuffer);
-      GCmd(g,"BG");
+      if (!PreventManualCtrl){
+	mlock.lock();
+	GCmd(g,CmdBuffer);
+	GCmd(g,"BG");
+	mlock.unlock();
+      }else{
+	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
+      }
       command=0;
       db_set_value(hDB,0,"/Equipment/GalilPlatform/ManualControl/Cmd",&command,sizeof(command), 1 ,TID_INT); 
     }else if (command == 2){
@@ -569,12 +602,24 @@ void GalilMonitor(const GCon &g){
       INT P_size = sizeof(RelPos);
       db_get_value(hDB,0,"/Equipment/GalilPlatform/ManualControl/RelPos",RelPos,&P_size,TID_INT,0);
       sprintf(CmdBuffer,"PR %d,%d,%d,%d",RelPos[0],RelPos[1],RelPos[2],RelPos[3]);
-      GCmd(g,CmdBuffer);
-      GCmd(g,"BG");
+      if (!PreventManualCtrl){
+	mlock.lock();
+	GCmd(g,CmdBuffer);
+	GCmd(g,"BG");
+	mlock.unlock();
+      }else{
+	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
+      }
       command=0;
       db_set_value(hDB,0,"/Equipment/GalilPlatform/ManualControl/Cmd",&command,sizeof(command), 1 ,TID_INT); 
     }else if (command == 3){
-      GCmd(g,"DP 0,0,0,0");
+      if (!PreventManualCtrl){
+	mlock.lock();
+	GCmd(g,"DP 0,0,0,0");
+	mlock.unlock();
+      }else{
+	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
+      }
       command=0;
       db_set_value(hDB,0,"/Equipment/GalilPlatform/ManualControl/Cmd",&command,sizeof(command), 1 ,TID_INT); 
     }
