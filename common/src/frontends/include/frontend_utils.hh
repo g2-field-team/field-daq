@@ -111,7 +111,7 @@ inline std::string exec(const char *cmd)
 }
 
 // Parse the output of mbgfasttstamp into UTC nanoseconds.
-inline uint64_t parse_mbg_string_ns(std::string ts) 
+inline uint64_t parse_mbg_string_ns(std::string ts="") 
 {
   std::stringstream ss;
   std::string timestamp;
@@ -119,9 +119,13 @@ inline uint64_t parse_mbg_string_ns(std::string ts)
   
   bool valid_ts = false;
   uint64_t time_ns = 0;
-  
-  // Push the input string into stringstream.
-  ss.str(ts);
+
+  // If necessary, grab a timestamp, and push result into stringstream.
+  if (ts == "") {
+    ss.str(exec("mgbfasttstamp"));
+  } else {
+    ss.str(ts);
+  }
 
   while (ss.good()) {
 
