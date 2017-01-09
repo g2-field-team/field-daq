@@ -31,14 +31,14 @@ make -C midas
 make -C mscb
 make -C rome
 
-if [ ! -d "g2-midas" ]; then
-    echo -e "\e[31mUpdating MIDAS to a newer version.\e[0m"
-    mv midas g2-midas
-
-    git clone https://bitbucket.org/tmidas/midas.git
-    cd midas
-    git checkout e885e8f
-    make
-fi
+# if [ ! -d "g2-midas" ]; then
+#    echo -e "\e[31mUpdating MIDAS to a newer version.\e[0m"
+#    mv midas g2-midas
+#
+#    git clone https://bitbucket.org/tmidas/midas.git
+#    cd midas
+#    git checkout e885e8f
+#    make
+# fi
 
 source ~/.bashrc
