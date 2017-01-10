@@ -454,6 +454,10 @@ void FixedProbeSequencer::BuilderLoop()
 
           } else {
 
+            // Get the time as close to readout as we can.
+            auto gps_time = parse_mbg_string();
+
+            // Grab the data itself.
             data = data_queue_.front();
             data_queue_.pop();
             queue_mutex_.unlock();
@@ -473,17 +477,18 @@ void FixedProbeSequencer::BuilderLoop()
               int idx = 0;
               ULong64_t clock = 0;
 
-	      // Store index and clock.
-	      clock = data[sis_idx].dev_clock[trace_idx];
-	      idx = data_out_[pair].second;
-	      bundle.dev_clock[idx] = clock;
-	      
-	      // Get FID data.
-	      auto arr_ptr = &bundle.trace[idx][0];
-	      auto trace = data[sis_idx].trace[trace_idx];
-	      auto size = data[sis_idx].trace[trace_idx].size();
-	      std::copy(&trace[0], &trace[0] + size, arr_ptr);
-
+              // Store index and clock.
+              clock = data[sis_idx].dev_clock[trace_idx];
+              idx = data_out_[pair].second;
+              bundle.dev_clock[idx] = clock;
+              bundle.gps_clock[idx] = gps_clock;
+              
+              // Get FID data.
+              auto arr_ptr = &bundle.trace[idx][0];
+              auto trace = data[sis_idx].trace[trace_idx];
+              auto size = data[sis_idx].trace[trace_idx].size();
+              std::copy(&trace[0], &trace[0] + size, arr_ptr);
+              
               // Save the index for analysis after copying
               indices.push_back(idx);
             }
@@ -498,7 +503,6 @@ void FixedProbeSequencer::BuilderLoop()
 
               // Get the timestamp
               bundle.sys_clock[idx] = hw::systime_us();
-              bundle.gps_clock[idx] = 0.0; // todo:
 
               if (analyze_fids_online_ || (idx == 0)) {
 
