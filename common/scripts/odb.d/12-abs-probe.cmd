@@ -116,4 +116,6 @@ set "Comments" "Comments"
 mkdir "/Equipment/AbsoluteProbe/Monitor"
 cd "/Equipment/AbsoluteProbe/Monitor"
 create BOOL "ReadyToRead"
+create INT "Finished"
 set "ReadyToRead" FALSE
+set "Finished" 1
