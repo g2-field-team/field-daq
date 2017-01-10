@@ -6,7 +6,7 @@ echo -e "\n\e[31mInstalling MIDAS/ROME\e[0m"
 
 if [ ! -e "~/.midasrc" ]; then
     echo -e "\e[31mCopying MIDAS environment variables file.\e[0m"
-    cp ../src/midasrc ~/.midasrc
+    cp ../rc.d/midasrc ~/.midasrc
 fi
 
 if [ "$(grep midasrc ~/.bashrc)" ]; then
