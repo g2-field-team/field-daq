@@ -455,7 +455,7 @@ void FixedProbeSequencer::BuilderLoop()
           } else {
 
             // Get the time as close to readout as we can.
-            auto gps_time = parse_mbg_string();
+            auto gps_clock = parse_mbg_string_ns();
 
             // Grab the data itself.
             data = data_queue_.front();
