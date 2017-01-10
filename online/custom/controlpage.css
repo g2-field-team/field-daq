@@ -215,6 +215,14 @@ background:#85EE5C
 float:right
 }
 
+#AbortButton{
+float:right
+}
+
+#ResetButton{
+float:right
+}
+
 .BigButton{
 font-size: 17px;
 }

@@ -90,7 +90,7 @@ extern "C" {
 
 
     {"SimTrolleyInterface",                /* equipment name */
-      {1, 0,                   /* event ID, trigger mask */
+      {EVENTID_TROLLEY, 0,                   /* event ID, trigger mask */
 	"SYSTEM",               /* event buffer */
 	EQ_POLLED,            /* equipment type */
 	0,                      /* event source */
