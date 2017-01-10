@@ -137,6 +137,7 @@ thread monitor_thread;
 bool ReadyToMove = false;
 bool ReadyToRead = false;
 bool PreventManualCtrl = false;
+BOOL TestMode = FALSE;
 
 mutex mlock;
 
@@ -262,10 +263,25 @@ INT begin_of_run(INT run_number, char *error)
  
   IX=IY=IZ=IS=0;
 
-  ReadyToMove = false;
+  //Check if it is in test mode. if so, do not interact with the abs-probe frontend
+  INT TestMode_size = sizeof(TestMode);
+  db_get_value(hDB,0,"/Equipment/GalilPlatform/Settings/TestMode",&TestMode,&TestMode_size,TID_BOOL,0);
+
+  if(TestMode){
+    ReadyToMove = true;
+  }else{
+    ReadyToMove = false;
+  }
   BOOL temp_bool = BOOL(ReadyToMove);
   db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/ReadyToMove",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
+
   PreventManualCtrl = true;
+
+  //Init alarm-watched odb value
+  INT Finished=0;
+  db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/Finished",&Finished,sizeof(Finished), 1 ,TID_INT);
+  INT AlarmTriggered=0;
+  db_set_value(hDB,0,"/Alarms/Alarms/Galil Platform Stop/Triggered",&AlarmTriggered,sizeof(AlarmTriggered), 1 ,TID_INT);
 
   return SUCCESS;
 }
@@ -274,6 +290,8 @@ INT begin_of_run(INT run_number, char *error)
 
 INT end_of_run(INT run_number, char *error)
 {
+  INT Finished=1;
+  db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/Finished",&Finished,sizeof(Finished), 1 ,TID_INT);
   PreventManualCtrl = false;
   return SUCCESS;
 }
@@ -405,6 +423,10 @@ INT read_event(char *pevent, INT off){
 	  GCmd(g,"BGD");
           mlock.unlock();
 	  //Reach the destination
+	  //Stop the run
+	  cm_msg(MINFO,"read_event","Destination is reached. Stop the run.");
+	  INT Finished=2;
+	  db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/Finished",&Finished,sizeof(Finished), 1 ,TID_INT);
 	  return bk_size(pevent);
 	}else{
 	  //move forward in S
@@ -451,9 +473,17 @@ INT read_event(char *pevent, INT off){
   //  cm_msg(MINFO,"read_event","V = %d",CurrentVelocities[0]);
     sleep(1);
   }
-  ReadyToRead = true;
-  temp_bool = BOOL(ReadyToRead);
-  db_set_value(hDB,0,"/Equipment/AbsoluteProbe/Monitor/ReadyToRead",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
+
+  //If in test mode, start to move. If not, tell abs-probe to read
+  if(TestMode){
+    ReadyToMove = true;
+    temp_bool = BOOL(ReadyToMove);
+    db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/ReadyToMove",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
+  }else{
+    ReadyToRead = true;
+    temp_bool = BOOL(ReadyToRead);
+    db_set_value(hDB,0,"/Equipment/AbsoluteProbe/Monitor/ReadyToRead",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
+  }
   return bk_size(pevent);
 }
 

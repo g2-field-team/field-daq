@@ -330,6 +330,13 @@ INT begin_of_run(INT run_number, char *error)
   db_set_value(hDB,0,"/Equipment/AbsoluteProbe/Monitor/ReadyToRead",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
   DAQReady = true;
 
+  //Init alarm-watched odb value
+  INT Finished=0;
+  db_set_value(hDB,0,"/Equipment/AbsoluteProbe/Monitor/Finished",&Finished,sizeof(Finished), 1 ,TID_INT);
+  //Clear triggered alarms
+  INT AlarmTriggered=0;
+  db_set_value(hDB,0,"/Alarms/Alarms/Galil Platform Stop/Triggered",&AlarmTriggered,sizeof(AlarmTriggered), 1 ,TID_INT);
+
   return SUCCESS;
 }
 
@@ -343,6 +350,9 @@ INT end_of_run(INT run_number, char *error)
     pf->Write();
     pf->Close();
   }
+
+  INT Finished=1;
+  db_set_value(hDB,0,"/Equipment/AbsoluteProbe/Monitor/Finished",&Finished,sizeof(Finished), 1 ,TID_INT);
 
   return SUCCESS;
 }
@@ -565,6 +575,11 @@ INT read_event(char *pevent, INT off){
 	temp_bool = BOOL(ReadyToRead);
 	db_set_value(hDB,0,"/Equipment/AbsoluteProbe/Monitor/ReadyToRead",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
       }
+    }else{
+      cm_msg(MINFO,"read_event","Reached the limit of Flay_Run_Number. Stop the run.");
+      INT Finished=2;
+      db_set_value(hDB,0,"/Equipment/AbsoluteProbe/Monitor/Finished",&Finished,sizeof(Finished), 1 ,TID_INT);
+      return bk_size(pevent);
     }
   }else{
     IPulse++;
