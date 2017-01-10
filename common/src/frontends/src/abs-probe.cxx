@@ -335,7 +335,7 @@ INT begin_of_run(INT run_number, char *error)
   db_set_value(hDB,0,"/Equipment/AbsoluteProbe/Monitor/Finished",&Finished,sizeof(Finished), 1 ,TID_INT);
   //Clear triggered alarms
   INT AlarmTriggered=0;
-  db_set_value(hDB,0,"/Alarms/Alarms/Galil Platform Stop/Triggered",&AlarmTriggered,sizeof(AlarmTriggered), 1 ,TID_INT);
+  db_set_value(hDB,0,"/Alarms/Alarms/Absolute Probe Stop/Triggered",&AlarmTriggered,sizeof(AlarmTriggered), 1 ,TID_INT);
 
   return SUCCESS;
 }
