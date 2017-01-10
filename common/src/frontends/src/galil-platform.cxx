@@ -596,9 +596,9 @@ void GalilMonitor(const GCon &g){
     if (emergency == 1){
       mlock.lock();
       GCmd(g,"AB 1");
-      INT Finished=2;
+/*      INT Finished=2;
       db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/Finished",&Finished,sizeof(Finished), 1 ,TID_INT);
-      mlock.unlock();
+      mlock.unlock();*/
       cm_msg(MINFO,"Emergency","Motion Aborted.");
     }
     emergency=0;
