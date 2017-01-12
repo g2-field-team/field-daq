@@ -189,7 +189,7 @@ INT frontend_init()
   DeviceWrite(reg_power_control2,0x0004);
   //Configure Probe
   DeviceWrite(0x400004C0,17);
-  DeviceWrite(0x40000440,0);
+  DeviceWrite(reg_nmr_rf_probe_select,0);
   DeviceWrite(reg_bc_refcm,1024);
   DeviceWrite(reg_command,0x0100);
   DeviceWrite(reg_command,0x0200);
@@ -264,16 +264,65 @@ INT begin_of_run(INT run_number, char *error)
   mlock.unlock();
   cm_msg(MINFO,"begin_of_run","Data buffer is emptied at the beginning of the run.");
 
+  //Get ODB Values for registies
+  INT NMR_RF_Prescale;
+  INT NMR_Probe_Select;
+  INT NMR_Probe_Delay;
+  INT NMR_Probe_Period;
+  INT NMR_Preamp_Delay;
+  INT NMR_Preamp_Period;
+  INT NMR_Gate_Delay;
+  INT NMR_Gate_Period;
+  INT NMR_Transmit_Delay;
+  INT NMR_Transmit_Period;
+
+  INT BC_Sample_Period;
+  INT BC_Acq_Delay;
+
+  INT Size_INT = sizeof(NMR_RF_Prescale);//Size for all ODB registies here
+
+  double BC_LED_Voltage = 0.0;
+  int BC_LED_V_size = sizeof(BC_LED_Voltage);
+
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/RF Prescale",&NMR_RF_Prescale,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Probe Select",&NMR_Probe_Select,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Probe Delay",&NMR_Probe_Delay,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Probe Period",&NMR_Probe_Period,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Preamp Delay",&NMR_Preamp_Delay,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Preamp Period",&NMR_Preamp_Period,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Gate Delay",&NMR_Gate_Delay,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Gate Period",&NMR_Gate_Period,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Transmit Delay",&NMR_Transmit_Delay,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Transmit Period",&NMR_Transmit_Period,&Size_INT,TID_INT, 0);
+
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Barcode Registry/Sample Period",&BC_Sample_Period,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Barcode Registry/Acq_Delay",&BC_Acq_Delay,&Size_INT,TID_INT, 0);
+
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Barcode Registry/LED Voltage",&BC_LED_Voltage,&BC_LED_V_size,TID_DOUBLE, 0);
+
+  //Load registries to Trolley Interface
+  DeviceWrite(reg_nmr_rf_prescale,static_cast<unsigned int>(NMR_RF_Prescale));
+  DeviceWrite(reg_nmr_rf_probe_select,static_cast<unsigned int>(NMR_Probe_Select));
+  DeviceWrite(reg_nmr_rf_probe_delay,static_cast<unsigned int>(NMR_Probe_Delay));
+  DeviceWrite(reg_nmr_rf_probe_period,static_cast<unsigned int>(NMR_Probe_Period));
+  DeviceWrite(reg_nmr_rf_preamp_delay,static_cast<unsigned int>(NMR_Preamp_Delay));
+  DeviceWrite(reg_nmr_rf_preamp_period,static_cast<unsigned int>(NMR_Preamp_Period));
+  DeviceWrite(reg_nmr_rf_gate_delay,static_cast<unsigned int>(NMR_Gate_Delay));
+  DeviceWrite(reg_nmr_rf_gate_period,static_cast<unsigned int>(NMR_Gate_Period));
+  DeviceWrite(reg_nmr_rf_transmit_delay,static_cast<unsigned int>(NMR_Transmit_Delay));
+  DeviceWrite(reg_nmr_rf_transmit_period,static_cast<unsigned int>(NMR_Transmit_Period*NMR_RF_Prescale));
+
+  DeviceWrite(reg_bc_sample_period,static_cast<unsigned int>(BC_Sample_Period/50));
+  DeviceWrite(reg_bc_t_acq,static_cast<unsigned int>(BC_Acq_Delay/50));
+
+  //Turn on LED, V=1V
+  unsigned int led_v =static_cast<unsigned int>(1024.0*BC_LED_Voltage/2.5);
+  DeviceWrite(reg_bc_refdac2,led_v);
+
   //Send Trolley interface command to start data taking
   DeviceWrite(reg_command,0x0039);
   //  DeviceWriteMask(0x40000944,0x00000001,0x00000000);
-  //Turn on LED, V=1V
-  double LED_Voltage = 0.0;
-  int LED_V_size = sizeof(LED_Voltage);
-  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/LED Voltage",&LED_Voltage,&LED_V_size,TID_DOUBLE, 0);
-  int led_v = int(1024.0*LED_Voltage/2.5);
 
-  DeviceWrite(reg_bc_refcm,led_v);
   DeviceWriteMask(reg_command,0x00000100,0x00000100);
   sleep(1);
   DeviceWriteMask(reg_command,0x00000100,0x00000000);
@@ -301,7 +350,7 @@ INT end_of_run(INT run_number, char *error)
   cm_msg(MINFO,"exit","Data buffer is emptied before exit.");
 
   //Turn off LED
-  DeviceWrite(reg_bc_refcm,1024);
+  DeviceWrite(reg_bc_refdac2,1024);
   DeviceWriteMask(reg_command,0x00000100,0x00000100);
   sleep(1);
   DeviceWriteMask(reg_command,0x00000100,0x00000000);
