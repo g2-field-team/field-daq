@@ -240,6 +240,7 @@ INT frontend_exit()
 //  cm_msg(MINFO,"end_of_run","Trying to join threads.");
   monitor_thread.join();
   cm_msg(MINFO,"end_of_run","All threads joined.");
+  GClose(g);
   return SUCCESS;
 }
 
@@ -521,7 +522,8 @@ void GalilMonitor(const GCon &g){
     mlock.unlock();
 //    ftime(&currenttime);
 //    double time = (currenttime.time-starttime.time)*1000 + (currenttime.millitm - starttime.millitm);
-//    cout<<buffer<<endl;
+    //cout<<buffer<<endl;
+    //cout <<rc<<endl;
 
     string BufString = string(buffer);
     //Add the residual from last read
@@ -594,8 +596,10 @@ void GalilMonitor(const GCon &g){
     db_get_value(hDB,0,"/Equipment/GalilPlatform/Emergency/Abort",&emergency,&emergency_size,TID_INT,0);
     if (emergency == 1){
       mlock.lock();
-      GCmd(g,"AB");
-      mlock.unlock();
+      GCmd(g,"AB 1");
+/*      INT Finished=2;
+      db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/Finished",&Finished,sizeof(Finished), 1 ,TID_INT);
+      mlock.unlock();*/
       cm_msg(MINFO,"Emergency","Motion Aborted.");
     }
     emergency=0;
@@ -604,9 +608,11 @@ void GalilMonitor(const GCon &g){
     db_get_value(hDB,0,"/Equipment/GalilPlatform/Emergency/Reset",&emergency,&emergency_size,TID_INT,0);
     if (emergency == 1){
       mlock.lock();
-      GCmd(g,"RS");
+      GCmd(g,"SHA");
+      GCmd(g,"SHB");
+      GCmd(g,"SHC");
+      GCmd(g,"SHD");
       mlock.unlock();
-      cm_msg(MINFO,"Emergency","Galil system reset.");
     }
     emergency=0;
     db_set_value(hDB,0,"/Equipment/GalilPlatform/Emergency/Reset",&emergency,sizeof(emergency), 1 ,TID_INT); 
