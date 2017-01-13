@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Change to the directory of the script.
+cd $(dirname $(readlink -f $0))
+
 # Enter python virtual environment.
 pyenv
 
