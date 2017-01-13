@@ -13,7 +13,7 @@ def get_alarm_recipients(alarm_type):
     """Retrieve expert contacts on this alarm."""
     rec = [get_alarm_sender(alarm_type)]
 
-    if (alarm_type == 'error'):
+    if (alarm_type == 'error' or alarm_type == 'failure'):
         rec.append('mwsmith2112@gmail.com')
 
     if (alarm_type == 'failure'):
