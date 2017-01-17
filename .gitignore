@@ -33,3 +33,6 @@
 *~
 *.bak
 *.swp
+
+# Resources folder
+resources/*
