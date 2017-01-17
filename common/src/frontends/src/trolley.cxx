@@ -190,7 +190,7 @@ INT frontend_init()
   //Configure Probe
   DeviceWrite(0x400004C0,17);
   DeviceWrite(reg_nmr_rf_probe_select,0);
-  DeviceWrite(reg_bc_refcm,1024);
+  DeviceWrite(reg_bc_refdac2,1024);
   DeviceWrite(reg_command,0x0100);
   DeviceWrite(reg_command,0x0200);
   sleep(1);
