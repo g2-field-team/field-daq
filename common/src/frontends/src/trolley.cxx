@@ -186,7 +186,7 @@ INT frontend_init()
   //Send Trolley interface command to stop data taking
   DeviceWriteMask(reg_event_data_control,0x00000001,0x00000000);
   //Configure power
-  DeviceWrite(reg_power_control2,0x0004);
+ // DeviceWrite(reg_power_control2,0x0004);
   //Configure Probe
   DeviceWrite(0x400004C0,17);
   DeviceWrite(reg_nmr_rf_probe_select,0);
@@ -320,7 +320,7 @@ INT begin_of_run(INT run_number, char *error)
   DeviceWrite(reg_bc_refdac2,led_v);
 
   //Send Trolley interface command to start data taking
-  DeviceWrite(reg_command,0x0039);
+  DeviceWrite(reg_command,0x0031);
   //  DeviceWriteMask(0x40000944,0x00000001,0x00000000);
 
   DeviceWriteMask(reg_command,0x00000100,0x00000100);

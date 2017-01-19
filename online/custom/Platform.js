@@ -8,7 +8,7 @@ function update()  {
     updateTimerId = setTimeout('update()', updatePeriod);
 }
 function load()   {
-  mjsonrpc_db_get_values(["/Equipment/GalilPlatform/Monitors/Positions","/Equipment/GalilPlatform/Monitors/Velocities","/Equipment/GalilPlatform/Monitors/ControlVoltages"]).then(function(rpc) {
+  mjsonrpc_db_get_values(["/Equipment/GalilPlatform/Monitors/Positions","/Equipment/GalilPlatform/Monitors/Velocities","/Equipment/GalilPlatform/Monitors/ControlVoltages","/Equipment/GalilPlatform/Monitors/GoalDist","/Equipment/GalilPlatform/Monitors/LimF","/Equipment/GalilPlatform/Monitors/LimR"]).then(function(rpc) {
       var Ps= String(rpc.result.data[0]);
       Ps = Ps.split(',');
       document.getElementById("PX").innerHTML = Ps[0];
@@ -27,6 +27,24 @@ function load()   {
       document.getElementById("CY").innerHTML = Cs[1]/1000.0;
       document.getElementById("CZ").innerHTML = Cs[2]/1000.0;
       document.getElementById("CS").innerHTML = Cs[3]/1000.0;
+      var Es= String(rpc.result.data[3]);
+      Es = Es.split(',');
+      document.getElementById("EX").innerHTML = Es[0];
+      document.getElementById("EY").innerHTML = Es[1];
+      document.getElementById("EZ").innerHTML = Es[2];
+      document.getElementById("ES").innerHTML = Es[3];
+      var Lf= String(rpc.result.data[4]);
+      Lf = Lf.split(',');
+      document.getElementById("FX").innerHTML = Lf[0];
+      document.getElementById("FY").innerHTML = Lf[1];
+      document.getElementById("FZ").innerHTML = Lf[2];
+      document.getElementById("FS").innerHTML = Lf[3];
+      var Lr= String(rpc.result.data[5]);
+      Lr = Lr.split(',');
+      document.getElementById("RX").innerHTML = Lr[0];
+      document.getElementById("RY").innerHTML = Lr[1];
+      document.getElementById("RZ").innerHTML = Lr[2];
+      document.getElementById("RS").innerHTML = Lr[3];
       }).catch(function(error) {
 	mjsonrpc_error_alert(error);
 	});
