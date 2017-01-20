@@ -4,7 +4,7 @@
 cd $(dirname $(readlink -f $0))
 
 # Enter python virtual environment.
-pyenv
+. /home/newg2/.pyenv/bin/activate
 
 # Invoke the alarm handler.
 python alarm_handler.py $1 $2
