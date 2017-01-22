@@ -1,0 +1,4 @@
+# Lookup your cell text address online and add subsystem(s):
+# general, trolley, fixed-probes, absolute-probe, surface-coils, flux-gate
+# 
+6186918870@txt.att.net, general, fixed-probes
