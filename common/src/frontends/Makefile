@@ -74,26 +74,32 @@ allRH: bin/trolley bin/sim_trolley bin/galil bin/sim_galil bin/abs-probe bin/gal
 bin/trolley: src/trolley.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	        $(RHLIBS) $(ROOTLIBS)
+	ln -sf $(shell pwd)/$@ ../../bin/
 
 bin/sim_trolley: src/sim_trolley.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	$(RHLIBS) $(ROOTLIBS)
+	ln -sf $(shell pwd)/$@ ../../bin/
 
 bin/galil: src/galil.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	        $(RHLIBS) $(ROOTLIBS)
+	ln -sf $(shell pwd)/$@ ../../bin/
 
 bin/sim_galil: src/sim_galil.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	        $(RHLIBS) $(ROOTLIBS)
+	ln -sf $(shell pwd)/$@ ../../bin/
 
 bin/abs-probe: src/abs-probe.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 		$(RHLIBS) $(ROOTLIBS)
+	ln -sf $(shell pwd)/$@ ../../bin/
 
 bin/galil-platform: src/galil-platform.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	        $(RHLIBS) $(ROOTLIBS)
+	ln -sf $(shell pwd)/$@ ../../bin/
 
 
 #-------------------------------------------------------------------

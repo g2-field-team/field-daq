@@ -38,5 +38,5 @@ echo -e "\e[31mTesting contents of mount\e[0m"
 sudo mount -t cvmfs gm2.opensciencegrid.org /cvmfs/gm2.opensciencegrid.org
 ls -l /cvmfs/gm2.opensciencegrid.org/
 
-echo -e "\e[31mAdd cvmfs to automount by adding \n\cvmfs /etc/auto.cvmfs\n\n to /etc/auto.master before the line containing +auto.master.\e[0m"
+echo -e "\e[31mAdd cvmfs to automount by adding \n/cvmfs /etc/auto.cvmfs\n\n to /etc/auto.master before the line containing +auto.master.\e[0m"
 echo -e "\e[31mThen restart autofs with 'sudo service autofs restart'\e[0m"
