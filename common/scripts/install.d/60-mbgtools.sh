@@ -1,5 +1,6 @@
 #!/bin/bash
-. ~/.bashrc
+#. ~/.bashrc
+gcc --version
 
 # Download and build the driver.
 mkdir -p ~/Packages && cd ~/Packages

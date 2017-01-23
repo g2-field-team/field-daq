@@ -7,7 +7,7 @@ cd $INSTALL_DIR
 for script in `ls [0-9]?-*.sh`
 do
     if [ ${script:1:1} == 0 ]; then
-	sudo ./$script
+        . $script
     else
 	. $script
     fi
