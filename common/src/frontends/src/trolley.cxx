@@ -296,7 +296,7 @@ INT begin_of_run(INT run_number, char *error)
   db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Transmit Period",&NMR_Transmit_Period,&Size_INT,TID_INT, 0);
 
   db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Barcode Registry/Sample Period",&BC_Sample_Period,&Size_INT,TID_INT, 0);
-  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Barcode Registry/Acq_Delay",&BC_Acq_Delay,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Barcode Registry/Acq Delay",&BC_Acq_Delay,&Size_INT,TID_INT, 0);
 
   db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Barcode Registry/LED Voltage",&BC_LED_Voltage,&BC_LED_V_size,TID_DOUBLE, 0);
 
