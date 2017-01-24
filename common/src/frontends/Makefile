@@ -57,14 +57,6 @@ bin/%: src/%.cxx $(MID_LIB)/mfe.o $(OBJECTS)
 	ln -sf $(shell pwd)/$@ ../../bin/
 
 #-------------------------------------------------------------------
-# libs for David Flay 
-DFLIBS += -L$(MID_LIB) -Lcore/lib -L/usr/lib64/mysql -L/usr/local/lib
-DFLIBS += -L/usr/lib -L$(BOOST_LIB)
-DFLIBS += -lmidas-shared  -lmysqlclient -lsqlite3
-DFLIBS += -lboost_system -lboost_filesystem
-DFLIBS += -lm -lz -lpthread -lodbc -lrt
-DFLIBS += -lyokogawainterface
-
 #Hear belongs to Ran Hong
 RHLIBS += -L$(MID_LIB) -Lcore/lib -L/usr/lib64/mysql -L/usr/local/lib 
 RHLIBS += -L/usr/lib -L$(BOOST_LIB)
@@ -77,6 +69,19 @@ RHCPPFLAGS += -I$(MID_INC) -Icore/include -Iinclude -I/usr/include
 RHCPPFLAGS += -I$(BOOST_INC) -I$(shell echo $(ZMQ_INCLUDE_DIR))
 RHCPPFLAGS += -I/usr/local/include/ -I/usr/local/include/g2field
 RHCPPFLAGS += -Wl,-rpath,/usr/local/lib
+
+# these look the same as Ran's, but let's copy them over here just in case I want to change it later. 
+DFLIBS += -L$(MID_LIB) -Lcore/lib -L/usr/lib64/mysql -L/usr/local/lib
+DFLIBS += -L/usr/lib -L$(BOOST_LIB)
+DFLIBS += -lmidas-shared  -lmysqlclient -lsqlite3
+DFLIBS += -lboost_system -lboost_filesystem
+DFLIBS += -lm -lz -lpthread -lodbc -lrt
+DFLIBS += -lyokogawainterface
+DFCPPFLAGS = -fpermissive -O2
+DFCPPFLAGS += -I$(MID_INC) -Icore/include -Iinclude -I/usr/include
+DFCPPFLAGS += -I$(BOOST_INC) -I$(shell echo $(ZMQ_INCLUDE_DIR))
+DFCPPFLAGS += -I/usr/local/include/ -I/usr/local/include/g2field
+DFCPPFLAGS += -Wl,-rpath,/usr/local/lib
 
 allRH: bin/trolley bin/sim_trolley bin/galil bin/sim_galil bin/abs-probe bin/galil-platform
 allDF: bin/yokogawa
