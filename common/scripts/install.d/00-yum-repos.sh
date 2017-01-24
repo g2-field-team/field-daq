@@ -4,7 +4,7 @@ echo -e "\e[31mInstalling requisite yum repos\e[0m"
 
 if [ ! -e "/etc/yum.repos.d/epel.repo" ]; then
     echo -e "\e[31mAdding EPEL repo\e[0m"
-    rpm -UvH https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm
+    sudo rpm -UvH https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm
     sudo yum-config-manager --enable epel 
 fi
 
