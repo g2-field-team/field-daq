@@ -1,9 +1,8 @@
 /********************************************************************\
 
-Name:     gm2TrolleyFeSim.cxx
-Author :  Ran Hong
-
-Contents:     readout code to talk to Trolley Interface
+Name:    yokogawa.cxx
+Author :  David Flay (flay@umass.edu)  
+Contents: Code to talk to the Yokogawa  
 
 $Id$
 
