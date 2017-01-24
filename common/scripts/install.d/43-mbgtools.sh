@@ -1,5 +1,4 @@
 #!/bin/bash
-#. ~/.bashrc
 gcc --version
 
 # Download and build the driver.
