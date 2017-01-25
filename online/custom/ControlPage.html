@@ -1,0 +1,618 @@
+
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <title> ANL Test Magnet Platfrom Control and Monitor</title>
+   <link rel="stylesheet" type="text/css" href="controlpage.css">
+   <script src='mhttpd.js'></script>
+   <script src='Platform.js'></script>
+   <script src='NMRControl.js'></script>
+</head>
+
+<body>
+<script>
+update();
+</script>
+
+<form name=" form1" method="Get" action="/CS/Trolley Control&">
+
+<header>
+<h3>ANL Test Magnet Platfrom Control and Monitor</h3>
+</header>
+
+<nav>
+<ul>
+<li ><input name="cmd" value="Status" type="submit"></li>
+<li ><input name="cmd" value="Start" type="submit"></li>
+<li ><input name="cmd" value="Pause" type="submit"></li>
+<li ><input name="cmd" value="Stop" type="submit"></li>
+<li ><input name="cmd" value="ODB" type="submit"></li>
+<li ><input name="cmd" value="Messages" type="submit"></li>
+</ul>
+
+</nav>
+<br>
+
+<aside>
+<table class="table-fill" id="MotorMonitor">
+<tr>
+<th colspan="5" class="text-center"> Motor Monitor</th>
+</tr>
+<tr>
+<td colspan="1" class="text-center"></td>
+<td colspan="1" class="text-center">Axis X</td>
+<td colspan="1" class="text-center">Axis Y</td>
+<td colspan="1" class="text-center">Axis Z</td>
+<td colspan="1" class="text-center">Axis S</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Position (Enc counts)</td>
+<td colspan="1" class="ODB-Monitor" id="PX">000</td>
+<td colspan="1" class="ODB-Monitor" id="PY">000</td>
+<td colspan="1" class="ODB-Monitor" id="PZ">000</td>
+<td colspan="1" class="ODB-Monitor" id="PS">000</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Velocity (Counts/sec)</td>
+<td colspan="1" class="ODB-Monitor" id="VX">000</td>
+<td colspan="1" class="ODB-Monitor" id="VY">000</td>
+<td colspan="1" class="ODB-Monitor" id="VZ">000</td>
+<td colspan="1" class="ODB-Monitor" id="VS">000</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Control Voltage  (V)</td>
+<td colspan="1" class="ODB-Monitor" id="CX">000</td>
+<td colspan="1" class="ODB-Monitor" id="CY">000</td>
+<td colspan="1" class="ODB-Monitor" id="CZ">000</td>
+<td colspan="1" class="ODB-Monitor" id="CS">000</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Dist. to goal (Enc Counts)</td>
+<td colspan="1" class="ODB-Monitor" id="EX">0</td>
+<td colspan="1" class="ODB-Monitor" id="EY">0</td>
+<td colspan="1" class="ODB-Monitor" id="EZ">0</td>
+<td colspan="1" class="ODB-Monitor" id="ES">0</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Forward limit status (0: at limit)</td>
+<td colspan="1" class="ODB-Monitor" id="FX">0</td>
+<td colspan="1" class="ODB-Monitor" id="FY">0</td>
+<td colspan="1" class="ODB-Monitor" id="FZ">0</td>
+<td colspan="1" class="ODB-Monitor" id="FS">0</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Reverse limit status (0: at limit)</td>
+<td colspan="1" class="ODB-Monitor" id="RX">0</td>
+<td colspan="1" class="ODB-Monitor" id="RY">0</td>
+<td colspan="1" class="ODB-Monitor" id="RZ">0</td>
+<td colspan="1" class="ODB-Monitor" id="RS">0</td>
+</tr>
+</table>
+</aside>
+
+<section id="MotorControl">
+<table class="table-fill" id="MotorConfig">
+<th colspan="6"> Manual Motor Control
+<button type="button" onclick="AbortMotion()" id="AbortButton">Abort</button>
+<button type="button" onclick="ResetSystem()" id="ResetButton">Reset</button>
+</th>
+<tr>
+<td colspan="1" ></td>
+<td colspan="1" >Axis X</td>
+<td colspan="1" >Axis Y</td>
+<td colspan="1" >Axis Z</td>
+<td colspan="1" >Axis S</td>
+<td colspan="1" >Command</td>
+</tr>
+<tr>
+<td colspan="1" >Abs Pos. (enc counts)</td>
+<td colspan="1" ><input id="ManAbsX" type="number" value=0></input></td>
+<td colspan="1" ><input id="ManAbsY" type="number" value=0></input></td>
+<td colspan="1" ><input id="ManAbsZ" type="number" value=0></input></td>
+<td colspan="1" ><input id="ManAbsS" type="number" value=0></input></td>
+<td colspan="1" >
+<button type="button" onclick="ManualMotorControlAbs()">Run</button>
+<button type="button" onclick="ManualDefineOrigin()">Define Origin</button>
+</td>
+</tr>
+<tr>
+<td colspan="1" >Res Pos. (enc counts)</td>
+<td colspan="1" ><input id="ManRelX" type="number" value=0></input></td>
+<td colspan="1" ><input id="ManRelY" type="number" value=0></input></td>
+<td colspan="1" ><input id="ManRelZ" type="number" value=0></input></td>
+<td colspan="1" ><input id="ManRelS" type="number" value=0></input></td>
+<td colspan="1" ><button type="button" onclick="ManualMotorControlRel()">Run</button></td>
+</tr>
+<th colspan="6"> Auto Motor Control <button type="button" onclick="SetAutoMotorControl()" id="AutoCtrlButton">Set</button></th>
+<tr>
+<td colspan="1" ></td>
+<td colspan="1" >Axis X</td>
+<td colspan="1" >Axis Y</td>
+<td colspan="1" >Axis Z</td>
+<td colspan="1" >Axis S</td>
+<td colspan="1" id="SetConfirm" style="color:red"></td>
+</tr>
+<tr>
+<td colspan="1" >Res Pos. (enc counts)</td>
+<td colspan="1" ><input id="SetAutoCtrlX" type="number" value=0></input>
+<p id="ValAutoCtrlX">0</p></td>
+<td colspan="1" ><input id="SetAutoCtrlY" type="number" value=0></input>
+<p id="ValAutoCtrlY">0</p></td>
+<td colspan="1" ><input id="SetAutoCtrlZ" type="number" value=0></input>
+<p id="ValAutoCtrlZ">0</p></td>
+<td colspan="1" ><input id="SetAutoCtrlS" type="number" value=0></input>
+<p id="ValAutoCtrlS">0</p></td>
+<td></td>
+</tr>
+
+<tr>
+<td colspan="1" >Step Number</td>
+<td colspan="1" ><input id="StepNumberX" type="number" value=0></input>
+<p id="ValStepNumberX">0</p></td>
+<td colspan="1" ><input id="StepNumberY" type="number" value=0></input>
+<p id="ValStepNumberY">0</p></td>
+<td colspan="1" ><input id="StepNumberZ" type="number" value=0></input>
+<p id="ValStepNumberZ">0</p></td>
+<td colspan="1" ><input id="StepNumberS" type="number" value=0></input>
+<p id="ValStepNumberS">0</p></td>
+<td></td>
+</tr>
+</table> 
+</section>
+
+<br>
+
+<section id="Sec_NMRControl">
+<table class="table-fill-small" id="NMRControl">
+<th colspan="15" class="text-center"> NMR Probe DAQ Control </th>
+<tr>
+<td colspan="4" class="text-center"><button type="button" onclick="ConfirmProbeSetting()" id="ImportProbConfig" class="BigButton">Import Probe Configs</button></td>
+<td colspan="4" class="text-center"><button type="button" onclick="ConfirmProbeSetting()" id="ImportProbConfig" class="BigButton">Save Probe Configs</button></td>
+<td colspan="4" class="text-center"><button type="button" onclick="ConfirmProbeSetting()" id="ImportConfiguration" class="BigButton">Import Configurations</button></td>
+<td colspan="3" class="text-center"><button type="button" onclick="LoadToOdb()" id="ProbeConfirmButton" class="BigButton">Load To Odb</button></td>
+</tr>
+<th colspan="15"> FPGA Timing
+<div id="GlobalONDiv">
+<input id="GlobalON" type="checkbox" >Global ON</input>
+</div>
+</th>
+<tr>
+<td colspan="1" >Channel</td>
+<td colspan="1" >Configuration</td>
+<td colspan="1" >Mechanical Offset</td>
+<td colspan="1" >Switch Duration</td>
+<td colspan="1" >Units</td>
+<td colspan="1" >RF Transmit Offset</td>
+<td colspan="1" >Switch Duration</td>
+<td colspan="1" >Units</td>
+<td colspan="1" >Tomco Offset</td>
+<td colspan="1" >Amplifier Duration</td>
+<td colspan="1" >Units</td>
+<td colspan="1" >Tomco Enable</td>
+<td colspan="1" >RF Receive Offset</td>
+<td colspan="1" >Switch Duration</td>
+<td colspan="1" >Units</td>
+</tr>
+</tr>
+<tr>
+<td colspan="1" class="text-center">S1</td>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtnlong" id="FPGAConfig1">OFF</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('FPGAConfig','1','OFF')" >OFF</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','1','Short Coil')">Short Coil</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','1','Long Coil')">Long Coil</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','1','Cyl. Probe')">Cyl. Probe</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','1','Sph. Probe')">Sph. Probe</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','1','Other')">Other</p>
+</div>
+</div>
+</td>
+<td colspan="1" ><input id="MechOffset1" type="number" value=0></input>
+<td colspan="1" ><input id="MechSwitchDuration1" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="MechSwitchDurationUnit1">s</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('MechSwitchDurationUnit','1','s')" >s</p>
+<p onclick="NMRDropdownSelect('MechSwitchDurationUnit','1','ms')">ms</p>
+<p onclick="NMRDropdownSelect('MechSwitchDurationUnit','1','us')">us</p>
+</div>
+</div>
+</td>
+<td colspan="1" ><input id="RFTransOffset1" type="number" value=0></input>
+<td colspan="1" ><input id="RFTransSwitchDuration1" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="RFTransSwitchDurationUnit1">s</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('RFTransSwitchDurationUnit','1','s')" >s</p>
+<p onclick="NMRDropdownSelect('RFTransSwitchDurationUnit','1','ms')">ms</p>
+<p onclick="NMRDropdownSelect('RFTransSwitchDurationUnit','1','us')">us</p>
+</div>
+</div>
+</td>
+<td colspan="1" ><input id="TomcoOffset1" type="number" value=0></input>
+<td colspan="1" ><input id="TomcoAmpDuration1" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="TomcoAmpDurationUnit1">s</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('TomcoAmpDurationUnit','1','s')" >s</p>
+<p onclick="NMRDropdownSelect('TomcoAmpDurationUnit','1','ms')">ms</p>
+<p onclick="NMRDropdownSelect('TomcoAmpDurationUnit','1','us')">us</p>
+</div>
+</div>
+</td>
+<td colspan="1" ><input id="TomcoEnable1" type="checkbox" ></input>
+<td colspan="1" ><input id="RFRecvOffset1" type="number" value=0></input>
+<td colspan="1" ><input id="RFRecvSwitchDuration1" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="RFRecvSwitchDurationUnit1">s</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('RFRecvSwitchDurationUnit','1','s')" >s</p>
+<p onclick="NMRDropdownSelect('RFRecvSwitchDurationUnit','1','ms')">ms</p>
+<p onclick="NMRDropdownSelect('RFRecvSwitchDurationUnit','1','us')">us</p>
+</div>
+</div>
+</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">S2</td>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtnlong" id="FPGAConfig2">OFF</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('FPGAConfig','2','OFF')" >OFF</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','2','Short Coil')">Short Coil</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','2','Long Coil')">Long Coil</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','2','Cyl. Probe')">Cyl. Probe</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','2','Sph. Probe')">Sph. Probe</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','2','Other')">Other</p>
+</div>
+</div>
+</td>
+<td colspan="1" ><input id="MechOffset2" type="number" value=0></input>
+<td colspan="1" ><input id="MechSwitchDuration2" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="MechSwitchDurationUnit2">s</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('MechSwitchDurationUnit','2','s')" >s</p>
+<p onclick="NMRDropdownSelect('MechSwitchDurationUnit','2','ms')">ms</p>
+<p onclick="NMRDropdownSelect('MechSwitchDurationUnit','2','us')">us</p>
+</div>
+</div>
+</td>
+<td colspan="1" ><input id="RFTransOffset2" type="number" value=0></input>
+<td colspan="1" ><input id="RFTransSwitchDuration2" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="RFTransSwitchDurationUnit2">s</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('RFTransSwitchDurationUnit','2','s')" >s</p>
+<p onclick="NMRDropdownSelect('RFTransSwitchDurationUnit','2','ms')">ms</p>
+<p onclick="NMRDropdownSelect('RFTransSwitchDurationUnit','2','us')">us</p>
+</div>
+</div>
+</td>
+<td colspan="1" ><input id="TomcoOffset2" type="number" value=0></input>
+<td colspan="1" ><input id="TomcoAmpDuration2" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="TomcoAmpDurationUnit2">s</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('TomcoAmpDurationUnit','2','s')" >s</p>
+<p onclick="NMRDropdownSelect('TomcoAmpDurationUnit','2','ms')">ms</p>
+<p onclick="NMRDropdownSelect('TomcoAmpDurationUnit','2','us')">us</p>
+</div>
+</div>
+</td>
+<td colspan="1" ><input id="TomcoEnable2" type="checkbox"></input>
+<td colspan="1" ><input id="RFRecvOffset2" type="number" value=0></input>
+<td colspan="1" ><input id="RFRecvSwitchDuration2" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="RFRecvSwitchDurationUnit2">s</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('RFRecvSwitchDurationUnit','2','s')" >s</p>
+<p onclick="NMRDropdownSelect('RFRecvSwitchDurationUnit','2','ms')">ms</p>
+<p onclick="NMRDropdownSelect('RFRecvSwitchDurationUnit','2','us')">us</p>
+</div>
+</div>
+</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">S3</td>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtnlong" id="FPGAConfig3">OFF</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('FPGAConfig','3','OFF')" >OFF</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','3','Short Coil')">Short Coil</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','3','Long Coil')">Long Coil</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','3','Cyl. Probe')">Cyl. Probe</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','3','Sph. Probe')">Sph. Probe</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','3','Other')">Other</p>
+</div>
+</div>
+</td>
+<td colspan="1" ><input id="MechOffset3" type="number" value=0></input>
+<td colspan="1" ><input id="MechSwitchDuration3" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="MechSwitchDurationUnit3">s</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('MechSwitchDurationUnit','3','s')" >s</p>
+<p onclick="NMRDropdownSelect('MechSwitchDurationUnit','3','ms')">ms</p>
+<p onclick="NMRDropdownSelect('MechSwitchDurationUnit','3','us')">us</p>
+</div>
+</div>
+</td>
+<td colspan="1" ><input id="RFTransOffset3" type="number" value=0></input>
+<td colspan="1" ><input id="RFTransSwitchDuration3" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="RFTransSwitchDurationUnit3">s</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('RFTransSwitchDurationUnit','3','s')" >s</p>
+<p onclick="NMRDropdownSelect('RFTransSwitchDurationUnit','3','ms')">ms</p>
+<p onclick="NMRDropdownSelect('RFTransSwitchDurationUnit','3','us')">us</p>
+</div>
+</div>
+</td>
+<td colspan="1" ><input id="TomcoOffset3" type="number" value=0></input>
+<td colspan="1" ><input id="TomcoAmpDuration3" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="TomcoAmpDurationUnit3">s</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('TomcoAmpDurationUnit','3','s')" >s</p>
+<p onclick="NMRDropdownSelect('TomcoAmpDurationUnit','3','ms')">ms</p>
+<p onclick="NMRDropdownSelect('TomcoAmpDurationUnit','3','us')">us</p>
+</div>
+</div>
+</td>
+<td colspan="1" ><input id="TomcoEnable3" type="checkbox"></input>
+<td colspan="1" ><input id="RFRecvOffset3" type="number" value=0></input>
+<td colspan="1" ><input id="RFRecvSwitchDuration3" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="RFRecvSwitchDurationUnit3">s</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('RFRecvSwitchDurationUnit','3','s')" >s</p>
+<p onclick="NMRDropdownSelect('RFRecvSwitchDurationUnit','3','ms')">ms</p>
+<p onclick="NMRDropdownSelect('RFRecvSwitchDurationUnit','3','us')">us</p>
+</div>
+</div>
+</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">S4</td>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtnlong" id="FPGAConfig4">OFF</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('FPGAConfig','4','OFF')" >OFF</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','4','Short Coil')">Short Coil</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','4','Long Coil')">Long Coil</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','4','Cyl. Probe')">Cyl. Probe</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','4','Sph. Probe')">Sph. Probe</p>
+<p onclick="NMRDropdownSelect('FPGAConfig','4','Other')">Other</p>
+</div>
+</div>
+</td>
+<td colspan="1" ><input id="MechOffset4" type="number" value=0></input>
+<td colspan="1" ><input id="MechSwitchDuration4" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="MechSwitchDurationUnit4">s</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('MechSwitchDurationUnit','4','s')" >s</p>
+<p onclick="NMRDropdownSelect('MechSwitchDurationUnit','4','ms')">ms</p>
+<p onclick="NMRDropdownSelect('MechSwitchDurationUnit','4','us')">us</p>
+</div>
+</div>
+</td>
+<td colspan="1" ><input id="RFTransOffset4" type="number" value=0></input>
+<td colspan="1" ><input id="RFTransSwitchDuration4" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="RFTransSwitchDurationUnit4">s</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('RFTransSwitchDurationUnit','4','s')" >s</p>
+<p onclick="NMRDropdownSelect('RFTransSwitchDurationUnit','4','ms')">ms</p>
+<p onclick="NMRDropdownSelect('RFTransSwitchDurationUnit','4','us')">us</p>
+</div>
+</div>
+</td>
+<td colspan="1" ><input id="TomcoOffset4" type="number" value=0></input>
+<td colspan="1" ><input id="TomcoAmpDuration4" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="TomcoAmpDurationUnit4">s</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('TomcoAmpDurationUnit','4','s')" >s</p>
+<p onclick="NMRDropdownSelect('TomcoAmpDurationUnit','4','ms')">ms</p>
+<p onclick="NMRDropdownSelect('TomcoAmpDurationUnit','4','us')">us</p>
+</div>
+</div>
+</td>
+<td colspan="1" ><input id="TomcoEnable4" type="checkbox" ></input>
+<td colspan="1" ><input id="RFRecvOffset4" type="number" value=0></input>
+<td colspan="1" ><input id="RFRecvSwitchDuration4" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="RFRecvSwitchDurationUnit4">s</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelect('RFRecvSwitchDurationUnit','4','s')" >s</p>
+<p onclick="NMRDropdownSelect('RFRecvSwitchDurationUnit','4','ms')">ms</p>
+<p onclick="NMRDropdownSelect('RFRecvSwitchDurationUnit','4','us')">us</p>
+</div>
+</div>
+</td>
+</tr>
+<th colspan="4"> LO Settings </th>
+<th colspan="4"> Digitizer Settings </th>
+<th colspan="7"> Utilities </th>
+<tr>
+<td colspan="1" >Frequency</td>
+<td colspan="1" ><input id="LOFreq" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="LOSettingFreqUnit">kHz</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelectGeneral('LOSettingFreqUnit','kHz')" >kHz</p>
+<p onclick="NMRDropdownSelectGeneral('LOSettingFreqUnit','MHz')">MHz</p>
+</div>
+</div>
+</td>
+<td colspan="1"></td>
+<td colspan="1" >Struck ID</td>
+<td colspan="1" ><input id="StruckID" type="number" value=0></input>
+<td colspan="1"></td>
+<td colspan="1"></td>
+<td colspan="1">Debug Mode</td>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="DebugMode">OFF</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelectGeneral('DebugMode','ON')" >ON</p>
+<p onclick="NMRDropdownSelectGeneral('DebugMode','OFF')">OFF</p>
+</div>
+</div>
+</td>
+<td></td>
+<td colspan="1">Verbosity</td>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="Verbosity">0</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelectGeneral('Verbosity','0')" >0</p>
+<p onclick="NMRDropdownSelectGeneral('Verbosity','1')" >1</p>
+<p onclick="NMRDropdownSelectGeneral('Verbosity','2')" >2</p>
+<p onclick="NMRDropdownSelectGeneral('Verbosity','3')" >3</p>
+<p onclick="NMRDropdownSelectGeneral('Verbosity','4')" >4</p>
+</div>
+</div>
+</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="1" >BNC</td>
+<td colspan="1" ><input id="BNCVoltage" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="LOSettingBNCUnit">Vpp</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelectGeneral('LOSettingBNCUnit','Vpp')" >Vpp</p>
+<p onclick="NMRDropdownSelectGeneral('LOSettingBNCUnit','rms')">rms</p>
+<p onclick="NMRDropdownSelectGeneral('LOSettingBNCUnit','dBm')">dBm</p>
+</div>
+</div>
+</td>
+<td colspan="1" class="text-center"><input id="BNCOn" type="checkbox">ON</input>
+<td colspan="1" >Channel Number</td>
+<td colspan="1" ><input id="DigitizerChNumber" type="number" value=0></input>
+<td colspan="1"></td>
+<td colspan="1"></td>
+<td colspan="1">Delay Time</td>
+<td colspan="1" ><input id="DelayTime" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="DelayTimeUnit">s</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelectGeneral('DelayTimeUnit','s')" >s</p>
+<p onclick="NMRDropdownSelectGeneral('DelayTimeUnit','ms')">ms</p>
+<p onclick="NMRDropdownSelectGeneral('DelayTimeUnit','us')">us</p>
+</div>
+</div>
+</td>
+<td>Test Mode</td>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="TestMode">0</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelectGeneral('TestMode','0')" >0</p>
+<p onclick="NMRDropdownSelectGeneral('TestMode','1')" >1</p>
+<p onclick="NMRDropdownSelectGeneral('TestMode','2')" >2</p>
+<p onclick="NMRDropdownSelectGeneral('TestMode','3')" >3</p>
+<p onclick="NMRDropdownSelectGeneral('TestMode','4')" >4</p>
+<p onclick="NMRDropdownSelectGeneral('TestMode','5')" >5</p>
+</div>
+</div>
+</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="1" >N-Type</td>
+<td colspan="1" ><input id="NTypeVoltage" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="LOSettingNTypeUnit">Vpp</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelectGeneral('LOSettingNTypeUnit','Vpp')" >Vpp</p>
+<p onclick="NMRDropdownSelectGeneral('LOSettingNTypeUnit','rms')">rms</p>
+<p onclick="NMRDropdownSelectGeneral('LOSettingNTypeUnit','dBm')">dBm</p>
+</div>
+</div>
+</td>
+<td colspan="1" class="text-center"><input id="NTypeOn" type="checkbox" >ON</input>
+<td colspan="1" >Number of Pulses</td>
+<td colspan="1" ><input id="NOfPulses" type="number" value=0></input>
+<td colspan="1"></td>
+<td colspan="1"></td>
+<td colspan="1">PTS160 Freq.</td>
+<td colspan="1" ><input id="PTS160Freq" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="PTS160FreqUnit">kHz</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelectGeneral('PTS160FreqUnit','kHz')" >kHz</p>
+<p onclick="NMRDropdownSelectGeneral('PTS160FreqUnit','MHz')" >MHz</p>
+</div>
+</div>
+</td>
+<td colspan="1" >Config Label</td>
+<td colspan="3" ><input id="ConfigLabel" type="text" value="label (no spaces)"></input>
+</tr>
+<tr>
+<td colspan="1"></td>
+<td colspan="1"></td>
+<td colspan="1"></td>
+<td colspan="1"></td>
+<td colspan="1">Sampling Freq.</td>
+<td colspan="1" ><input id="SamplingFreq" type="number" value=0></input>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtn" id="SamplingFreqUnit">kHz</p>
+<div class="dropdown-content">
+<p onclick="NMRDropdownSelectGeneral('SamplingFreqUnit','kHz')" >kHz</p>
+<p onclick="NMRDropdownSelectGeneral('SamplingFreqUnit','MHz')">MHz</p>
+</div>
+</div>
+</td>
+<td colspan="1" class="text-center"><input id="DigiExternal" type="checkbox" >External</input>
+<td colspan="1" >Comments</td>
+<td colspan="6" ><input id="RunComments" type="text" value="Run comments"></input>
+</tr>
+</table> 
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+</section>
+
+</form>
+</body>
+
+</html>	

@@ -54,7 +54,7 @@ build/%.o: obj/%.cxx obj/%.hh
 bin/%: src/%.cxx $(MID_LIB)/mfe.o $(OBJECTS)
 	$(CXX) -o $@ $+ $(CPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	$(LIBS) $(ROOTLIBS)
-	ln -s $(shell pwd)/$@ ../../bin/
+	ln -sf $(shell pwd)/$@ ../../bin/
 
 #-------------------------------------------------------------------
 #Hear belongs to Ran Hong
@@ -70,14 +70,56 @@ RHCPPFLAGS += -I$(BOOST_INC) -I$(shell echo $(ZMQ_INCLUDE_DIR))
 RHCPPFLAGS += -I/usr/local/include/ -I/usr/local/include/g2field
 RHCPPFLAGS += -Wl,-rpath,/usr/local/lib
 
-allRH: bin/gm2TrolleyFe bin/gm2TrolleyFeSim
-bin/gm2TrolleyFe: src/gm2TrolleyFe.cxx $(MID_LIB)/mfe.o
+# these look the same as Ran's, but let's copy them over here just in case I want to change it later. 
+DFLIBS += -L$(MID_LIB) -Lcore/lib -L/usr/lib64/mysql -L/usr/local/lib
+DFLIBS += -L/usr/lib -L$(BOOST_LIB)
+DFLIBS += -lmidas-shared  -lmysqlclient -lsqlite3
+DFLIBS += -lboost_system -lboost_filesystem
+DFLIBS += -lm -lz -lpthread -lodbc -lrt
+DFLIBS += -lyokogawainterface
+DFCPPFLAGS = -fpermissive -O2
+DFCPPFLAGS += -I$(MID_INC) -Icore/include -Iinclude -I/usr/include
+DFCPPFLAGS += -I$(BOOST_INC) -I$(shell echo $(ZMQ_INCLUDE_DIR))
+DFCPPFLAGS += -I/usr/local/include/ -I/usr/local/include/g2field
+DFCPPFLAGS += -Wl,-rpath,/usr/local/lib
+
+allRH: bin/trolley bin/sim_trolley bin/galil bin/sim_galil bin/abs-probe bin/galil-platform
+allDF: bin/yokogawa
+
+bin/trolley: src/trolley.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	        $(RHLIBS) $(ROOTLIBS)
+	ln -sf $(shell pwd)/$@ ../../bin/
 
-bin/gm2TrolleyFeSim: src/gm2TrolleyFeSim.cxx $(MID_LIB)/mfe.o
+bin/sim_trolley: src/sim_trolley.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	$(RHLIBS) $(ROOTLIBS)
+	ln -sf $(shell pwd)/$@ ../../bin/
+
+bin/galil: src/galil.cxx $(MID_LIB)/mfe.o
+	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
+	        $(RHLIBS) $(ROOTLIBS)
+	ln -sf $(shell pwd)/$@ ../../bin/
+
+bin/sim_galil: src/sim_galil.cxx $(MID_LIB)/mfe.o
+	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
+	        $(RHLIBS) $(ROOTLIBS)
+	ln -sf $(shell pwd)/$@ ../../bin/
+
+bin/abs-probe: src/abs-probe.cxx $(MID_LIB)/mfe.o
+	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
+		$(RHLIBS) $(ROOTLIBS)
+	ln -sf $(shell pwd)/$@ ../../bin/
+
+bin/galil-platform: src/galil-platform.cxx $(MID_LIB)/mfe.o
+	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
+	        $(RHLIBS) $(ROOTLIBS)
+	ln -sf $(shell pwd)/$@ ../../bin/
+
+bin/yokogawa: src/yokogawa.cxx $(MID_LIB)/mfe.o
+	$(CXX) -o $@ $+ $(DFCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
+		$(DFLIBS) $(ROOTLIBS)
+
 
 #-------------------------------------------------------------------
 clean:

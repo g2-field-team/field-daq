@@ -91,8 +91,12 @@ LIBS += -lmidas-shared  -lmysqlclient -lsqlite3
 LIBS += -lboost_system -lboost_filesystem
 LIBS += -lm -lz -lpthread -lodbc -lrt
 CPPFLAGS += -I$(MID_INC) -Icore/include -Iobj -Iinclude
+<<<<<<< HEAD
+CPPFLAGS += -I/usr/local/opt/boost/
+=======
 #CPPFLAGS += -I/usr/local/opt/boost/
 CPPFLAGS += -I$(BOOST_INC)
+>>>>>>> 91009e6affa7cbf7298c46627f1845747a7f5616
 CPPFLAGS += -I/usr/local/include/
 CPPFLAGS += -Wl,-rpath,/usr/local/lib
 
