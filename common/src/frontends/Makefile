@@ -27,15 +27,18 @@ MID_LIB = $(MIDASSYS)/linux/lib
 # Libraries && include flags
 LIBS += -L$(MID_LIB) -Lcore/lib -L/usr/lib64/mysql -L/usr/local/lib 
 LIBS += -L/usr/lib -L$(BOOST_LIB)
+LIBS += -L$(ZMQ_LIB_DIR)
 LIBS += -lmidas-shared  -lmysqlclient -lsqlite3
 LIBS += -lboost_system -lboost_filesystem
 LIBS += -lm -lz -lpthread -lodbc -lrt
 LIBS += -lgclib -lgclibo
 LIBS += -ltrolleyinterface -lg2fieldvme -lfid
+LIBS += -lzmq
 CPPFLAGS += -I$(MID_INC) -Icore/include -Iobj -Iinclude -I/usr/include
 CPPFLAGS += -I$(BOOST_INC) -I$(shell echo $(ZMQ_INCLUDE_DIR))
 CPPFLAGS += -I/usr/local/include/ -I/usr/local/include/g2field
 CPPFLAGS += -Wl,-rpath,/usr/local/lib
+CPPFLAGS += -I$(ZMQ_INC)
 
 # Set compilers
 CC = gcc
