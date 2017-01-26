@@ -25,7 +25,9 @@ FixedProbeSequencer::~FixedProbeSequencer()
     delete val;
   }
 
-  delete nmr_pulser_trg_;
+  if (nmr_pulser_trg_ != nullptr) {
+    delete nmr_pulser_trg_;
+  }
 }
 
 int FixedProbeSequencer::Init()
@@ -38,6 +40,8 @@ int FixedProbeSequencer::Init()
   mux_round_configured_ = false;
   analyze_fids_online_ = false;
   use_fast_fids_class_ = false;
+
+  nmr_pulser_trg_ = nullptr;
 
   // Change the logfile if there is one in the config.
   boost::property_tree::ptree conf;
@@ -70,22 +74,7 @@ int FixedProbeSequencer::BeginOfRun()
   }
 
   int sis_idx = 0;
-  // for (auto &v : conf.get_child("devices.sis_3302")) {
-
-  //   std::string name(v.first);
-  //   std::string dev_conf_file = std::string(v.second.data());
-
-  //   if (dev_conf_file[0] != '/') {
-  //     dev_conf_file = hw::conf_dir + std::string(v.second.data());
-  //   }
-
-  //   sis_idx_map_[name] = sis_idx++;
-
-  //   LogDebug("loading hw: %s, %s", name.c_str(), dev_conf_file.c_str());
-  //   workers_.PushBack(new hw::Sis3302(name, dev_conf_file));
-  // }
-
-  for (auto &v : conf.get_child("devices.sis_3316")) {
+  for (auto &v : conf.get_child("devices.sis_3302")) {
 
     std::string name(v.first);
     std::string dev_conf_file = std::string(v.second.data());
@@ -97,10 +86,27 @@ int FixedProbeSequencer::BeginOfRun()
     sis_idx_map_[name] = sis_idx++;
 
     LogDebug("loading hw: %s, %s", name.c_str(), dev_conf_file.c_str());
-    workers_.PushBack(new hw::Sis3316(name, 
+    workers_.PushBack(new hw::Sis3302(name, 
 				      dev_conf_file, 
 				      NMR_FID_LENGTH_ONLINE));
   }
+
+  // for (auto &v : conf.get_child("devices.sis_3316")) {
+
+  //   std::string name(v.first);
+  //   std::string dev_conf_file = std::string(v.second.data());
+
+  //   if (dev_conf_file[0] != '/') {
+  //     dev_conf_file = hw::conf_dir + std::string(v.second.data());
+  //   }
+
+  //   sis_idx_map_[name] = sis_idx++;
+
+  //   LogDebug("loading hw: %s, %s", name.c_str(), dev_conf_file.c_str());
+  //   workers_.PushBack(new hw::Sis3316(name, 
+  // 				      dev_conf_file, 
+  // 				      NMR_FID_LENGTH_ONLINE));
+  // }
 
   sis_idx = 0;
   // for (auto &v : conf.get_child("devices.sis_3350")) {
@@ -188,10 +194,10 @@ int FixedProbeSequencer::BeginOfRun()
   }
 
   mux_boards_.resize(0);
-  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_A));
-  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_B));
-  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_C));
-  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_D));
+  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_A, false));
+  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_B, false));
+  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_C, false));
+  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_D, false));
 
   std::map<char, int> bid_map;
   bid_map['a'] = 0;
@@ -224,6 +230,7 @@ int FixedProbeSequencer::BeginOfRun()
   starter_thread_ = std::thread(&FixedProbeSequencer::StarterLoop, this);
 
   go_time_ = true;
+  LogMessage("Starting workers");
   workers_.StartRun();
 
   // Pop stale events
@@ -447,6 +454,10 @@ void FixedProbeSequencer::BuilderLoop()
 
           } else {
 
+            // Get the time as close to readout as we can.
+            auto gps_clock = parse_mbg_string_ns();
+
+            // Grab the data itself.
             data = data_queue_.front();
             data_queue_.pop();
             queue_mutex_.unlock();
@@ -466,17 +477,18 @@ void FixedProbeSequencer::BuilderLoop()
               int idx = 0;
               ULong64_t clock = 0;
 
-	      // Store index and clock.
-	      clock = data[sis_idx].dev_clock[trace_idx];
-	      idx = data_out_[pair].second;
-	      bundle.dev_clock[idx] = clock;
-	      
-	      // Get FID data.
-	      auto arr_ptr = &bundle.trace[idx][0];
-	      auto trace = data[sis_idx].trace[trace_idx];
-	      auto size = data[sis_idx].trace[trace_idx].size();
-	      std::copy(&trace[0], &trace[0] + size, arr_ptr);
-
+              // Store index and clock.
+              clock = data[sis_idx].dev_clock[trace_idx];
+              idx = data_out_[pair].second;
+              bundle.dev_clock[idx] = clock;
+              bundle.gps_clock[idx] = gps_clock;
+              
+              // Get FID data.
+              auto arr_ptr = &bundle.trace[idx][0];
+              auto trace = data[sis_idx].trace[trace_idx];
+              auto size = data[sis_idx].trace[trace_idx].size();
+              std::copy(&trace[0], &trace[0] + size, arr_ptr);
+              
               // Save the index for analysis after copying
               indices.push_back(idx);
             }
@@ -491,7 +503,6 @@ void FixedProbeSequencer::BuilderLoop()
 
               // Get the timestamp
               bundle.sys_clock[idx] = hw::systime_us();
-              bundle.gps_clock[idx] = 0.0; // todo:
 
               if (analyze_fids_online_ || (idx == 0)) {
 

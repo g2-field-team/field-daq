@@ -89,8 +89,8 @@ extern "C" {
   EQUIPMENT equipment[] = {
 
 
-    {"TrolleyInterfaceSim",                /* equipment name */
-      {1, 0,                   /* event ID, trigger mask */
+    {"SimTrolleyInterface",                /* equipment name */
+      {EVENTID_TROLLEY, 0,                   /* event ID, trigger mask */
 	"SYSTEM",               /* event buffer */
 	EQ_POLLED,            /* equipment type */
 	0,                      /* event source */
@@ -169,7 +169,10 @@ resume_run:     When a run is resumed. Should enable trigger events.
 INT frontend_init()
 { 
   //Connect to fake trolley interface
-  const char * filename = "/home/newg2/Applications/field-daq/resources/NMRDataTemp/data_NMR_61682000Hz_11.70dbm-2016-10-27_19-36-42.dat";
+  char filename[500];
+  INT filename_size = sizeof(filename);
+  db_get_value(hDB,0,"/Equipment/SimTrolleyInterface/Settings/Data Source",filename,&filename_size,TID_STRING,0);
+
   int err = FileOpen(filename); 
 
   if (err==0){
@@ -215,17 +218,17 @@ INT begin_of_run(INT run_number, char *error)
 
   //Get Root output switch
   int write_root_size = sizeof(write_root);
-  db_get_value(hDB,0,"/Experiment/Run Parameters/Root Output",&write_root,&write_root_size,TID_BOOL, 0);
+  db_get_value(hDB,0,"/Equipment/SimTrolleyInterface/Settings/Root Output",&write_root,&write_root_size,TID_BOOL, 0);
 
   //Get Data dir
   string DataDir;
   char str[500];
   int str_size = sizeof(str);
-  db_get_value(hDB,0,"/Logger/Data dir",&str,&str_size,TID_STRING, 0);
+  db_get_value(hDB,0,"/Equipment/SimTrolleyInterface/Settings/Root Dir",&str,&str_size,TID_STRING, 0);
   DataDir=string(str);
 
   //Root File Name
-  sprintf(str,"Root/TrolleyInterfaceSim_%05d.root",RunNumber);
+  sprintf(str,"SimTrolleyInterface_%05d.root",RunNumber);
   string RootFileName = DataDir + string(str);
 
   if(write_root){
@@ -415,7 +418,7 @@ INT read_trly_event(char *pevent, INT off){
   mlockdata.unlock();
 
   //update buffer load in odb
-  db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/Buffer Load",&BufferLoad,BufferLoad_size, 1 ,TID_INT); 
+  db_set_value(hDB,0,"/Equipment/SimTrolleyInterface/Monitor/Buffer Load",&BufferLoad,BufferLoad_size, 1 ,TID_INT); 
   return bk_size(pevent);
 }
 
@@ -449,7 +452,7 @@ void ReadFromDevice(){
 
   int ReadThreadActive = 1;
   mlock.lock();
-  db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+  db_set_value(hDB,0,"/Equipment/SimTrolleyInterface/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
   mlock.unlock();
 
   //Read first frame and sync
@@ -457,7 +460,7 @@ void ReadFromDevice(){
   if (rc<0){
     ReadThreadActive = 0;
     mlock.lock();
-    db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+    db_set_value(hDB,0,"/Equipment/SimTrolleyInterface/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
       if (rc==errorEOF){
 	cm_msg(MERROR,"ReadFromDevice","End of fake file frontend");
       }else{
@@ -485,7 +488,7 @@ void ReadFromDevice(){
     if (rc<0){
       ReadThreadActive = 0;
       mlock.lock();
-      db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+      db_set_value(hDB,0,"/Equipment/SimTrolleyInterface/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
       if (rc==errorEOF){
 	cm_msg(MERROR,"ReadFromDevice","End of fake file frontend");
       }else{
@@ -498,7 +501,7 @@ void ReadFromDevice(){
     memcpy(&FrameSize,&(Frame[7]),sizeof(int));
 
     mlock.lock();
-    db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/DataFrameIndex",&FrameNumber,sizeof(FrameNumber), 1 ,TID_INT); 
+    db_set_value(hDB,0,"/Equipment/SimTrolleyInterface/Monitor/Data Frame Index",&FrameNumber,sizeof(FrameNumber), 1 ,TID_INT); 
     mlock.unlock();
 
     if (FrameNumber!=(LastFrameNumber+1)){
@@ -591,7 +594,7 @@ void ReadFromDevice(){
     //Set the pressure sensor calibration only once
     if (i==0){
       mlock.lock();
-      db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Hardware/Pressure Sensor Calibration",&PressureSensorCal,sizeof(PressureSensorCal), 7 ,TID_SHORT);
+      db_set_value(hDB,0,"/Equipment/SimTrolleyInterface/Hardware/Pressure Sensor Calibration",&PressureSensorCal,sizeof(PressureSensorCal), 7 ,TID_SHORT);
       mlock.unlock();
     }
 
@@ -605,6 +608,9 @@ void ReadFromDevice(){
     for (int ii=0;ii<NWords;ii++){
       sum2+=(unsigned int)Frame[ii];
     }
+    //Correction for 0x7FFF
+    sum2+=0x7FFF;
+    //////////////////////
     NMRCheckSumPassed = (sum1==NMRCheckSum);
     FrameCheckSumPassed = (sum2==FrameCheckSum);
     TrlyMonitorDataUnit->NMRCheckSum = NMRCheckSum;
@@ -613,11 +619,11 @@ void ReadFromDevice(){
 
     //Update odb error monitors and sending messages
     mlock.lock();
-    db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/Barcode Error",&BarcodeError,sizeof(BarcodeError), 1 ,TID_BOOL);
-    db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/Temperature Interupt",&TemperatureInterupt,sizeof(TemperatureInterupt), 1 ,TID_BOOL);
-    db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/Power Supply Status",&PowersupplyStatus,sizeof(PowersupplyStatus), 3 ,TID_BOOL);
-    db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/NMR Check Sum",&NMRCheckSumPassed,sizeof(NMRCheckSumPassed), 1 ,TID_BOOL);
-    db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/Frame Check Sum",&FrameCheckSumPassed,sizeof(FrameCheckSumPassed), 1 ,TID_BOOL);
+    db_set_value(hDB,0,"/Equipment/SimTrolleyInterface/Monitor/Barcode Error",&BarcodeError,sizeof(BarcodeError), 1 ,TID_BOOL);
+    db_set_value(hDB,0,"/Equipment/SimTrolleyInterface/Monitor/Temperature Interupt",&TemperatureInterupt,sizeof(TemperatureInterupt), 1 ,TID_BOOL);
+    db_set_value(hDB,0,"/Equipment/SimTrolleyInterface/Monitor/Power Supply Status",&PowersupplyStatus,sizeof(PowersupplyStatus), 3 ,TID_BOOL);
+    db_set_value(hDB,0,"/Equipment/SimTrolleyInterface/Monitor/NMR Check Sum",&NMRCheckSumPassed,sizeof(NMRCheckSumPassed), 1 ,TID_BOOL);
+    db_set_value(hDB,0,"/Equipment/SimTrolleyInterface/Monitor/Frame Check Sum",&FrameCheckSumPassed,sizeof(FrameCheckSumPassed), 1 ,TID_BOOL);
     if(BarcodeError && (!BarcodeErrorOld || i==0))cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Barcode reading error. At iteration %d",i);
     if(TemperatureInterupt && (!TemperatureInteruptOld || i==0))cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Temperature interupt. At iteration %d",i);
     if(!PowersupplyStatus[0] && (PowersupplyStatusOld[0]) || i==0 )cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Power supply error 1.At iteration %d",i);
@@ -643,7 +649,7 @@ void ReadFromDevice(){
   }
   ReadThreadActive = 0;
   mlock.lock();
-  db_set_value(hDB,0,"/Equipment/TrolleyInterfaceSim/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+  db_set_value(hDB,0,"/Equipment/SimTrolleyInterface/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
   mlock.unlock();
   delete []Frame;
 }

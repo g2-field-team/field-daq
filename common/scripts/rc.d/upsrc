@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# CernVM-FS
+if [ -e /cvmfs/gm2.opensciencegrid.org/prod ]
+then
+#	echo "Sourcing g-2 UPS environment setup."
+	source /cvmfs/gm2.opensciencegrid.org/prod7/g-2/setup >& /dev/null
+	setup gm2 v7_02_00 -q prof
+	setup root v6_06_04b -q e10:prof
+	setup boost v1_61_0 -q e10:prof
+	setup zmq v4_1_5 -q e10:prof
+else
+	echo "CVMFS not mounted."
+fi

@@ -26,8 +26,8 @@ $Id$
 #include <mutex>
 
 #include "TrolleyInterface.h"
-#include "field_structs.hh"
 #include "field_constants.hh"
+#include "field_structs.hh"
 
 #include "TTree.h"
 #include "TFile.h"
@@ -90,7 +90,7 @@ extern "C" {
 
 
     {"TrolleyInterface",                /* equipment name */
-      {1, 0,                   /* event ID, trigger mask */
+      {EVENTID_TROLLEY, 0,                   /* event ID, trigger mask */
 	"SYSTEM",               /* event buffer */
 	EQ_POLLED,            /* equipment type */
 	0,                      /* event source */
@@ -180,8 +180,22 @@ INT frontend_init()
     cm_msg(MERROR,"init","Trolley Interface connection failed. Error code: %d",err);
     return FE_ERR_HW;
   }
+
+  //Makesure the measurements are stopped
+  DeviceWrite(reg_command,0x0000);
   //Send Trolley interface command to stop data taking
-  DeviceWriteMask(0x40000944,0x00000001,0x00000001);
+  DeviceWriteMask(reg_event_data_control,0x00000001,0x00000000);
+  //Configure power
+ // DeviceWrite(reg_power_control2,0x0004);
+  //Configure Probe
+  DeviceWrite(0x400004C0,17);
+  DeviceWrite(reg_nmr_rf_probe_select,0);
+  DeviceWrite(reg_bc_refdac2,1024);
+  DeviceWrite(reg_command,0x0100);
+  DeviceWrite(reg_command,0x0200);
+  sleep(1);
+  DeviceWrite(reg_command,0x0000);
+  DevicePurgeData();
 
   return SUCCESS;
 }
@@ -191,7 +205,8 @@ INT frontend_init()
 INT frontend_exit()
 {
   //Send Trolley interface command to stop data taking
-  DeviceWriteMask(0x40000944,0x00000001,0x00000001);
+  DeviceWriteMask(reg_event_data_control,0x00000001,0x00000001);
+  DeviceWrite(reg_command,0x0000);
   //Disconnect from Trolley interface
   int err = DeviceDisconnect();
   if (err==0){
@@ -217,17 +232,17 @@ INT begin_of_run(INT run_number, char *error)
 
   //Get Root output switch
   int write_root_size = sizeof(write_root);
-  db_get_value(hDB,0,"/Experiment/Run Parameters/Root Output",&write_root,&write_root_size,TID_BOOL, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Root Output",&write_root,&write_root_size,TID_BOOL, 0);
 
   //Get Data dir
   string DataDir;
   char str[500];
   int str_size = sizeof(str);
-  db_get_value(hDB,0,"/Logger/Data dir",&str,&str_size,TID_STRING, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Root Dir",&str,&str_size,TID_STRING, 0);
   DataDir=string(str);
 
   //Root File Name
-  sprintf(str,"Root/TrolleyInterface_%05d.root",RunNumber);
+  sprintf(str,"TrolleyInterface_%05d.root",RunNumber);
   string RootFileName = DataDir + string(str);
 
   if(write_root){
@@ -236,10 +251,6 @@ INT begin_of_run(INT run_number, char *error)
     pt_norm = new TTree("t_Trolley", "Trolley Interface Data");
     pt_norm->SetAutoSave(5);
     pt_norm->SetAutoFlush(20);
-
-    string nrm_br_name("TLNP");
-    string barcode_br_name("TLBC");
-    string monitor_br_name("TLMN");
 
     pt_norm->Branch(nmr_bank_name, &TrlyNMRCurrent, g2field::trolley_nmr_str);
     pt_norm->Branch(barcode_bank_name, &TrlyBarcodeCurrent, g2field::trolley_barcode_str);
@@ -253,9 +264,68 @@ INT begin_of_run(INT run_number, char *error)
   mlock.unlock();
   cm_msg(MINFO,"begin_of_run","Data buffer is emptied at the beginning of the run.");
 
+  //Get ODB Values for registies
+  INT NMR_RF_Prescale;
+  INT NMR_Probe_Select;
+  INT NMR_Probe_Delay;
+  INT NMR_Probe_Period;
+  INT NMR_Preamp_Delay;
+  INT NMR_Preamp_Period;
+  INT NMR_Gate_Delay;
+  INT NMR_Gate_Period;
+  INT NMR_Transmit_Delay;
+  INT NMR_Transmit_Period;
+
+  INT BC_Sample_Period;
+  INT BC_Acq_Delay;
+
+  INT Size_INT = sizeof(NMR_RF_Prescale);//Size for all ODB registies here
+
+  double BC_LED_Voltage = 0.0;
+  int BC_LED_V_size = sizeof(BC_LED_Voltage);
+
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/RF Prescale",&NMR_RF_Prescale,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Probe Select",&NMR_Probe_Select,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Probe Delay",&NMR_Probe_Delay,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Probe Period",&NMR_Probe_Period,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Preamp Delay",&NMR_Preamp_Delay,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Preamp Period",&NMR_Preamp_Period,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Gate Delay",&NMR_Gate_Delay,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Gate Period",&NMR_Gate_Period,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Transmit Delay",&NMR_Transmit_Delay,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Transmit Period",&NMR_Transmit_Period,&Size_INT,TID_INT, 0);
+
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Barcode Registry/Sample Period",&BC_Sample_Period,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Barcode Registry/Acq Delay",&BC_Acq_Delay,&Size_INT,TID_INT, 0);
+
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Barcode Registry/LED Voltage",&BC_LED_Voltage,&BC_LED_V_size,TID_DOUBLE, 0);
+
+  //Load registries to Trolley Interface
+  DeviceWrite(reg_nmr_rf_prescale,static_cast<unsigned int>(NMR_RF_Prescale));
+  DeviceWrite(reg_nmr_rf_probe_select,static_cast<unsigned int>(NMR_Probe_Select));
+  DeviceWrite(reg_nmr_rf_probe_delay,static_cast<unsigned int>(NMR_Probe_Delay));
+  DeviceWrite(reg_nmr_rf_probe_period,static_cast<unsigned int>(NMR_Probe_Period));
+  DeviceWrite(reg_nmr_rf_preamp_delay,static_cast<unsigned int>(NMR_Preamp_Delay));
+  DeviceWrite(reg_nmr_rf_preamp_period,static_cast<unsigned int>(NMR_Preamp_Period));
+  DeviceWrite(reg_nmr_rf_gate_delay,static_cast<unsigned int>(NMR_Gate_Delay));
+  DeviceWrite(reg_nmr_rf_gate_period,static_cast<unsigned int>(NMR_Gate_Period));
+  DeviceWrite(reg_nmr_rf_transmit_delay,static_cast<unsigned int>(NMR_Transmit_Delay));
+  DeviceWrite(reg_nmr_rf_transmit_period,static_cast<unsigned int>(NMR_Transmit_Period*NMR_RF_Prescale));
+
+  DeviceWrite(reg_bc_sample_period,static_cast<unsigned int>(BC_Sample_Period/50));
+  DeviceWrite(reg_bc_t_acq,static_cast<unsigned int>(BC_Acq_Delay/50));
+
+  //Turn on LED, V=1V
+  unsigned int led_v =static_cast<unsigned int>(1024.0*BC_LED_Voltage/2.5);
+  DeviceWrite(reg_bc_refdac2,led_v);
+
   //Send Trolley interface command to start data taking
-  DevicePurgeData();
-  DeviceWriteMask(0x40000944,0x00000001,0x00000000);
+  DeviceWrite(reg_command,0x0031);
+  //  DeviceWriteMask(0x40000944,0x00000001,0x00000000);
+
+  DeviceWriteMask(reg_command,0x00000100,0x00000100);
+  sleep(1);
+  DeviceWriteMask(reg_command,0x00000100,0x00000000);
 
   //Start reading thread
   RunActive=true;
@@ -279,8 +349,18 @@ INT end_of_run(INT run_number, char *error)
   TrlyMonitorBuffer.clear();
   cm_msg(MINFO,"exit","Data buffer is emptied before exit.");
 
+  //Turn off LED
+  DeviceWrite(reg_bc_refdac2,1024);
+  DeviceWriteMask(reg_command,0x00000100,0x00000100);
+  sleep(1);
+  DeviceWriteMask(reg_command,0x00000100,0x00000000);
   //Send Trolley interface command to stop data taking
-  DeviceWriteMask(0x40000944,0x00000001,0x00000001);
+  DeviceWriteMask(reg_command,0x00000001,0x00000001);
+  //Clear buffer
+  DeviceWrite(reg_command,0x0200);
+  sleep(1);
+  DeviceWrite(reg_command,0x0000);
+  DevicePurgeData();
 
   if(write_root){
     pt_norm->Write();
@@ -462,7 +542,7 @@ void ReadFromDevice(){
 
   int ReadThreadActive = 1;
   mlock.lock();
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
   mlock.unlock();
 
   //Read first frame and sync
@@ -470,7 +550,7 @@ void ReadFromDevice(){
   if (rc<0){
     ReadThreadActive = 0;
     mlock.lock();
-    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
     cm_msg(MERROR,"ReadFromDevice","Fail from first reading, error code = %d",rc);
     mlock.unlock();
     return;
@@ -493,7 +573,7 @@ void ReadFromDevice(){
     if (rc<0){
       ReadThreadActive = 0;
       mlock.lock();
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
       cm_msg(MERROR,"ReadFromDevice","Fail from regular reading, error code = %d",rc);
       mlock.unlock();
       return;
@@ -501,7 +581,7 @@ void ReadFromDevice(){
     memcpy(&FrameNumber,&(Frame[9]),sizeof(int));
     memcpy(&FrameSize,&(Frame[7]),sizeof(int));
     mlock.lock();
-    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/DataFrameIndex",&FrameNumber,sizeof(FrameNumber), 1 ,TID_INT); 
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Data Frame Index",&FrameNumber,sizeof(FrameNumber), 1 ,TID_INT); 
     mlock.unlock();
 
     if (FrameNumber!=(LastFrameNumber+1)){
@@ -607,6 +687,9 @@ void ReadFromDevice(){
     for (int ii=0;ii<NWords;ii++){
       sum2+=(unsigned int)Frame[ii];
     }
+    //Correction for 0x7FFF
+    sum2+=0x7FFF;
+    //////////////////////
     NMRCheckSumPassed = (sum1==NMRCheckSum);
     FrameCheckSumPassed = (sum2==FrameCheckSum);
     TrlyMonitorDataUnit->NMRCheckSum = NMRCheckSum;
@@ -646,7 +729,7 @@ void ReadFromDevice(){
   }
   ReadThreadActive = 0;
   mlock.lock();
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/ReadThreadActive",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
   mlock.unlock();
   delete []Frame;
 }

@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!-- created by MXML on Mon Jan 16 17:42:23 2017 -->
+<odb root="/Equipment" filename="EquipmentInit.xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="/home/newg2/Packages/gm2midas/midas/odb.xsd">
+  <dir name="Abs Fixed Probes">
+    <dir name="Common">
+      <key name="Event ID" type="WORD">18</key>
+      <key name="Trigger mask" type="WORD">13</key>
+      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
+      <key name="Type" type="INT">1</key>
+      <key name="Source" type="INT">0</key>
+      <key name="Format" type="STRING" size="8">MIDAS</key>
+      <key name="Enabled" type="BOOL">y</key>
+      <key name="Read on" type="INT">1</key>
+      <key name="Period" type="INT">10</key>
+      <key name="Event limit" type="DOUBLE">0</key>
+      <key name="Num subevents" type="DWORD">0</key>
+      <key name="Log history" type="INT">0</key>
+      <key name="Frontend host" type="STRING" size="32">localhost</key>
+      <key name="Frontend name" type="STRING" size="32">Abs Fixed Probes</key>
+      <key name="Frontend file name" type="STRING" size="256">src/abs_fixed_probes.cxx</key>
+      <key name="Status" type="STRING" size="256">Abs Fixed Probes@localhost</key>
+      <key name="Status color" type="STRING" size="32">greenLight</key>
+      <key name="Hidden" type="BOOL">n</key>
+    </dir>
+    <dir name="Variables"/>
+    <dir name="Statistics">
+      <key name="Events sent" type="DOUBLE">0</key>
+      <key name="Events per sec." type="DOUBLE">0</key>
+      <key name="kBytes per sec." type="DOUBLE">0</key>
+    </dir>
+  </dir>
+  <dir name="Fixed Probes">
+    <dir name="Common">
+      <key name="Event ID" type="WORD">1</key>
+      <key name="Trigger mask" type="WORD">1</key>
+      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
+      <key name="Type" type="INT">1</key>
+      <key name="Source" type="INT">0</key>
+      <key name="Format" type="STRING" size="8">MIDAS</key>
+      <key name="Enabled" type="BOOL">y</key>
+      <key name="Read on" type="INT">1</key>
+      <key name="Period" type="INT">10</key>
+      <key name="Event limit" type="DOUBLE">0</key>
+      <key name="Num subevents" type="DWORD">0</key>
+      <key name="Log history" type="INT">0</key>
+      <key name="Frontend host" type="STRING" size="32">localhost</key>
+      <key name="Frontend name" type="STRING" size="32">Fixed Probes</key>
+      <key name="Frontend file name" type="STRING" size="256">src/sim_fixed_probes.cxx</key>
+      <key name="Status" type="STRING" size="256">Fixed Probes@localhost</key>
+      <key name="Status color" type="STRING" size="32">greenLight</key>
+      <key name="Hidden" type="BOOL">n</key>
+    </dir>
+    <dir name="Variables"/>
+    <dir name="Statistics">
+      <key name="Events sent" type="DOUBLE">0</key>
+      <key name="Events per sec." type="DOUBLE">0</key>
+      <key name="kBytes per sec." type="DOUBLE">0</key>
+    </dir>
+  </dir>
+  <dir name="GalilPlatform">
+    <dir name="Common">
+      <key name="Event ID" type="WORD">16384</key>
+      <key name="Trigger mask" type="WORD">0</key>
+      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
+      <key name="Type" type="INT">2</key>
+      <key name="Source" type="INT">0</key>
+      <key name="Format" type="STRING" size="8">MIDAS</key>
+      <key name="Enabled" type="BOOL">y</key>
+      <key name="Read on" type="INT">1</key>
+      <key name="Period" type="INT">500</key>
+      <key name="Event limit" type="DOUBLE">0</key>
+      <key name="Num subevents" type="DWORD">0</key>
+      <key name="Log history" type="INT">0</key>
+      <key name="Frontend host" type="STRING" size="32">localhost</key>
+      <key name="Frontend name" type="STRING" size="32">Galil Platform</key>
+      <key name="Frontend file name" type="STRING" size="256">src/galil-platform.cxx</key>
+      <key name="Status" type="STRING" size="256">Galil Platform@localhost</key>
+      <key name="Status color" type="STRING" size="32">greenLight</key>
+      <key name="Hidden" type="BOOL">n</key>
+    </dir>
+    <dir name="Variables"/>
+    <dir name="Statistics">
+      <key name="Events sent" type="DOUBLE">0</key>
+      <key name="Events per sec." type="DOUBLE">0</key>
+      <key name="kBytes per sec." type="DOUBLE">0</key>
+    </dir>
+  </dir>
+  <dir name="TrolleyInterface">
+    <dir name="Common">
+      <key name="Event ID" type="WORD">2</key>
+      <key name="Trigger mask" type="WORD">0</key>
+      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
+      <key name="Type" type="INT">2</key>
+      <key name="Source" type="INT">0</key>
+      <key name="Format" type="STRING" size="8">MIDAS</key>
+      <key name="Enabled" type="BOOL">y</key>
+      <key name="Read on" type="INT">1</key>
+      <key name="Period" type="INT">100</key>
+      <key name="Event limit" type="DOUBLE">0</key>
+      <key name="Num subevents" type="DWORD">0</key>
+      <key name="Log history" type="INT">0</key>
+      <key name="Frontend host" type="STRING" size="32">localhost</key>
+      <key name="Frontend name" type="STRING" size="32">Trolley Interface</key>
+      <key name="Frontend file name" type="STRING" size="256">src/trolley.cxx</key>
+      <key name="Status" type="STRING" size="256">Trolley Interface@localhost</key>
+      <key name="Status color" type="STRING" size="32">greenLight</key>
+      <key name="Hidden" type="BOOL">n</key>
+    </dir>
+    <dir name="Variables"/>
+    <dir name="Statistics">
+      <key name="Events sent" type="DOUBLE">0</key>
+      <key name="Events per sec." type="DOUBLE">0</key>
+      <key name="kBytes per sec." type="DOUBLE">0</key>
+    </dir>
+  </dir>
+  <dir name="AbsoluteProbe">
+    <dir name="Common">
+      <key name="Event ID" type="WORD">8</key>
+      <key name="Trigger mask" type="WORD">0</key>
+      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
+      <key name="Type" type="INT">2</key>
+      <key name="Source" type="INT">0</key>
+      <key name="Format" type="STRING" size="8">MIDAS</key>
+      <key name="Enabled" type="BOOL">y</key>
+      <key name="Read on" type="INT">1</key>
+      <key name="Period" type="INT">500</key>
+      <key name="Event limit" type="DOUBLE">0</key>
+      <key name="Num subevents" type="DWORD">0</key>
+      <key name="Log history" type="INT">0</key>
+      <key name="Frontend host" type="STRING" size="32">localhost</key>
+      <key name="Frontend name" type="STRING" size="32">Absolute Probe</key>
+      <key name="Frontend file name" type="STRING" size="256">src/abs-probe.cxx</key>
+      <key name="Status" type="STRING" size="256">Absolute Probe@localhost</key>
+      <key name="Status color" type="STRING" size="32">greenLight</key>
+      <key name="Hidden" type="BOOL">n</key>
+    </dir>
+    <dir name="Variables"/>
+    <dir name="Statistics">
+      <key name="Events sent" type="DOUBLE">0</key>
+      <key name="Events per sec." type="DOUBLE">0</key>
+      <key name="kBytes per sec." type="DOUBLE">0</key>
+    </dir>
+  </dir>
+  <dir name="Galil">
+    <dir name="Common">
+      <key name="Event ID" type="WORD">4</key>
+      <key name="Trigger mask" type="WORD">0</key>
+      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
+      <key name="Type" type="INT">2</key>
+      <key name="Source" type="INT">0</key>
+      <key name="Format" type="STRING" size="8">MIDAS</key>
+      <key name="Enabled" type="BOOL">y</key>
+      <key name="Read on" type="INT">257</key>
+      <key name="Period" type="INT">100</key>
+      <key name="Event limit" type="DOUBLE">0</key>
+      <key name="Num subevents" type="DWORD">0</key>
+      <key name="Log history" type="INT">0</key>
+      <key name="Frontend host" type="STRING" size="32">localhost</key>
+      <key name="Frontend name" type="STRING" size="32">Galil Motion Control</key>
+      <key name="Frontend file name" type="STRING" size="256">src/galil.cxx</key>
+      <key name="Status" type="STRING" size="256">Galil Motion Control@localhost</key>
+      <key name="Status color" type="STRING" size="32">greenLight</key>
+      <key name="Hidden" type="BOOL">n</key>
+    </dir>
+    <dir name="Variables"/>
+    <dir name="Statistics">
+      <key name="Events sent" type="DOUBLE">0</key>
+      <key name="Events per sec." type="DOUBLE">0</key>
+      <key name="kBytes per sec." type="DOUBLE">0</key>
+    </dir>
+  </dir>
+  <dir name="SimTrolleyInterface">
+    <dir name="Common">
+      <key name="Event ID" type="WORD">2</key>
+      <key name="Trigger mask" type="WORD">0</key>
+      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
+      <key name="Type" type="INT">2</key>
+      <key name="Source" type="INT">0</key>
+      <key name="Format" type="STRING" size="8">MIDAS</key>
+      <key name="Enabled" type="BOOL">y</key>
+      <key name="Read on" type="INT">1</key>
+      <key name="Period" type="INT">100</key>
+      <key name="Event limit" type="DOUBLE">0</key>
+      <key name="Num subevents" type="DWORD">0</key>
+      <key name="Log history" type="INT">0</key>
+      <key name="Frontend host" type="STRING" size="32">localhost</key>
+      <key name="Frontend name" type="STRING" size="32">Trolley Interface</key>
+      <key name="Frontend file name" type="STRING" size="256">src/trolley.cxx</key>
+      <key name="Status" type="STRING" size="256">Trolley Interface@localhost</key>
+      <key name="Status color" type="STRING" size="32">greenLight</key>
+      <key name="Hidden" type="BOOL">n</key>
+    </dir>
+    <dir name="Statistics">
+      <key name="Events sent" type="DOUBLE">0</key>
+      <key name="Events per sec." type="DOUBLE">0</key>
+      <key name="kBytes per sec." type="DOUBLE">0</key>
+    </dir>
+  </dir>
+  <dir name="SimGalil">
+    <dir name="Common">
+      <key name="Event ID" type="WORD">4</key>
+      <key name="Trigger mask" type="WORD">0</key>
+      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
+      <key name="Type" type="INT">2</key>
+      <key name="Source" type="INT">0</key>
+      <key name="Format" type="STRING" size="8">MIDAS</key>
+      <key name="Enabled" type="BOOL">y</key>
+      <key name="Read on" type="INT">257</key>
+      <key name="Period" type="INT">100</key>
+      <key name="Event limit" type="DOUBLE">0</key>
+      <key name="Num subevents" type="DWORD">0</key>
+      <key name="Log history" type="INT">0</key>
+      <key name="Frontend host" type="STRING" size="32">localhost</key>
+      <key name="Frontend name" type="STRING" size="32">Galil Motion Control</key>
+      <key name="Frontend file name" type="STRING" size="256">src/galil.cxx</key>
+      <key name="Status" type="STRING" size="256">Galil Motion Control@localhost</key>
+      <key name="Status color" type="STRING" size="32">greenLight</key>
+      <key name="Hidden" type="BOOL">n</key>
+    </dir>
+    <dir name="Statistics">
+      <key name="Events sent" type="DOUBLE">0</key>
+      <key name="Events per sec." type="DOUBLE">0</key>
+      <key name="kBytes per sec." type="DOUBLE">0</key>
+    </dir>
+  </dir>
+</odb>

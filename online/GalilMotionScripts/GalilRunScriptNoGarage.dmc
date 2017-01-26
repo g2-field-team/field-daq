@@ -1,0 +1,226 @@
+#TH1
+CN 1
+OEA=1
+OEB=1
+OEC=1
+KIA=0
+KIB=0
+KIC=0
+KDA=0
+KDB=0
+KDC=0
+KPC=0
+inpos=100
+outpos=200000
+ofst1=0.05
+XQ #TH2,1
+XQ #TH3,2
+SHA
+SHB
+'SHC
+JS #FDMTN(100,4000,1.3,1.4)
+WT 2000
+JS #BKMTN(200,0,1.3,1.4)
+'back to the exact garage position
+KPA=100
+KPB=100
+SPA=200
+SPB=200
+SHA
+SHB
+PAA=0
+PAB=0
+BGA
+BGB
+AMA
+AMB
+WT 2000
+AB
+HX
+EN
+
+#FDMTN
+' MG "Message FORWARD MOTION INITIALIZING"
+velocity=^a
+destiny=^b
+tension=0
+tlow=^c
+thigh=^d
+ofst1=0.05
+'INITIALIZE TENSION
+IF ((@AN[1]-ofst1 > tlow) & (@AN[1]-ofst1 < thigh))
+'  MG "TENSION IS ALREADY INITIALIZED"
+'  MG @AN[1],@AN[2]
+  JP #NEXT1
+ENDIF
+IF (@AN[1]-ofst1<tlow)
+  KPB=0
+  KPA=300
+  JGA=80
+  SHA
+  BGA
+#LOOP1
+  IF (@AN[1]-ofst1 > tlow)
+'    MG "TENSION INITIALIZED"
+'   MG @AN[1],@AN[2]
+    STA
+    KPA=0
+    JP #NEXT1
+  ENDIF
+  JP #LOOP1
+ENDIF
+IF (@AN[1]-ofst1>thigh)
+  KPA=0
+  KPB=300
+  JGB=-80
+  SHB
+  BGB
+#LOOP2
+  IF (@AN[1]-ofst1 < thigh)
+  '  MG "TENSION INITIALIZED"
+  '  MG @AN[1],@AN[2]
+    STB
+    KPB=0
+    JP #NEXT1
+  ENDIF
+  JP #LOOP2
+ENDIF
+#NEXT1
+tension=@AN[1]-ofst1
+'MG "TENSION="
+'MG tension
+'START TENSION FEEDBACK
+KPA=300
+KPB=300
+JGA=velocity
+JGB=-velocity
+SHA
+SHB
+BGA
+BGB
+' MG "Message FORWARD MOTION STARTED"
+#LOOP3
+IF (@AN[1]-ofst1-tension<0)
+  JGB=-velocity*0.8
+ELSE
+  speed=-(@AN[1]-ofst1-tension)*100-velocity
+  JGB=speed
+ENDIF
+IF (_TPA>destiny)
+'  MG "Message REACHED DESTINATION",_TPA,_TPB
+  STA
+  STB
+  KPA=0
+  KPB=0
+  JP #ENDFD
+ENDIF
+JP #LOOP3
+#ENDFD
+' MG "Message FORWARD MOTION COMPLETED"
+EN
+'
+#BKMTN
+' MG "Message BACKWARD MOTION INITIALIZING"
+velocity=^a
+destiny=^b
+tension=0
+tlow=^c
+thigh=^d
+ofst2=0.29
+'INITIALIZE TENSION
+IF ((@AN[2]-ofst2 > tlow) & (@AN[2]-ofst2 < thigh))
+'  MG "TENSION IS ALREADY INITIALIZED"
+'  MG @AN[1],@AN[2]
+  JP #NEXTB1
+ENDIF
+IF (@AN[2]-ofst2<tlow)
+  KPA=0
+  KPB=300
+  JGB=80
+  SHB
+  BGB
+#LOOPB1
+  IF (@AN[2]-ofst2 > tlow)
+'  MG "TENSION INITIALIZED"
+'  MG @AN[1],@AN[2]
+    STB
+    KPB=0
+    JP #NEXTB1
+  ENDIF
+  JP #LOOPB1
+ENDIF
+IF (@AN[2]-ofst2>thigh)
+  KPB=0
+  KPA=300
+  JGA=-80
+  SHA
+  BGA
+#LOOPB2
+  IF (@AN[2]-ofst2 < thigh)
+'  MG "TENSION INITIALIZED"
+'  MG @AN[1],@AN[2]
+    STA
+    KPA=0
+    JP #NEXTB1
+  ENDIF
+  JP #LOOPB2
+ENDIF
+#NEXTB1
+tension=@AN[2]-ofst2
+'  MG tension
+'START TENSION FEEDBACK
+KPA=300
+KPB=300
+JGA=-velocity
+JGB=velocity
+SHA
+SHB
+BGA
+BGB
+' MG "Message BACKWARD MOTION STARTED"
+#LOOPB3
+IF (@AN[2]-ofst2-tension<0)
+  JGA=-velocity*0.8
+ELSE
+  speed=-(@AN[2]-ofst2-tension)*100-velocity
+  JGA=speed
+ENDIF
+IF (_TPB>destiny)
+'  MG "Message REACHED DESTINATION",_TPA,_TPB
+  AB
+  STB
+  STA
+  KPB=0
+  KPA=0
+  JP #ENDBK
+ENDIF
+JP #LOOPB3
+#ENDBK
+' MG "Message BACKWARD MOTION COMPLETED"
+EN
+'
+#TH2
+'Output routine
+  MG "Galil",TIME,@AN[1],@AN[2],_TPA,_TPB,_TVA,_TVB,_TTA,_TTB
+'  MG "Barcode",TIME,@AN[3],@AN[4],@AN[5],@AN[6],@AN[7],@AN[8]
+  WT 10
+  JP #TH2
+EN
+'
+#TH3
+' Tension monitor
+ofst1=0.05
+ofst2=0.29
+tlimit=1.8
+IF ((@AN[1]-ofst1 > tlimit) | (@AN[2]-ofst2 > tlimit))
+'  MG "Error: TENSION IS TOO MUCH ",@AN[1],@AN[2]
+  AB
+  KPA=0
+  KPB=0
+  KPC=0
+  JP #STP2
+ENDIF
+JP #TH3
+#STP2
+HX
+EN

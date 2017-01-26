@@ -1,8 +1,8 @@
 #!/bin/bash
+gcc --version
 
 echo -e "\e[31m\nInstalling libfid.\e[0m"
-
-mkdir -p /usr/local/opt && cd /usr/local/opt
+mkdir -p ~/Packages && cd ~/Packages
 
 if [ ! -d libfid ]; then
     git clone https://github.com/mwsmith2/libfid.git
@@ -11,6 +11,6 @@ fi
 cd libfid
 make clean
 make
-make install
+sudo make install
 
 # End script

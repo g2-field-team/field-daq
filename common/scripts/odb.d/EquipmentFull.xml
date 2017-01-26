@@ -1,0 +1,557 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!-- created by MXML on Mon Jan 16 17:29:49 2017 -->
+<odb root="/Equipment" filename="EquipmentInit" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="/home/newg2/Packages/gm2midas/midas/odb.xsd">
+  <dir name="Abs Fixed Probes">
+    <dir name="Common">
+      <key name="Event ID" type="WORD">18</key>
+      <key name="Trigger mask" type="WORD">13</key>
+      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
+      <key name="Type" type="INT">1</key>
+      <key name="Source" type="INT">0</key>
+      <key name="Format" type="STRING" size="8">MIDAS</key>
+      <key name="Enabled" type="BOOL">y</key>
+      <key name="Read on" type="INT">1</key>
+      <key name="Period" type="INT">10</key>
+      <key name="Event limit" type="DOUBLE">0</key>
+      <key name="Num subevents" type="DWORD">0</key>
+      <key name="Log history" type="INT">0</key>
+      <key name="Frontend host" type="STRING" size="32">localhost</key>
+      <key name="Frontend name" type="STRING" size="32">Abs Fixed Probes</key>
+      <key name="Frontend file name" type="STRING" size="256">src/abs_fixed_probes.cxx</key>
+      <key name="Status" type="STRING" size="256">Abs Fixed Probes@localhost</key>
+      <key name="Status color" type="STRING" size="32">greenLight</key>
+      <key name="Hidden" type="BOOL">n</key>
+    </dir>
+    <dir name="Variables"/>
+    <dir name="Statistics">
+      <key name="Events sent" type="DOUBLE">0</key>
+      <key name="Events per sec." type="DOUBLE">0</key>
+      <key name="kBytes per sec." type="DOUBLE">0</key>
+    </dir>
+  </dir>
+  <dir name="Fixed Probes">
+    <dir name="Common">
+      <key name="Event ID" type="WORD">1</key>
+      <key name="Trigger mask" type="WORD">1</key>
+      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
+      <key name="Type" type="INT">1</key>
+      <key name="Source" type="INT">0</key>
+      <key name="Format" type="STRING" size="8">MIDAS</key>
+      <key name="Enabled" type="BOOL">y</key>
+      <key name="Read on" type="INT">1</key>
+      <key name="Period" type="INT">10</key>
+      <key name="Event limit" type="DOUBLE">0</key>
+      <key name="Num subevents" type="DWORD">0</key>
+      <key name="Log history" type="INT">0</key>
+      <key name="Frontend host" type="STRING" size="32">localhost</key>
+      <key name="Frontend name" type="STRING" size="32">Fixed Probes</key>
+      <key name="Frontend file name" type="STRING" size="256">src/sim_fixed_probes.cxx</key>
+      <key name="Status" type="STRING" size="256">Fixed Probes@localhost</key>
+      <key name="Status color" type="STRING" size="32">greenLight</key>
+      <key name="Hidden" type="BOOL">n</key>
+    </dir>
+    <dir name="Variables"/>
+    <dir name="Statistics">
+      <key name="Events sent" type="DOUBLE">0</key>
+      <key name="Events per sec." type="DOUBLE">0</key>
+      <key name="kBytes per sec." type="DOUBLE">0</key>
+    </dir>
+    <dir name="Settings">
+      <dir name="devices">
+        <dir name="sis_3316">
+          <key name="sis_3316_0" type="LINK" size="30">/Settings/Hardware/sis_3316/0</key>
+        </dir>
+        <key name="nmr_pulser" type="LINK" size="32">/Settings/Hardware/nmr_pulser/0</key>
+      </dir>
+      <key name="trq_seq_file" type="LINK" size="36">/Settings/NMR Sequence/Fixed Probes</key>
+      <key name="mux_conf_file" type="LINK" size="35">/Settings/Hardware/mux_connections</key>
+      <key name="fid_conf_file" type="LINK" size="37">/Settings/Analysis/online_fid_params</key>
+      <key name="max_event_time" type="INT">8000</key>
+      <key name="mux_switch_time" type="INT">15000</key>
+      <key name="analyze_fids_online" type="BOOL">y</key>
+      <key name="use_fast_fids_class" type="BOOL">n</key>
+      <key name="event_rate_limit" type="INT">10</key>
+    </dir>
+  </dir>
+  <dir name="GalilPlatform">
+    <dir name="Common">
+      <key name="Event ID" type="WORD">16384</key>
+      <key name="Trigger mask" type="WORD">0</key>
+      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
+      <key name="Type" type="INT">2</key>
+      <key name="Source" type="INT">0</key>
+      <key name="Format" type="STRING" size="8">MIDAS</key>
+      <key name="Enabled" type="BOOL">y</key>
+      <key name="Read on" type="INT">1</key>
+      <key name="Period" type="INT">500</key>
+      <key name="Event limit" type="DOUBLE">0</key>
+      <key name="Num subevents" type="DWORD">0</key>
+      <key name="Log history" type="INT">0</key>
+      <key name="Frontend host" type="STRING" size="32">localhost</key>
+      <key name="Frontend name" type="STRING" size="32">Galil Platform</key>
+      <key name="Frontend file name" type="STRING" size="256">src/galil-platform.cxx</key>
+      <key name="Status" type="STRING" size="256">Galil Platform@localhost</key>
+      <key name="Status color" type="STRING" size="32">greenLight</key>
+      <key name="Hidden" type="BOOL">n</key>
+    </dir>
+    <dir name="Variables"/>
+    <dir name="Statistics">
+      <key name="Events sent" type="DOUBLE">0</key>
+      <key name="Events per sec." type="DOUBLE">0</key>
+      <key name="kBytes per sec." type="DOUBLE">0</key>
+    </dir>
+    <dir name="Monitors">
+      <key name="Active" type="BOOL">n</key>
+      <keyarray name="Positions" type="INT" num_values="4">
+        <value index="0">0</value>
+        <value index="1">0</value>
+        <value index="2">0</value>
+        <value index="3">0</value>
+      </keyarray>
+      <keyarray name="Velocities" type="INT" num_values="4">
+        <value index="0">0</value>
+        <value index="1">0</value>
+        <value index="2">0</value>
+        <value index="3">0</value>
+      </keyarray>
+      <keyarray name="ControlVoltages" type="INT" num_values="4">
+        <value index="0">0</value>
+        <value index="1">0</value>
+        <value index="2">0</value>
+        <value index="3">0</value>
+      </keyarray>
+      <key name="ReadyToMove" type="BOOL">n</key>
+      <key name="Finished" type="INT">1</key>
+    </dir>
+    <dir name="Emergency">
+      <key name="Abort" type="INT">0</key>
+      <key name="Reset" type="INT">0</key>
+    </dir>
+    <dir name="Settings">
+      <key name="CmdScript" type="STRING" size="256">Platform</key>
+      <key name="Script Directory" type="STRING" size="256">/home/newg2/Applications/field-daq/online/GalilMotionScripts/</key>
+      <key name="Root Output" type="BOOL">n</key>
+      <key name="Root Dir" type="STRING" size="256">/home/newg2/Applications/field-daq/resources/Root/</key>
+      <key name="TestMode" type="BOOL">n</key>
+    </dir>
+    <dir name="AutoControl">
+      <keyarray name="RelPos" type="INT" num_values="4">
+        <value index="0">0</value>
+        <value index="1">0</value>
+        <value index="2">0</value>
+        <value index="3">0</value>
+      </keyarray>
+      <keyarray name="StepNumber" type="INT" num_values="4">
+        <value index="0">0</value>
+        <value index="1">0</value>
+        <value index="2">0</value>
+        <value index="3">0</value>
+      </keyarray>
+    </dir>
+    <dir name="ManualControl">
+      <key name="Cmd" type="INT">0</key>
+      <keyarray name="AbsPos" type="INT" num_values="4">
+        <value index="0">0</value>
+        <value index="1">0</value>
+        <value index="2">0</value>
+        <value index="3">0</value>
+      </keyarray>
+      <keyarray name="RelPos" type="INT" num_values="4">
+        <value index="0">0</value>
+        <value index="1">0</value>
+        <value index="2">0</value>
+        <value index="3">0</value>
+      </keyarray>
+    </dir>
+  </dir>
+  <dir name="TrolleyInterface">
+    <dir name="Common">
+      <key name="Event ID" type="WORD">2</key>
+      <key name="Trigger mask" type="WORD">0</key>
+      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
+      <key name="Type" type="INT">2</key>
+      <key name="Source" type="INT">0</key>
+      <key name="Format" type="STRING" size="8">MIDAS</key>
+      <key name="Enabled" type="BOOL">y</key>
+      <key name="Read on" type="INT">1</key>
+      <key name="Period" type="INT">100</key>
+      <key name="Event limit" type="DOUBLE">0</key>
+      <key name="Num subevents" type="DWORD">0</key>
+      <key name="Log history" type="INT">0</key>
+      <key name="Frontend host" type="STRING" size="32">localhost</key>
+      <key name="Frontend name" type="STRING" size="32">Trolley Interface</key>
+      <key name="Frontend file name" type="STRING" size="256">src/trolley.cxx</key>
+      <key name="Status" type="STRING" size="256">Trolley Interface@localhost</key>
+      <key name="Status color" type="STRING" size="32">greenLight</key>
+      <key name="Hidden" type="BOOL">n</key>
+    </dir>
+    <dir name="Variables"/>
+    <dir name="Statistics">
+      <key name="Events sent" type="DOUBLE">0</key>
+      <key name="Events per sec." type="DOUBLE">0</key>
+      <key name="kBytes per sec." type="DOUBLE">0</key>
+    </dir>
+    <dir name="Settings">
+      <key name="Root Output" type="BOOL">n</key>
+      <key name="Root Dir" type="STRING" size="256">/home/newg2/Applications/field-daq/resources/Root/</key>
+      <dir name="NMR Registry">
+        <key name="RF Prescale" type="INT">62</key>
+        <key name="Probe Select" type="INT">0</key>
+        <key name="Probe Delay" type="INT">12700</key>
+        <key name="Probe Period" type="INT">20000</key>
+        <key name="Preamp Delay" type="INT">373</key>
+        <key name="Preamp Period" type="INT">12327</key>
+        <key name="Gate Delay" type="INT">0</key>
+        <key name="Gate Period" type="INT">15000</key>
+        <key name="Transmit Delay" type="INT">300</key>
+        <key name="Transmit Period" type="INT">5</key>
+      </dir>
+      <dir name="Barcode Registry">
+        <key name="LED Voltage" type="DOUBLE">1</key>
+        <key name="Sample Period" type="INT">100000</key>
+        <key name="Acq Delay" type="INT">800</key>
+      </dir>
+    </dir>
+    <dir name="Monitor">
+      <key name="Barcode Error" type="BOOL">n</key>
+      <key name="Temperature Interrupt" type="BOOL">n</key>
+      <keyarray name="Power Supply Status" type="BOOL" num_values="3">
+        <value index="0">n</value>
+        <value index="1">n</value>
+        <value index="2">n</value>
+      </keyarray>
+      <key name="Read Thread Active" type="BOOL">n</key>
+      <key name="NMR Check Sum" type="BOOL">n</key>
+      <key name="Frame Check Sum" type="BOOL">n</key>
+      <key name="Data Frame Index" type="INT">0</key>
+      <key name="Buffer Load" type="INT">0</key>
+    </dir>
+    <dir name="Hardware">
+      <keyarray name="Pressure Sensor Calibration" type="SHORT" num_values="7">
+        <value index="0">0</value>
+        <value index="1">0</value>
+        <value index="2">0</value>
+        <value index="3">0</value>
+        <value index="4">0</value>
+        <value index="5">0</value>
+        <value index="6">0</value>
+      </keyarray>
+    </dir>
+  </dir>
+  <dir name="AbsoluteProbe">
+    <dir name="Common">
+      <key name="Event ID" type="WORD">8</key>
+      <key name="Trigger mask" type="WORD">0</key>
+      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
+      <key name="Type" type="INT">2</key>
+      <key name="Source" type="INT">0</key>
+      <key name="Format" type="STRING" size="8">MIDAS</key>
+      <key name="Enabled" type="BOOL">y</key>
+      <key name="Read on" type="INT">1</key>
+      <key name="Period" type="INT">500</key>
+      <key name="Event limit" type="DOUBLE">0</key>
+      <key name="Num subevents" type="DWORD">0</key>
+      <key name="Log history" type="INT">0</key>
+      <key name="Frontend host" type="STRING" size="32">localhost</key>
+      <key name="Frontend name" type="STRING" size="32">Absolute Probe</key>
+      <key name="Frontend file name" type="STRING" size="256">src/abs-probe.cxx</key>
+      <key name="Status" type="STRING" size="256">Absolute Probe@localhost</key>
+      <key name="Status color" type="STRING" size="32">greenLight</key>
+      <key name="Hidden" type="BOOL">n</key>
+    </dir>
+    <dir name="Variables"/>
+    <dir name="Statistics">
+      <key name="Events sent" type="DOUBLE">0</key>
+      <key name="Events per sec." type="DOUBLE">0</key>
+      <key name="kBytes per sec." type="DOUBLE">0</key>
+    </dir>
+    <dir name="Settings">
+      <key name="Simulation Switch" type="BOOL">n</key>
+      <key name="Flay Run Number Limit" type="INT">1</key>
+      <key name="Expected Sample Number" type="INT">600000</key>
+      <key name="Scanning Mode" type="BOOL">n</key>
+      <key name="Global On" type="BOOL">n</key>
+      <key name="Root Output" type="BOOL">n</key>
+      <key name="Root Dir" type="STRING" size="256">/home/newg2/Applications/field-daq/resources/Root/</key>
+      <key name="NMRProbe Program Dir" type="STRING" size="256">/home/newg2/Applications/field-daq/online/AbsoluteProbe/</key>
+      <dir name="FPGA Timing">
+        <dir name="S1">
+          <key name="Configuration" type="STRING" size="32">OFF</key>
+          <key name="Mechanical Offset" type="DOUBLE">0</key>
+          <key name="Mech Switch Duration" type="DOUBLE">0</key>
+          <key name="Mech Switch Unit" type="STRING" size="32">s</key>
+          <key name="RF Transmit Offset" type="DOUBLE">0</key>
+          <key name="RF Trans Switch Duration" type="DOUBLE">0</key>
+          <key name="RF Trans Switch Unit" type="STRING" size="32">s</key>
+          <key name="Tomco Offset" type="DOUBLE">0</key>
+          <key name="Amplifier Duration" type="DOUBLE">0</key>
+          <key name="Amplifier Unit" type="STRING" size="32">s</key>
+          <key name="Tomco Enable" type="BOOL">n</key>
+          <key name="RF Receive Offset" type="DOUBLE">0</key>
+          <key name="RF Rec Switch Duration" type="DOUBLE">0</key>
+          <key name="RF Rec Switch Unit" type="STRING" size="32">s</key>
+        </dir>
+        <dir name="S2">
+          <key name="Configuration" type="STRING" size="32">OFF</key>
+          <key name="Mechanical Offset" type="DOUBLE">0</key>
+          <key name="Mech Switch Duration" type="DOUBLE">0</key>
+          <key name="Mech Switch Unit" type="STRING" size="32">s</key>
+          <key name="RF Transmit Offset" type="DOUBLE">0</key>
+          <key name="RF Trans Switch Duration" type="DOUBLE">0</key>
+          <key name="RF Trans Switch Unit" type="STRING" size="32">s</key>
+          <key name="Tomco Offset" type="DOUBLE">0</key>
+          <key name="Amplifier Duration" type="DOUBLE">0</key>
+          <key name="Amplifier Unit" type="STRING" size="32">s</key>
+          <key name="Tomco Enable" type="BOOL">n</key>
+          <key name="RF Receive Offset" type="DOUBLE">0</key>
+          <key name="RF Rec Switch Duration" type="DOUBLE">0</key>
+          <key name="RF Rec Switch Unit" type="STRING" size="32">s</key>
+        </dir>
+        <dir name="S3">
+          <key name="Configuration" type="STRING" size="32">OFF</key>
+          <key name="Mechanical Offset" type="DOUBLE">0</key>
+          <key name="Mech Switch Duration" type="DOUBLE">0</key>
+          <key name="Mech Switch Unit" type="STRING" size="32">s</key>
+          <key name="RF Transmit Offset" type="DOUBLE">0</key>
+          <key name="RF Trans Switch Duration" type="DOUBLE">0</key>
+          <key name="RF Trans Switch Unit" type="STRING" size="32">s</key>
+          <key name="Tomco Offset" type="DOUBLE">0</key>
+          <key name="Amplifier Duration" type="DOUBLE">0</key>
+          <key name="Amplifier Unit" type="STRING" size="32">s</key>
+          <key name="Tomco Enable" type="BOOL">n</key>
+          <key name="RF Receive Offset" type="DOUBLE">0</key>
+          <key name="RF Rec Switch Duration" type="DOUBLE">0</key>
+          <key name="RF Rec Switch Unit" type="STRING" size="32">s</key>
+        </dir>
+        <dir name="S4">
+          <key name="Configuration" type="STRING" size="32">OFF</key>
+          <key name="Mechanical Offset" type="DOUBLE">0</key>
+          <key name="Mech Switch Duration" type="DOUBLE">0</key>
+          <key name="Mech Switch Unit" type="STRING" size="32">s</key>
+          <key name="RF Transmit Offset" type="DOUBLE">0</key>
+          <key name="RF Trans Switch Duration" type="DOUBLE">0</key>
+          <key name="RF Trans Switch Unit" type="STRING" size="32">s</key>
+          <key name="Tomco Offset" type="DOUBLE">0</key>
+          <key name="Amplifier Duration" type="DOUBLE">0</key>
+          <key name="Amplifier Unit" type="STRING" size="32">s</key>
+          <key name="Tomco Enable" type="BOOL">n</key>
+          <key name="RF Receive Offset" type="DOUBLE">0</key>
+          <key name="RF Rec Switch Duration" type="DOUBLE">0</key>
+          <key name="RF Rec Switch Unit" type="STRING" size="32">s</key>
+        </dir>
+      </dir>
+      <dir name="LO">
+        <key name="Frequency" type="DOUBLE">0</key>
+        <key name="Frequency Unit" type="STRING" size="32">kHz</key>
+        <key name="BNC Voltage" type="DOUBLE">0</key>
+        <key name="BNC V-choice" type="STRING" size="32">Vpp</key>
+        <key name="BNC Switch" type="BOOL">n</key>
+        <key name="N-Type Voltage" type="DOUBLE">0</key>
+        <key name="N-Type V-choice" type="STRING" size="32">Vpp</key>
+        <key name="N-Type Switch" type="BOOL">n</key>
+      </dir>
+      <dir name="Digitizer">
+        <key name="Struck ID" type="INT">0</key>
+        <key name="Channel Number" type="INT">1</key>
+        <key name="Number of Pulses" type="INT">1</key>
+        <key name="Sampling Frequency" type="DOUBLE">1</key>
+        <key name="Frequency Unit" type="STRING" size="32">kHz</key>
+        <key name="External" type="BOOL">n</key>
+      </dir>
+      <dir name="Utilities">
+        <key name="Debug Mode" type="STRING" size="32">OFF</key>
+        <key name="Verbosity" type="INT">0</key>
+        <key name="Test Mode" type="INT">0</key>
+        <key name="Delay Time" type="DOUBLE">0</key>
+        <key name="Delay Time Unit" type="STRING" size="32">s</key>
+        <key name="PTS160 Frequency" type="DOUBLE">0</key>
+        <key name="PTS160 Frequency Unit" type="STRING" size="32">kHz</key>
+        <key name="Config Label" type="STRING" size="32">Label</key>
+        <key name="Comments" type="STRING" size="32">Comments</key>
+      </dir>
+    </dir>
+    <dir name="Monitor">
+      <key name="ReadyToRead" type="BOOL">n</key>
+      <key name="Finished" type="INT">1</key>
+    </dir>
+  </dir>
+  <dir name="Galil">
+    <dir name="Common">
+      <key name="Event ID" type="WORD">4</key>
+      <key name="Trigger mask" type="WORD">0</key>
+      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
+      <key name="Type" type="INT">2</key>
+      <key name="Source" type="INT">0</key>
+      <key name="Format" type="STRING" size="8">MIDAS</key>
+      <key name="Enabled" type="BOOL">y</key>
+      <key name="Read on" type="INT">257</key>
+      <key name="Period" type="INT">100</key>
+      <key name="Event limit" type="DOUBLE">0</key>
+      <key name="Num subevents" type="DWORD">0</key>
+      <key name="Log history" type="INT">0</key>
+      <key name="Frontend host" type="STRING" size="32">localhost</key>
+      <key name="Frontend name" type="STRING" size="32">Galil Motion Control</key>
+      <key name="Frontend file name" type="STRING" size="256">src/galil.cxx</key>
+      <key name="Status" type="STRING" size="256">Galil Motion Control@localhost</key>
+      <key name="Status color" type="STRING" size="32">greenLight</key>
+      <key name="Hidden" type="BOOL">n</key>
+    </dir>
+    <dir name="Variables"/>
+    <dir name="Statistics">
+      <key name="Events sent" type="DOUBLE">0</key>
+      <key name="Events per sec." type="DOUBLE">0</key>
+      <key name="kBytes per sec." type="DOUBLE">0</key>
+    </dir>
+    <dir name="Settings">
+      <key name="CmdScript" type="STRING" size="256">GalilRunScript</key>
+      <key name="Script Directory" type="STRING" size="256">/home/newg2/Applications/field-daq/online/GalilMotionScripts/</key>
+      <key name="Root Output" type="BOOL">n</key>
+      <key name="Root Dir" type="STRING" size="256">/home/newg2/Applications/field-daq/resources/Root/</key>
+    </dir>
+    <dir name="Monitor">
+      <key name="Read Thread Active" type="BOOL">n</key>
+      <key name="Read Loop Index" type="INT">0</key>
+      <key name="Buffer Load" type="INT">0</key>
+      <keyarray name="Motor Positions" type="DOUBLE" num_values="3">
+        <value index="0">0</value>
+        <value index="1">0</value>
+        <value index="2">0</value>
+      </keyarray>
+      <keyarray name="Motor Velocities" type="DOUBLE" num_values="3">
+        <value index="0">0</value>
+        <value index="1">0</value>
+        <value index="2">0</value>
+      </keyarray>
+      <keyarray name="Tensions" type="DOUBLE" num_values="2">
+        <value index="0">0</value>
+        <value index="1">0</value>
+      </keyarray>
+    </dir>
+  </dir>
+  <dir name="SimTrolleyInterface">
+    <dir name="Common">
+      <key name="Event ID" type="WORD">2</key>
+      <key name="Trigger mask" type="WORD">0</key>
+      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
+      <key name="Type" type="INT">2</key>
+      <key name="Source" type="INT">0</key>
+      <key name="Format" type="STRING" size="8">MIDAS</key>
+      <key name="Enabled" type="BOOL">y</key>
+      <key name="Read on" type="INT">1</key>
+      <key name="Period" type="INT">100</key>
+      <key name="Event limit" type="DOUBLE">0</key>
+      <key name="Num subevents" type="DWORD">0</key>
+      <key name="Log history" type="INT">0</key>
+      <key name="Frontend host" type="STRING" size="32">localhost</key>
+      <key name="Frontend name" type="STRING" size="32">Trolley Interface</key>
+      <key name="Frontend file name" type="STRING" size="256">src/trolley.cxx</key>
+      <key name="Status" type="STRING" size="256">Trolley Interface@localhost</key>
+      <key name="Status color" type="STRING" size="32">greenLight</key>
+      <key name="Hidden" type="BOOL">n</key>
+    </dir>
+    <dir name="Statistics">
+      <key name="Events sent" type="DOUBLE">0</key>
+      <key name="Events per sec." type="DOUBLE">0</key>
+      <key name="kBytes per sec." type="DOUBLE">0</key>
+    </dir>
+    <dir name="Settings">
+      <key name="Root Output" type="BOOL">n</key>
+      <key name="Root Dir" type="STRING" size="256">/home/newg2/Applications/field-daq/resources/Root/</key>
+      <dir name="NMR Registry">
+        <key name="RF Prescale" type="INT">62</key>
+        <key name="Probe Select" type="INT">0</key>
+        <key name="Probe Delay" type="INT">12700</key>
+        <key name="Probe Period" type="INT">20000</key>
+        <key name="Preamp Delay" type="INT">373</key>
+        <key name="Preamp Period" type="INT">12327</key>
+        <key name="Gate Delay" type="INT">0</key>
+        <key name="Gate Period" type="INT">15000</key>
+        <key name="Transmit Delay" type="INT">300</key>
+        <key name="Transmit Period" type="INT">5</key>
+      </dir>
+      <dir name="Barcode Registry">
+        <key name="LED Voltage" type="DOUBLE">1</key>
+        <key name="Sample Period" type="INT">100000</key>
+        <key name="Acq Delay" type="INT">800</key>
+      </dir>
+      <key name="Data Source" type="STRING" size="256">/home/newg2/Applications/field-daq/resources/NMRDataTemp/data_NMR_61682000Hz_11.70dbm-2016-10-27_19-36-42.dat</key>
+    </dir>
+    <dir name="Monitor">
+      <key name="Barcode Error" type="BOOL">n</key>
+      <key name="Temperature Interrupt" type="BOOL">n</key>
+      <keyarray name="Power Supply Status" type="BOOL" num_values="3">
+        <value index="0">n</value>
+        <value index="1">n</value>
+        <value index="2">n</value>
+      </keyarray>
+      <key name="Read Thread Active" type="BOOL">n</key>
+      <key name="NMR Check Sum" type="BOOL">n</key>
+      <key name="Frame Check Sum" type="BOOL">n</key>
+      <key name="Data Frame Index" type="INT">0</key>
+      <key name="Buffer Load" type="INT">0</key>
+    </dir>
+    <dir name="Hardware">
+      <keyarray name="Pressure Sensor Calibration" type="SHORT" num_values="7">
+        <value index="0">0</value>
+        <value index="1">0</value>
+        <value index="2">0</value>
+        <value index="3">0</value>
+        <value index="4">0</value>
+        <value index="5">0</value>
+        <value index="6">0</value>
+      </keyarray>
+    </dir>
+  </dir>
+  <dir name="SimGalil">
+    <dir name="Common">
+      <key name="Event ID" type="WORD">4</key>
+      <key name="Trigger mask" type="WORD">0</key>
+      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
+      <key name="Type" type="INT">2</key>
+      <key name="Source" type="INT">0</key>
+      <key name="Format" type="STRING" size="8">MIDAS</key>
+      <key name="Enabled" type="BOOL">y</key>
+      <key name="Read on" type="INT">257</key>
+      <key name="Period" type="INT">100</key>
+      <key name="Event limit" type="DOUBLE">0</key>
+      <key name="Num subevents" type="DWORD">0</key>
+      <key name="Log history" type="INT">0</key>
+      <key name="Frontend host" type="STRING" size="32">localhost</key>
+      <key name="Frontend name" type="STRING" size="32">Galil Motion Control</key>
+      <key name="Frontend file name" type="STRING" size="256">src/galil.cxx</key>
+      <key name="Status" type="STRING" size="256">Galil Motion Control@localhost</key>
+      <key name="Status color" type="STRING" size="32">greenLight</key>
+      <key name="Hidden" type="BOOL">n</key>
+    </dir>
+    <dir name="Statistics">
+      <key name="Events sent" type="DOUBLE">0</key>
+      <key name="Events per sec." type="DOUBLE">0</key>
+      <key name="kBytes per sec." type="DOUBLE">0</key>
+    </dir>
+    <dir name="Settings">
+      <key name="CmdScript" type="STRING" size="256">GalilRunScript</key>
+      <key name="Script Directory" type="STRING" size="256">/home/newg2/Applications/field-daq/online/GalilMotionScripts/</key>
+      <key name="Root Output" type="BOOL">n</key>
+      <key name="Root Dir" type="STRING" size="256">/home/newg2/Applications/field-daq/resources/Root/</key>
+    </dir>
+    <dir name="Monitor">
+      <key name="Read Thread Active" type="BOOL">n</key>
+      <key name="Read Loop Index" type="INT">0</key>
+      <key name="Buffer Load" type="INT">0</key>
+      <keyarray name="Motor Positions" type="DOUBLE" num_values="3">
+        <value index="0">0</value>
+        <value index="1">0</value>
+        <value index="2">0</value>
+      </keyarray>
+      <keyarray name="Motor Velocities" type="DOUBLE" num_values="3">
+        <value index="0">0</value>
+        <value index="1">0</value>
+        <value index="2">0</value>
+      </keyarray>
+      <keyarray name="Tensions" type="DOUBLE" num_values="2">
+        <value index="0">0</value>
+        <value index="1">0</value>
+      </keyarray>
+    </dir>
+  </dir>
+</odb>

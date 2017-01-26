@@ -31,6 +31,7 @@
 #include "g2field/dio_trigger_board.hh"
 #include "field_constants.hh"
 #include "field_structs.hh"
+#include "frontend_utils.hh"
 
 
 namespace g2field {

@@ -4,7 +4,8 @@ echo -e "\e[31mInstalling requisite yum repos\e[0m"
 
 if [ ! -e "/etc/yum.repos.d/epel.repo" ]; then
     echo -e "\e[31mAdding EPEL repo\e[0m"
-    sudo rpm -UvH https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm
+    rpm -UvH https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm
+    yum-config-manager --enable epel 
 fi
 
 if [ ! -e "/etc/yum.repos.d/slc6-devtoolset.repo" ]; then
@@ -14,6 +15,7 @@ fi
 
 if [ ! -e "/etc/yum.repos.d/osg-el6.repo" ]; then
     echo -e "\e[31mAdding OSG repos\e[0m"
-    sudo rpm -UvH https://repo.grid.iu.edu/osg/3.3/osg-3.3-el6-release-latest.rpm
+    rpm -UvH https://repo.grid.iu.edu/osg/3.3/osg-3.3-el6-release-latest.rpm
 fi
 
+yum clean expire-cache
