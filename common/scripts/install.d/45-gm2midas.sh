@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Note that you need an active kerberos ticket to run this.
-. ~/.bashrc
 
 echo -e "\n\e[31mInstalling MIDAS/ROME\e[0m"
 

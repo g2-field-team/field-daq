@@ -15,7 +15,7 @@ fi
 
 if [ ! -e "/etc/yum.repos.d/osg-el6.repo" ]; then
     echo -e "\e[31mAdding OSG repos\e[0m"
-    sudo rpm -UvH https://repo.grid.iu.edu/osg/3.3/osg-3.3-el6-release-latest.rpm
+    rpm -UvH https://repo.grid.iu.edu/osg/3.3/osg-3.3-el6-release-latest.rpm
 fi
 
-yum clean --expire-cache
+yum clean expire-cache

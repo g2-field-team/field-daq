@@ -1,5 +1,5 @@
 #!/bin/bash
-. ~/.bashrc
+gcc --version
 
 echo -e "\e[31m\nInstalling libfid.\e[0m"
 mkdir -p ~/Packages && cd ~/Packages
