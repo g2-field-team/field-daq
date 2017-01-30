@@ -32,4 +32,4 @@ currentVal2 = float(setCurrent2) + rand2
 time.sleep(1)
 
 #Send reply back                                                               
-socket.send_string("%f %f" % (currentVal1, currentVal2))
+socket.send_string("%f %f\0" % (currentVal1, currentVal2))

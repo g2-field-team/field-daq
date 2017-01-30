@@ -88,7 +88,7 @@ extern "C" {
 	 "MIDAS",      //format
 	 TRUE,         //enabled
 	 RO_RUNNING,   //read only when running
-	 10,           //poll for 10 ms
+	 1000,           //poll every 1000 ms
 	 0,            //stop run after this event limit
 	 0,            //number of sub events
 	 0,            //don't log history
@@ -110,6 +110,11 @@ namespace{
   bool write_midas = true;
   bool write_root = true;
 
+  //for zmq
+  zmq::context_t context(1);
+  zmq::socket_t socket(context, ZMQ_REQ); //for sending set point currents
+  zmq::socket_t subscriber (context, ZMQ_SUB); //subscribe to data being sent back from beaglebones
+
   TFile *pf;
   TTree * pt_norm;
 
@@ -127,24 +132,10 @@ namespace{
 
   Double_t bot_currents[nCoils];
   Double_t top_currents[nCoils];
+
+  Double_t bot_temps[nCoils];
+  Double_t top_temps[nCoils];
 }
-
-int read_coil_currents(Double_t val_array[]);
-int set_coil_currents(Double_t val_array[], Double_t set_array[], int index);
-
-int read_coil_currents(Double_t val_array[]){
-  for(int i=0;i<nCoils;i++){
-    val_array[i] = 0.0; //This is where the actual readout routine will go
-  }
-
-  return SUCCESS;
-}
-
-int set_coil_currents(Double_t val_array[], Double_t set_array[], int index){
-  val_array[index] = set_array[index];
-
-  return SUCCESS;
-  }
 
 //--- Frontend Init ---------------------------------------------------------//
 INT frontend_init()
@@ -173,7 +164,7 @@ INT frontend_init()
 
   int bot_size = sizeof(bot_set_values);
 
-  db_get_data(hDB, hkey, &bot_set_values, &bot_size, TID_FLOAT);
+  db_get_data(hDB, hkey, &bot_set_values, &bot_size, TID_DOUBLE);
 
   //Top
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Top Set Currents", &hkey);
@@ -184,30 +175,45 @@ INT frontend_init()
 
   int top_size = sizeof(top_set_values);
 
-  db_get_data(hDB, hkey, &top_set_values, &top_size, TID_FLOAT);
-
-  //Send the data to the driver boards
-  //Prepare context and socket
-  zmq::context_t context(1);
-  zmq::socket_t socket(context, ZMQ_REQ);
-
+  db_get_data(hDB, hkey, &top_set_values, &top_size, TID_DOUBLE);
+  /*
+  //connect to server
   cm_msg(MINFO, "init", "Connecting to server");
   socket.connect("tcp://localhost:5555");
 
-  //send message
+  //send data to driver boards
   zmq::message_t message(18);
+  zmq::message_t reply;
   snprintf((char *) message.data(), 18, "%f %f", bot_set_values[0], bot_set_values[1]);
-  socket.send(message);
-  cm_msg(MINFO, "init", "Current values sent to beaglebone");
+
+  bool st = false; //status of request/reply
+
+  do{
+    st = socket.send(message, ZMQ_DONTWAIT);
+    cm_msg(MINFO, "init", "Current values sent to beaglebone");
+
+    if(st == true){
+      do{
+	st = socket.recv(&reply, ZMQ_DONTWAIT);
+	cm_msg(MINFO, "init", "Received reply from beaglebone");
+      } while(!st);
+    }
+    
+    sleep(3); //wait a little while if something goes wrong
+  } while(!st);
 
   //Wait for response that currents were sent
   //Expects back the read out currents of the channels that were set
-  zmq::message_t reply;
-  socket.recv(&reply);
   double Ch0Set, Ch1Set;
   std::istringstream iss(static_cast<char*>(reply.data()));
   iss >> Ch0Set >> Ch1Set;
   cm_msg(MINFO, "info", "Received values %f %f", Ch0Set, Ch1Set);
+
+  //Now connect subscriber to receive data being pushed by beaglebones
+  subscriber.connect("tcp://localhost:5556");
+  //Subscribe to all incoming data                                             
+  subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
+  */
 
   run_in_progress = false;
   
@@ -235,6 +241,37 @@ INT begin_of_run(INT run_number, char *error)
   int size;
   BOOL flag;
 
+  //connect to server                                                         
+  cm_msg(MINFO, "init", "Connecting to server");                                 socket.connect("tcp://localhost:5555");                                                                            
+  //send data to driver boards                                                 
+  zmq::message_t message(18);                                                    zmq::message_t reply;                                                                                              
+  snprintf((char *) message.data(), 18, "%f %f", bot_set_values[0], bot_set_values[1]);                              
+  bool st = false; //status of request/reply                                   
+  do{
+    st = socket.send(message, ZMQ_DONTWAIT);                                   
+    cm_msg(MINFO, "init", "Current values sent to beaglebone");               
+    if(st == true){                                                            
+      do{                                                                      
+        st = socket.recv(&reply, ZMQ_DONTWAIT);                                
+      } while(!st);                                                            
+    }                                                                          
+    sleep(3); //wait a little while if something goes wrong                    
+  } while(!st);                                            
+
+  cm_msg(MINFO, "init", "Received reply from beaglebone");
+
+  //Wait for response that currents were sent                                    //Expects back the read out currents of the channels that were set           
+  double Ch0Set, Ch1Set;                                                       
+  std::istringstream iss(static_cast<char*>(reply.data()));                    
+  iss >> Ch0Set >> Ch1Set;                                                     
+  cm_msg(MINFO, "info", "Received values %f %f", Ch0Set, Ch1Set);              
+
+  //Now connect subscriber to receive data being pushed by beaglebones         
+  subscriber.bind("tcp://*:5556");                                 
+                                      
+  //Subscribe to all incoming data                                             
+  subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);        
+
   //set up the data
   std::string datadir;
   std::string filename;
@@ -260,13 +297,13 @@ INT begin_of_run(INT run_number, char *error)
     datadir = std::string(str);
   }
 
-  // Set the filename                                                                     
-  snprintf(str, sizeof(str), "root/fixed_run_%05d.root", runinfo.run_number);
+  // Set the filename                                                          
+  snprintf(str, sizeof(str), "root/surface_coil_run_%05d.root", runinfo.run_number);
 
-  // Join the directory and filename using boost filesystem.                              
+  // Join the directory and filename using boost filesystem.                   
   filename = (filesystem::path(datadir) / filesystem::path(str)).string();
 
-  // Get the parameter for root output.                                                   
+  // Get the parameter for root output.                                        
   db_find_key(hDB, 0, "/Experiment/Run Parameters/Root Output", &hkey);
 
   if (hkey) {
@@ -280,7 +317,7 @@ INT begin_of_run(INT run_number, char *error)
   }
 
   if (write_root) {
-    // Set up the ROOT data output.                                                       
+    // Set up the ROOT data output.                                            
     pf = new TFile(filename.c_str(), "recreate");
     pt_norm = new TTree("t_scc", "Sim Surface Coil Data");
     pt_norm->SetAutoSave(5);
@@ -300,7 +337,7 @@ INT begin_of_run(INT run_number, char *error)
   int setpt_size = sizeof(setPoint);
 
   db_get_data(hDB, hkey, &setPoint, &setpt_size, TID_FLOAT);
-
+  /*
   for(int i=0; i<nCoils;i++){
     bot_currents[i] = 0;
     top_currents[i] = 0;
@@ -318,7 +355,7 @@ INT begin_of_run(INT run_number, char *error)
       set_coil_currents(top_currents,top_set_values,i);
     }
   }
-
+  */
 //ADD ALARM IF CHANNEL CAN'T BE SET
 
   event_number = 0;
@@ -428,22 +465,47 @@ INT read_surface_coils(char *pevent, INT c)
   sprintf(bk_name, "SCCS");
   bk_create(pevent, bk_name, TID_DOUBLE, (void **)&pdata);
 
-  //Read the data
+  //reset arrays to hold currents
   for(int i=0;i<nCoils;i++){
     bot_currents[i]=0;
     top_currents[i]=0;
+    bot_temps[i] = 0;
+    top_temps[i] = 0;
   }
 
-  read_coil_currents(bot_currents);
-  read_coil_currents(top_currents);
+  //Receive values from beaglebones
+  zmq::message_t bbVals; //values coming from beaglebone  
+  bool rc = false;
+  int counter = 0;
+  
+  std::cout << "Test 1" << std::endl;
+  do{
+    rc = subscriber.recv(&bbVals,ZMQ_DONTWAIT);
+   }
+  while(!rc && counter++ < 100);
+  if (counter >= 100) return 0;
+  std::cout << rc << " " << counter << std::endl;
+
+  std::istringstream iss (static_cast<char*>(bbVals.data()));
+  iss >> bot_currents[0] >> bot_temps[0] >> bot_currents[1] >> bot_temps[1];
+  
+  //set other channels data to 0 for now
+  for(int i=2;i<nCoils;i++){
+    bot_currents[i] = 0.0;
+    bot_temps[i] = 0.0;
+  }
+  for(int i=0;i<nCoils;i++){
+    top_currents[i] = 0.0;
+    top_temps[i] = 0.0;
+  }
 
   for(int idx = 0; idx < nCoils; ++idx){
     data.bot_sys_clock[idx] = hw::systime_us();
     data.top_sys_clock[idx] = hw::systime_us();
     data.bot_coil_currents[idx] = bot_currents[idx]; 
     data.top_coil_currents[idx] = top_currents[idx];
-    data.bot_coil_temps[idx] = 0.0;
-    data.top_coil_temps[idx] = 0.0;
+    data.bot_coil_temps[idx] = bot_temps[idx];
+    data.top_coil_temps[idx] = top_temps[idx];
     //Add a check here to see if the currents match set point
     //Alarm if not? Reset current?
   }
