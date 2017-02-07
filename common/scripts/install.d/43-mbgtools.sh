@@ -1,7 +1,8 @@
 #!/bin/bash
+gcc --version
 
 # Download and build the driver.
-cd /usr/local/opt
+mkdir -p ~/Packages && cd ~/Packages
 
 wget https://www.meinbergglobal.com/download/drivers/mbgtools-lx-3.4.0.tar.gz
 

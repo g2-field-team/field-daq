@@ -20,7 +20,15 @@ create BOOL "Root Output"
 set "Root Output" false
 create STRING "Root Dir[1][256]"
 set "Root Dir" "/home/newg2/Applications/field-daq/resources/Root/"
+create INT "Cmd" 
+set "Cmd" 0
 
+mkdir "Trolley Power Registry"
+cd "/Equipment/TrolleyInterface/Settings/Trolley Power Registry"
+create INT "Voltage"
+set "Voltage" 156
+
+cd "/Equipment/TrolleyInterface/Settings"
 mkdir "NMR Registry"
 cd "/Equipment/TrolleyInterface/Settings/NMR Registry"
 create INT "RF Prescale"
@@ -56,6 +64,10 @@ set "Acq Delay" 800
 
 cd /
 cp "/Equipment/TrolleyInterface" "/Equipment/SimTrolleyInterface"
+cd "/Equipment/SimTrolleyInterface/Common"
+set "Frontend name" "Sim Trolley Interface"
+set "Frontend file name" "src/sim_trolley.cxx"
+set "Status" "Sim Trolley Interface@localhost"
 
 create STRING "/Equipment/SimTrolleyInterface/Settings/Data Source[1][256]"
 set "/Equipment/SimTrolleyInterface/Settings/Data Source" "/home/newg2/Applications/field-daq/resources/NMRDataTemp/data_NMR_61682000Hz_11.70dbm-2016-10-27_19-36-42.dat"

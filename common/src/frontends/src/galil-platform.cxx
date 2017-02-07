@@ -119,12 +119,18 @@ typedef struct GalilDataStruct{
   INT PositionArray[4];
   INT VelocityArray[4];
   INT OutputVArray[4];
+  INT GoalDistArray[4];
+  INT LimFArray[4];
+  INT LimRArray[4];
 }GalilDataStruct;
 
 typedef struct GalilDataStructD{
   double PositionArray[4];
   double VelocityArray[4];
   double OutputVArray[4];
+  double GoalDistArray[4];
+  double LimFArray[4];
+  double LimRArray[4];
 }GalilDataStructD;
 
 INT StepSize[4];
@@ -400,22 +406,22 @@ INT read_event(char *pevent, INT off){
     GCmd(g,CmdBuffer);
     GCmd(g,"BGA");
     mlock.unlock();
-    if (IY>=StepNumber[1]){
-      IY=0;
-      //move back to Y0
-      sprintf(CmdBuffer,"PRB=%d",-StepNumber[1]*StepSize[1]);
+    if (IZ>=StepNumber[2]){
+      IZ=0;
+      //move back to Z0
+      sprintf(CmdBuffer,"PRC=%d",-StepNumber[2]*StepSize[2]);
       mlock.lock();
       GCmd(g,CmdBuffer);
-      GCmd(g,"BGB");
+      GCmd(g,"BGC");
       mlock.unlock();
-      if (IZ>=StepNumber[2]){
-	IZ=0;
-	//move back to Z0
-	sprintf(CmdBuffer,"PRC=%d",-StepNumber[2]*StepSize[2]);
-        mlock.lock();
+      if (IY>=StepNumber[1]){
+	IY=0;
+	//move back to Y0
+	sprintf(CmdBuffer,"PRB=%d",-StepNumber[1]*StepSize[1]);
+	mlock.lock();
 	GCmd(g,CmdBuffer);
-	GCmd(g,"BGC");
-        mlock.unlock();
+	GCmd(g,"BGB");
+	mlock.unlock();
 	if (IS>=StepNumber[3]){
 	  IS=0;
 	  //move back to S0
@@ -440,22 +446,22 @@ INT read_event(char *pevent, INT off){
 	  IS++;
 	}
       }else{
-	//move forward in Z
-	sprintf(CmdBuffer,"PRC=%d",StepSize[2]);
-        mlock.lock();
+	//move forward in Y
+	sprintf(CmdBuffer,"PRB=%d",StepSize[1]);
+	mlock.lock();
 	GCmd(g,CmdBuffer);
-	GCmd(g,"BGC");
-        mlock.unlock();
-        IZ++;
+	GCmd(g,"BGB");
+	mlock.unlock();
+	IY++;
       }
     }else{
-      //move forward in Y
-      sprintf(CmdBuffer,"PRB=%d",StepSize[1]);
+      //move forward in Z
+      sprintf(CmdBuffer,"PRC=%d",StepSize[2]);
       mlock.lock();
       GCmd(g,CmdBuffer);
-      GCmd(g,"BGB");
+      GCmd(g,"BGC");
       mlock.unlock();
-      IY++;
+      IZ++;
     }
   }else{
     //move forward in X
@@ -562,7 +568,7 @@ void GalilMonitor(const GCon &g){
 	for (int j=0;j<4;j++){
 	  GalilDataUnit.VelocityArray[j] = INT(GalilDataUnitD.VelocityArray[j]);
 	}
-      }else if(Header.compare("C")==0){
+      }else if(Header.compare("CE")==0){
 	//iss >> GalilDataUnit.TimeStamp;
 	iss >> Time;
 	if (i==0 && jj==0)Time0=Time;
@@ -570,11 +576,33 @@ void GalilMonitor(const GCon &g){
 	for (int j=0;j<4;j++){
 	  iss >> GalilDataUnitD.OutputVArray[j];
 	}
+	for (int j=0;j<4;j++){
+	  iss >> GalilDataUnitD.GoalDistArray[j];
+	}
 	//Convert to INT
 	GalilDataUnit.TimeStamp = INT(Time);
 	for (int j=0;j<4;j++){
 	  GalilDataUnit.OutputVArray[j] = INT(GalilDataUnitD.OutputVArray[j]*1000);
 	}
+	for (int j=0;j<4;j++){
+	  GalilDataUnit.GoalDistArray[j] = INT(GalilDataUnitD.GoalDistArray[j]);
+	}
+      }else if(Header.compare("LS")==0){
+        iss >> Time;
+        if (i==0&&jj==0) Time0=Time;
+        Time-=Time0;
+        for (int j=0; j<4; j++){
+          iss >> GalilDataUnitD.LimFArray[j];
+        }
+        for (int j=0; j<4; j++){
+          iss >> GalilDataUnitD.LimRArray[j];
+        }
+        for (int j=0;j<4;j++){
+          GalilDataUnit.LimFArray[j] = INT(GalilDataUnitD.LimFArray[j]);
+        }
+        for (int j=0;j<4;j++){
+          GalilDataUnit.LimRArray[j] = INT(GalilDataUnitD.LimRArray[j]);
+        }
       }
 
       BufString = BufString.substr(foundnewline+1,string::npos);
@@ -589,6 +617,9 @@ void GalilMonitor(const GCon &g){
     db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/Positions",&GalilDataUnit.PositionArray,sizeof(GalilDataUnit.PositionArray), 4 ,TID_INT); 
     db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/Velocities",&GalilDataUnit.VelocityArray,sizeof(GalilDataUnit.VelocityArray), 4 ,TID_INT); 
     db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/ControlVoltages",&GalilDataUnit.OutputVArray,sizeof(GalilDataUnit.OutputVArray), 4 ,TID_INT); 
+    db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/GoalDist",&GalilDataUnit.GoalDistArray,sizeof(GalilDataUnit.GoalDistArray), 4 ,TID_INT);
+    db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/LimF",&GalilDataUnit.LimFArray,sizeof(GalilDataUnit.LimFArray), 4 ,TID_INT);
+    db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/LimR",&GalilDataUnit.LimRArray,sizeof(GalilDataUnit.LimRArray), 4 ,TID_INT);
 
     //Check emergencies
     INT emergency_size = sizeof(emergency);
@@ -598,8 +629,8 @@ void GalilMonitor(const GCon &g){
       mlock.lock();
       GCmd(g,"AB 1");
 /*      INT Finished=2;
-      db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/Finished",&Finished,sizeof(Finished), 1 ,TID_INT);
-      mlock.unlock();*/
+      db_set_value(hDB,0,"/Equipment/GalilPlatform/Monitors/Finished",&Finished,sizeof(Finished), 1 ,TID_INT);*/
+      mlock.unlock();
       cm_msg(MINFO,"Emergency","Motion Aborted.");
     }
     emergency=0;

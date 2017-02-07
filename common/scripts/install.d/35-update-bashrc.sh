@@ -6,7 +6,7 @@ if [ "$(grep '/opt/rh/devtoolset-2/root/usr/bin' ~/.bashrc)" ]; then
     echo -e "\e[31mdevtoolset already in PATH\e[0m"
 else
     echo -e "\e[31mAdding devtoolset to PATH\e[0m"
-    echo -e "\nexport PATH=/opt/rh/devtoolset-2/root/usr/bin:\$PATH\n" >> ~/.bashrc
+#    echo -e "\nexport PATH=/opt/rh/devtoolset-2/root/usr/bin:\$PATH\n" >> ~/.bashrc
 fi
 
 echo -e "\e[31mAdding UPS init file to bashrc.\e[0m"

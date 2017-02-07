@@ -30,13 +30,13 @@ cp -r /etc/cvmfs/config.d /etc/cvmfs/backup-config.d
 rm -f /etc/cvmfs/config.d/*
 echo -e 'CVMFS_SERVER_URL="http://cvmfs-s1bnl.opensciencegrid.org:8000/cvmfs/@fqrn@;http://cvmfs-s1fnal.opensciencegrid.org:8000/cvmfs/@fqrn@;http://cvmfs-s1goc.opensciencegrid.org:8000/cvmfs/@fqrn@"' > /etc/cvmfs/config.d/gm2.opensciencegrid.org.conf
 
-sudo mkdir -p /cvmfs/gm2.opensciencegrid.org
+mkdir -p /cvmfs/gm2.opensciencegrid.org
 
 echo -e "\e[31mMount cvmfs with \n\nsudo mount -t cvmfs gm2.opensciencegrid.org /cvmfs/gm2.opensciencegrid.org\n\n\e[0m"
 echo -e "\e[31mTesting contents of mount\e[0m"
 
-sudo mount -t cvmfs gm2.opensciencegrid.org /cvmfs/gm2.opensciencegrid.org
+mount -t cvmfs gm2.opensciencegrid.org /cvmfs/gm2.opensciencegrid.org
 ls -l /cvmfs/gm2.opensciencegrid.org/
 
-echo -e "\e[31mAdd cvmfs to automount by adding \n\cvmfs /etc/auto.cvmfs\n\n to /etc/auto.master before the line containing +auto.master.\e[0m"
+echo -e "\e[31mAdd cvmfs to automount by adding \n/cvmfs /etc/auto.cvmfs\n\n to /etc/auto.master before the line containing +auto.master.\e[0m"
 echo -e "\e[31mThen restart autofs with 'sudo service autofs restart'\e[0m"
