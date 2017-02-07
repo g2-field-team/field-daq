@@ -204,7 +204,7 @@
         <key name="Gate Delay" type="INT">0</key>
         <key name="Gate Period" type="INT">15000</key>
         <key name="Transmit Delay" type="INT">300</key>
-        <key name="Transmit Period" type="INT">5</key>
+        <key name="Transmit Period" type="INT">310</key>
       </dir>
       <dir name="Barcode Registry">
         <key name="LED Voltage" type="DOUBLE">1</key>
