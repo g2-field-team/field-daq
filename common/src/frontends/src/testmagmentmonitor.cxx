@@ -101,7 +101,7 @@ EQUIPMENT equipment[] = {
      TRUE,                   /* enabled */
      RO_RUNNING | RO_TRANSITIONS |   /* read when running and on transitions */
      RO_ODB,                 /* and update ODB */
-     3600000,                  /* read every 1 hour */
+     10000,                  /* read every 1 hour */
      0,                      /* stop run after this event limit */
      0,                      /* number of sub events */
      0,                      /* log history */
@@ -118,7 +118,7 @@ EQUIPMENT equipment[] = {
       TRUE,                   /* enabled */
       RO_RUNNING | RO_TRANSITIONS |   /* read when running and on transitions */
 	RO_ODB,                 /* and update ODB */
-      36000000,                  /* read every 10 hour */
+      10000,                  /* read every 10 hour */
       0,                      /* stop run after this event limit */
       0,                      /* number of sub events */
       0,                      /* log history */
@@ -162,15 +162,32 @@ resume_run:     When a run is resumed. Should enable trigger events.
 
 INT frontend_init()
 {
-  /*
   char devname[100];
   struct termios options1;
-//  struct termios options2;
+  struct termios options2;
   struct termios options3;
 
   //Init port 1
+  int fBufferSize = 256;
+  char *fWriteBufferAg;
+  char *fReadBufferAg;
+
+  int i = 0;
+  int k = 0;
+  char line[100];
+  int length = strlen(line);
+  int n;
+  char *ptr;
+  int nbytes;
+
+  int c;
+  char buf[2000];
+
   sprintf(devname, "/dev/ttyUSB0");
-  cout << "About to connect to serial port 1" <<endl;
+
+  //output1.open("/home/newg2/TestMagnetMonitor/Data/Port1DirectOutput.txt", ios::out);
+  //cout << "About to connect to serial port 1" <<endl;
+  
   fSerialPort1_ptr = open(devname, O_RDWR | O_NOCTTY | O_NDELAY);
 
   if(fSerialPort1_ptr < 0) {
@@ -200,7 +217,8 @@ INT frontend_init()
 
   //Init port3
   sprintf(devname, "/dev/ttyUSB2");
-  cout << "About to connect to serial port 3"<<endl;
+  //output3.open("/home/newg2/TestMagnetMonitor/Data/Port3DirectOutput.txt", ios::out);
+  //cout << "About to connect to serial port 3" <<endl;
   fSerialPort3_ptr = open(devname, O_RDWR | O_NOCTTY | O_NDELAY);
 
   if(fSerialPort3_ptr < 0) {
@@ -228,7 +246,39 @@ INT frontend_init()
   }
   tcflush( fSerialPort3_ptr, TCIOFLUSH );
 
-  */
+
+  //Init Port 2
+  sprintf(devname, "/dev/ttyUSB1");
+  //output3.open("/home/newg2/TestMagnetMonitor/Data/Port3DirectOutput.txt", ios::out);
+  //cout << "About to connect to serial port 3" <<endl;
+  fSerialPort2_ptr = open(devname, O_RDWR | O_NOCTTY | O_NDELAY);
+
+  if(fSerialPort2_ptr < 0) {
+    perror("Error opening device port3");
+    return -1;
+  }
+  fcntl(fSerialPort2_ptr, F_SETFL, 0); // return immediately if no data
+
+  if(tcgetattr(fSerialPort2_ptr, &options3) < 0) {
+    perror("Error tcgetattr port2");
+    return -2;
+  }
+
+  cfsetospeed(&options3, B4800);
+  cfsetispeed(&options3, B4800);
+
+  options2.c_cflag     &=  ~PARENB;        // Make 8n1
+  options2.c_cflag     &=  ~CSTOPB;
+  options2.c_cflag     &=  ~CSIZE;
+  options2.c_cflag     |=  CS8;
+  options2.c_cflag     &=  ~CRTSCTS;       // no flow control
+
+  tcflush( fSerialPort2_ptr, TCIFLUSH );
+
+  if(tcsetattr(fSerialPort2_ptr, TCSANOW, &options2) < 0) {
+    perror("Error tcsetattr port2");
+    return -3;
+  }
   return SUCCESS;
 }
 
@@ -236,9 +286,9 @@ INT frontend_init()
 
 INT frontend_exit()
 {
-//  close(fSerialPort1_ptr);
-//  close(fSerialPort2_ptr);
-//  close(fSerialPort3_ptr);
+   close(fSerialPort1_ptr);
+   close(fSerialPort2_ptr);
+   close(fSerialPort3_ptr);
    return SUCCESS;
 }
 
@@ -277,7 +327,7 @@ INT pause_run(INT run_number, char *error)
    return SUCCESS;
 }
 
-/*-- Resuem Run ----------------------------------------------------*/
+/*-- Resume Run ----------------------------------------------------*/
 
 INT resume_run(INT run_number, char *error)
 {
@@ -352,32 +402,75 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    db_get_value(hDBwarning,0,"/EmailWarning/Temp_threshold",&temp_threshold,&temp_threshold_size,TID_FLOAT, 0);
 
    //Communicate with port1
-/*   string command = "\x02";
+   string command = "\x02";
    command+="DAT\r";
    char inbuf[100];
-   sprintf(inbuf,command.c_str());
+   sprintf(inbuf, command.c_str());
    int b;
-
-   cout<<"Sending: "<<inbuf<<endl;
-   b=write(fSerialPort1_ptr, &inbuf,5);
-   usleep(1000*400);
-   cout <<endl;
-   b=read(fSerialPort1_ptr, &buf, 72);
+   b = write(fSerialPort_ptr, &inbuf, 5);
+   usleep(1000*500);
+   b = read(fSerialPort_ptr, &buf, 72);
    string received = buf;
-   received = received.substr(0,71);
-   cout << "Received: "<<received<<endl;
    string status = received.substr(43,1);
-   */
-   string status;
-   ifstream inPort1;
-   inPort1.open("/home/newg2/TestMagnetMonitor/Data/Port1Current");
-   inPort1>>status;
-   inPort1.close();
-   if (status.compare("1")==0){
+   //cout << "Received: "<<received<<endl;
+
+   //Error Handling
+   bool CompressorError = false;
+   string numErrors = received.substr(49,2);
+   if (numErrors != "00") {
+      CompressorError = true;
+   }
+   //string CompressorErrorString = received.substr(52,16);
+   string CompressorErrorMessage = "\nErrors: ";
+   
+   //Add error description to email message
+   if (received.substr(52,1) == "1") {
+      CompressorErrorMessage += "SYSTEM ERROR, ";
+   }
+   if (received.substr(53,1) == "1") {
+      CompressorErrorMessage += "Compressor fail, ";
+   }
+   if (received.substr(54,1) == "1") {
+      CompressorErrorMessage += "Locked rotor, ";
+   }
+   if (received.substr(55,1) == "1") {
+      CompressorErrorMessage += "OVERLOAD, ";
+   }
+   if (received.substr(56,1) == "1") {
+      CompressorErrorMessage += "Phase/fuse ERROR, ";
+   }
+   if (received.substr(57,1) == "1") {
+      CompressorErrorMessage += "Pressure alarm, ";
+   }
+   if (received.substr(58,1) == "1") {
+      CompressorErrorMessage += "Helium temp. fail, ";
+   }
+   if (received.substr(59,1) == "1") {
+      CompressorErrorMessage += "Oil circuit fail, ";
+   }
+   if (received.substr(60,1) == "1") {
+      CompressorErrorMessage += "RAM ERROR, ";
+   }
+   if (received.substr(61,1) == "1") {
+      CompressorErrorMessage += "ROM ERROR, ";
+   }
+   if (received.substr(62,1) == "1") {
+      CompressorErrorMessage += "EEPROM ERROR, ";
+   }
+   if (received.substr(63,1) == "1") {
+      CompressorErrorMessage += "DC Voltage error, ";
+   }
+   if (received.substr(64,1) == "1") {
+      CompressorErrorMessage += "MAINS LEVEL !!!!, ";
+   }
+                
+   //output1<<m<<" "<<status<<" "<<received<<endl;
+   
+   if (status.compare("1") == 0){
      cout << "Compressor is ON."<<endl;
    }else{
      cout << "Compressor is OFF."<<endl;
-     string outmessage = "Compressor is off or not read properly: "+status;
+     string outmessage = "Compressor is off or not read properly: "+status+CompressorErrorMessage;
      if(comp_off_message_sent==0){
        SendWarning(outmessage);
        comp_off_message_sent=1;
@@ -386,20 +479,27 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    }
 
    //Communicate with port3
-/*   char inbuf3[100];
+   char inbuf3[100];
    char buf3[2000];
    char buf3_2[2000];
+   char buf3_3[2000];
+   char buf3_4[2000];
+   //char buf3_5[2000];
+   //char buf3_6[2000];
+   //char buf3_7[2000];
+   
+   // Get Chiller Temperature
    sprintf(inbuf3,"RT\r");
-
-   b=write(fSerialPort3_ptr, &inbuf3,3);
+   b = write(fSerialPort3_ptr, &inbuf3,3);
    usleep(1000*400);
-   b=read(fSerialPort3_ptr, &buf3, 7);
+   b = read(fSerialPort3_ptr, &buf3, 7);
    received = buf3;
    received = received.substr(0,6);
    cout << "Received: "<<received<<endl;
    double temperature = strtod(buf3,NULL);
    float temp = float(temperature);
 
+   // Get Chiller Status
    tcflush( fSerialPort3_ptr, TCIOFLUSH );
    sprintf(inbuf3,"RW\r");
    b=write(fSerialPort3_ptr, &inbuf3,3);
@@ -408,14 +508,62 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    string status3 = buf3_2;
    status3 = status3.substr(0,1);
    cout << "Received: "<<status3<<endl;
-   */
-   string status3 = "3";
-   double temperature = 0;
-   ifstream inPort3;
-   inPort3.open("/home/newg2/TestMagnetMonitor/Data/Port3Current");
-   inPort3>>status3>>temperature;
-   inPort3.close();
-   float temp = float(temperature);
+
+   // Get Chiller Pressure
+   tcflush( fSerialPort3_ptr, TCIOFLUSH );
+   sprintf(inbuf3,"RK\r");
+   b=write(fSerialPort3_ptr, &inbuf3,3);
+   usleep(1000*400);
+   b=read(fSerialPort3_ptr, &buf3_3, 2);
+   string pressureStr = buf3_3;
+   //pressureStr = pressureStr.substr(0,6);
+   cout << "Received: "<<pressureStr<<endl;
+   //double pressureD = strtod(buf3_3,NULL);
+   //float pressure = float(pressureD);
+   
+   // Get Chiller Flow
+   tcflush( fSerialPort3_ptr, TCIOFLUSH );
+   sprintf(inbuf3,"RL\r");
+   b=write(fSerialPort3_ptr, &inbuf3,3);
+   usleep(1000*400);
+   b=read(fSerialPort3_ptr, &buf3_4, 2);
+   string flowStr = buf3_4;
+   //flowStr = flowStr.substr(0,6);
+   cout << "Received: "<<flowStr<<endl;
+   //double flowD = strtod(buf3_4,NULL);
+   //float flow = float(flowD);
+   
+   /* Possible needed data calls to chiller
+   // Get Chiller Flow
+   tcflush( fSerialPort3_ptr, TCIOFLUSH );
+   sprintf(inbuf3,"RH\r");
+   b=write(fSerialPort3_ptr, &inbuf3,3);
+   usleep(1000*400);
+   b=read(fSerialPort3_ptr, &buf3_5, 2);
+   string dischargeStr = buf3_5;
+   //status3 = status3.substr(0,1);
+   cout << "Received: "<<dischargeStr<<endl;
+   
+   // Get Chiller Flow
+   tcflush( fSerialPort3_ptr, TCIOFLUSH );
+   sprintf(inbuf3,"RR\r");
+   b=write(fSerialPort3_ptr, &inbuf3,3);
+   usleep(1000*400);
+   b=read(fSerialPort3_ptr, &buf3_6, 2);
+   string probeTempStr = buf3_6;
+   //status3 = status3.substr(0,1);
+   cout << "Received: "<<probeTempStr<<endl;
+   
+   // Get Chiller Flow
+   tcflush( fSerialPort3_ptr, TCIOFLUSH );
+   sprintf(inbuf3,"RA\r");
+   b=write(fSerialPort3_ptr, &inbuf3,3);
+   usleep(1000*400);
+   b=read(fSerialPort3_ptr, &buf3_7, 2);
+   string ambientTempStr = buf3_7;
+   //status3 = status3.substr(0,1);
+   cout << "Received: "<<ambientTempStr<<endl;*/
+
    if (status3.compare("1")==0){
      cout << "Chiller is ON."<<endl;
    }else{
@@ -437,7 +585,7 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    }
 
    //Output to text file
-   output1_3<<status<<" "<<status3<<" "<<temperature<<endl;
+   output1_3<<status<<" "<<status3<<" "<<temperature<<" "<<pressure<" "<<flow<<endl;
 
    /* init bank structure */
    bk_init(pevent);
@@ -466,7 +614,17 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    bk_create(pevent, "Temp", TID_FLOAT, (void **)&pdata_f);
    *pdata_f++=temp;
    bk_close(pevent, pdata_f);
+/*
+   // create structured pressure bank 
+   bk_create(pevent, "Pres", TID_FLOAT, (void **)&pdata_f);
+   *pdata_f++=pressure;
+   bk_close(pevent, pdata_f);
 
+   // create structured flow rate bank 
+   bk_create(pevent, "Flow", TID_FLOAT, (void **)&pdata_f);
+   *pdata_f++=flow;
+   bk_close(pevent, pdata_f);
+*/
    ss_sleep(10);
 
    return bk_size(pevent);
@@ -482,6 +640,7 @@ INT read_HeLevel_event(char *pevent, INT off)
 
   double HeLevel=-1;
   float HeLevel_f;
+  int nbyte;
   int err_read_message_sent = 0;
   int low_he_message_sent = 0;
   int err_read_size = sizeof(err_read_message_sent);
@@ -493,7 +652,7 @@ INT read_HeLevel_event(char *pevent, INT off)
   db_get_value(hDBwarning,0,"/EmailWarning/err_read",&err_read_message_sent,&err_read_size,TID_INT, 0);
   db_get_value(hDBwarning,0,"/EmailWarning/low_he",&low_he_message_sent,&low_he_size,TID_INT, 0);
   db_get_value(hDBwarning,0,"/EmailWarning/He_threshold",&Threshold,&ThresholdSize,TID_FLOAT, 0);
-/*
+
   sprintf(line,"\x1B");
   nbyte=write(fSerialPort2_ptr, line, 1);
   sleep(5);
@@ -518,12 +677,7 @@ INT read_HeLevel_event(char *pevent, INT off)
   }
 
   cout <<"He level is "<< HeLevel<<endl;
-*/
-  //Using this alternative way: reading the Port2Current file
-  ifstream inPort2;
-  inPort2.open("/home/newg2/TestMagnetMonitor/Data/Port2Current");
-  inPort2>>HeLevel;
-  inPort2.close();
+
   //Output to text file
   output2<<HeLevel<<endl;
 

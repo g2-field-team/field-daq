@@ -1,1 +1,1 @@
-export PATH=/home/newg2/Applications/field-daq/common/bin:$PATH
+export PATH=/home/blyoder/Applications/field-daq/common/bin:$PATH

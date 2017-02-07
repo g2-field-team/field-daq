@@ -1,0 +1,107 @@
+
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <title>ANL Test Magnet and Compressor/Chiller/Helium level Monitor</title>
+   <link rel="stylesheet" type="text/css" href="controlpage.css">
+   <script src='mhttpd.js'></script>
+   <script src='Monitor.js'></script>
+</head>
+
+<body onload="unCheck();">
+<script>
+update();
+</script>
+
+<form name=" form1" method="Get" action="/CS/Test Magnet Monitor&">
+
+<header>
+<h3>ANL Test Magnet and Compressor/Chiller/He level Monitor</h3>
+</header>
+
+<nav>
+<ul>
+<li ><input name="cmd" value="Status" type="submit"></li>
+<li ><input name="cmd" value="Start" type="submit"></li>
+<li ><input name="cmd" value="Pause" type="submit"></li>
+<li ><input name="cmd" value="Stop" type="submit"></li>
+<li ><input name="cmd" value="ODB" type="submit"></li>
+<li ><input name="cmd" value="Messages" type="submit"></li>
+</ul>
+
+<br>
+<table class="table-fill" id="CCHMonitor">
+<tr>
+<th colspan="2" class="text-center"> Compressor/Chiller/HeLevel Monitor</th>
+</tr>
+<tr>
+<td colspan="2" class="text-center">Compressor</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Status</td>
+<td colspan="1" class="ODB-Monitor" id="CoS">000</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Error Message</td>
+<td colspan="1" class="ODB-Monitor" id="CoE">000</td>
+</tr>
+<tr>
+<td colspan="2" class="text-center">Chiller</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Status</td>
+<td colspan="1" class="ODB-Monitor" id="ChS">000</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Temperature</td>
+<td colspan="1" class="ODB-Monitor" id="ChT">000</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Pressure (kPa)</td>
+<td colspan="1" class="ODB-Monitor" id="ChP">000</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Flow Rate (LPM)</td>
+<td colspan="1" class="ODB-Monitor" id="ChF">000</td>
+</tr>
+<tr>
+<td colspan="2" class="text-center">Helium Level</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">He Level</td>
+<td colspan="1" class="ODB-Monitor" id="HeL">000</td>
+</tr>
+</table>
+
+</nav>
+<br>
+<input type="checkbox" name="AllowOnOff" id="OnOff"> Allow turning machines on and off</input>
+<br><br>
+
+<table class="table-fill" id="CCHControl">
+<tr>
+<th colspan="3" class="text-center"> Compressor/Chiller/HeLevel Controller</th>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Compressor:</td>
+<td><button type="button" onclick="CompressorOn()" id="CompressorOnButton">On</button></td>
+<td><button type="button" onclick="CompressorOff()" id="CompressorOffButton">Off</button></td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Chiller:</td>
+<td><button type="button" onclick="ChillerOn()" id="ChillerOnButton">On</button></td>
+<td><button type="button" onclick="ChillerOff()" id="ChillerOffButton">Off</button></td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Chiller Set Point:</td>
+<td colspan="1"><input id="ChSetPointTemp" type="number" step="0.1" min="68" max="104" value=73.0></input></td>
+<td><button type="button" onclick="SetTemp()" id="SetChillerTempButton">Set</button></td>
+</tr>
+
+</table>
+
+
+</form>
+</body>
+
+</html>	
