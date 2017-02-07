@@ -172,14 +172,6 @@ INT frontend_init()
   char *fWriteBufferAg;
   char *fReadBufferAg;
 
-  int i = 0;
-  int k = 0;
-  char line[100];
-  int length = strlen(line);
-  int n;
-  char *ptr;
-  int nbytes;
-
   int c;
   char buf[2000];
 
@@ -384,7 +376,6 @@ INT read_CompressorChiller_event(char *pevent, INT off)
 {
    WORD *pdata;
    float *pdata_f;
-   //char buf[2000];
    int comp_off_message_sent = 0;
    int chill_off_message_sent = 0;
    int high_temp_message_sent = 0;
@@ -405,11 +396,12 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    string command = "\x02";
    command+="DAT\r";
    char inbuf[100];
+   char buf[100];
    sprintf(inbuf, command.c_str());
    int b;
-   b = write(fSerialPort_ptr, &inbuf, 5);
+   b = write(fSerialPort1_ptr, &inbuf, 5);
    usleep(1000*500);
-   b = read(fSerialPort_ptr, &buf, 72);
+   b = read(fSerialPort1_ptr, &buf, 72);
    string received = buf;
    string status = received.substr(43,1);
    //cout << "Received: "<<received<<endl;
@@ -585,7 +577,8 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    }
 
    //Output to text file
-   output1_3<<status<<" "<<status3<<" "<<temperature<<" "<<pressure<" "<<flow<<endl;
+   output1_3<<status<<" "<<status3<<" "<<temperature<<endl;
+   //output1_3<<status<<" "<<status3<<" "<<temperature<<" "<<pressure<" "<<flow<<endl;
 
    /* init bank structure */
    bk_init(pevent);
@@ -633,8 +626,16 @@ INT read_CompressorChiller_event(char *pevent, INT off)
 /*-- Scaler event --------------------------------------------------*/
 
 INT read_HeLevel_event(char *pevent, INT off)
-{
+{  
+  int i = 0;
+  int k = 0;
+  char line[100];
+  int n;
+  int b;
+  char *ptr;
+  int nbytes;
   float *pdata;
+  char buf[2000];
   //Communicating to port2
   float Threshold = 74.0;
 
