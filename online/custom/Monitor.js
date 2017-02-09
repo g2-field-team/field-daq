@@ -2,7 +2,7 @@ var updatePeriod = 500; // in msec
 var updateTimerId = 0;
 
 function unCheck() {
-  document.getElementById("OnOff").checked = true;
+  document.getElementById("OnOff").checked = false;
 }
 
 function update()  {
@@ -12,7 +12,7 @@ function update()  {
     updateTimerId = setTimeout('update()', updatePeriod);
 }
 function load()   {
-  mjsonrpc_db_get_values(["/Equipment/CompressorChiller/Variables/sta1","/Equipment/CompressorChiller/Variables/CompressorErrors","/Equipment/CompressorChiller/Variables/sta3","/Equipment/CompressorChiller/Variables/temperature","/Equipment/CompressorChiller/Variables/pressure","/Equipment/CompressorChiller/Variables/flow","/Equipment/HeLevel/Variables/HeLevel"]).then(function(rpc) {
+  mjsonrpc_db_get_values(["/Equipment/CompressorChiller/Variables/sta1","/Equipment/CompressorChiller/Variables/CompressorErrors","/Equipment/CompressorChiller/Variables/sta3","/Equipment/CompressorChiller/Variables/Temp","/Equipment/CompressorChiller/Variables/Pres","/Equipment/CompressorChiller/Variables/Flow","/Equipment/HeLevel/Variables/HeLe"]).then(function(rpc) {
       var CoS = String(rpc.result.data[0]);
       document.getElementById("CoS").innerHTML = CoS;
       var CoE = String(rpc.result.data[1]);
@@ -31,20 +31,6 @@ function load()   {
 	mjsonrpc_error_alert(error);
 	});
 } 
-
-function AbortMotion(){
-  var value=1;
-  mjsonrpc_db_paste(["/Equipment/GalilPlatform/Emergency/Abort"],[value]).then(function(rpc){;}).catch(function(error) {
-      mjsonrpc_error_alert(error);
-      });
-}
-
-function ResetSystem(){
-  var value=1;
-  mjsonrpc_db_paste(["/Equipment/GalilPlatform/Emergency/Reset"],[value]).then(function(rpc){;}).catch(function(error) {
-      mjsonrpc_error_alert(error);
-      });
-}
 
 function CompressorOn(){
   if (document.getElementById("OnOff").checked) {
@@ -84,25 +70,43 @@ function ChillerOff(){
 
 function SetOnOff(machine, chSta){
   var curSta;
+  var proceed;
   if (machine == 1) {
-    curSta = document.getElementById("CoS").innerHTML;
-    if (curSta == chSta) {
-      alert("Compressor is already " + strOnOff);
-    } else {
-      mjsonrpc_db_paste(["/Equipment/CompressorChiller/variables/setCoOnOff"],[chSta]).then(function(rpc){;}).catch(function(error) {
-      mjsonrpc_error_alert(error);
-      });
-    }
-
+    mjsonrpc_db_get_values(["/Equipment/CompressorChiller/Settings/comp_ctrl"]).then(function(rpc) {
+      proceed = rpc.result.data[0];
+      if (proceed == 2){
+        curSta = document.getElementById("CoS").innerHTML;
+        if (curSta != chSta) {
+          alert("Compressor is already " + strOnOff);
+        } else {
+          mjsonrpc_db_paste(["/Equipment/CompressorChiller/Settings/comp_ctrl"],[chSta]).then(function(rpc){;}).catch(function(error) {
+          mjsonrpc_error_alert(error);
+          });
+        }
+      } else {
+        alert("Please Wait on Last Command");
+      }
+    }).catch(function(error) {
+	mjsonrpc_error_alert(error);
+    });    
   } else if (machine == 3) {
-    curSta = document.getElementById("ChS").innerHTML;
-    if (curSta == chSta) {
-      alert("Chiller is already " + strOnOff);
-    } else {
-      mjsonrpc_db_paste(["/Equipment/CompressorChiller/variables/setChOnOff"],[chSta]).then(function(rpc){;}).catch(function(error) {
-      mjsonrpc_error_alert(error);
-      });
-    }
+    mjsonrpc_db_get_values(["/Equipment/CompressorChiller/Settings/chil_ctrl"]).then(function(rpc) {
+      proceed = rpc.result.data[0];
+      if (proceed == 2){
+        curSta = document.getElementById("ChS").innerHTML;
+        if (curSta != chSta) {
+          alert("Chiller is already " + strOnOff);
+        } else {
+          mjsonrpc_db_paste(["/Equipment/CompressorChiller/Settings/chil_ctrl"],[chSta]).then(function(rpc){;}).catch(function(error) {
+          mjsonrpc_error_alert(error);
+          });
+        }
+      } else {
+        alert("Please Wait on Last Command");
+      }
+    }).catch(function(error) {
+	mjsonrpc_error_alert(error);
+    });    
   }
 }
 

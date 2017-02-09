@@ -394,8 +394,8 @@ INT read_CompressorChiller_event(char *pevent, INT off)
 
    HNDLE hDBcontrol;
    cm_get_experiment_database(&hDBcontrol, NULL);
-   db_get_value(hDBwarning,0,"/Equipment/CompressorChiller/Settings/comp_ctrl",&comp_ctrl,&comp_ctrl_size,TID_INT, 0);
-   db_get_value(hDBwarning,0,"/Equipment/CompressorChiller/Settings/chil_ctrl",&chil_ctrl,&chil_ctrl_size,TID_INT, 0);
+   db_get_value(hDBcontrol,0,"/Equipment/CompressorChiller/Settings/comp_ctrl",&comp_ctrl,&comp_ctrl_size,TID_INT, 0);
+   db_get_value(hDBcontrol,0,"/Equipment/CompressorChiller/Settings/chil_ctrl",&chil_ctrl,&chil_ctrl_size,TID_INT, 0);
 
    //HNDLE hDBwarning;
    //cm_get_experiment_database(&hDBwarning, NULL);
@@ -745,11 +745,12 @@ int CompressorControl(int onoff){
   command+=s;
   command+="\r";
   char inbuf[100];
+  char buf[2000];
   sprintf(inbuf, command.c_str());
   int b;
-  b = write(fSerialPort_ptr, &inbuf, 6);
+  b = write(fSerialPort1_ptr, &inbuf, 6);
   usleep(1000*500);
-  b = read(fSerialPort_ptr, &buf, 6);
+  b = read(fSerialPort1_ptr, &buf, 6);
   string received = buf;
   cout << "Received: " << received << endl;
   
@@ -760,15 +761,14 @@ int CompressorControl(int onoff){
 int ChillerControl(int onoff){
   char inbuf3[100];
   char buf3[2000];
-  string command = "SO";
-  if (onoff == 1)command+="1\r";
-  if (onoff == 0)command+="0\r";
+  int b;
 
-  sprintf(inbuf3,command);
+  if (onoff == 1)sprintf(inbuf3,"SO1\r");
+  if (onoff == 0)sprintf(inbuf3,"SO0\r");  
   b = write(fSerialPort3_ptr, &inbuf3,4);
   usleep(1000*400);
   b = read(fSerialPort3_ptr, &buf3, 7);
-  received = buf3;
+  string received = buf3;
   received = received.substr(0,6);
   cout << "Received: "<<received<<endl;
 
