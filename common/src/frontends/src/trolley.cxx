@@ -193,20 +193,21 @@ INT frontend_init()
   INT Size_INT = sizeof(SetTrolleyVoltage);
   db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Trolley Power Registry/Voltage",&SetTrolleyVoltage,&Size_INT,TID_INT, 0);
   int reg_value = 0;
-  if (SetTrolleyVoltage == 0){
-    reg_value = 0x00220000;   // Shutdown state.
+  for (int i=1;i<=SetTrolleyVoltage;i++){
+    reg_value = i; 
+    reg_value &= 0xFF;
+    reg_value |= (reg_value << 8);
+    if (reg_value !=0){
+      reg_value |= 0x00220000;; //Enable both potentiometers
+    }
     DeviceWrite(reg_trolley_power, reg_value);                              // Set the Trolley Voltage Control Register
     DeviceWrite(reg_trolley_power_set, 0x00000001);                 // Load the new voltage setting.
+    usleep(10000);
   }
-  else{
-    for (int i=1;i<=SetTrolleyVoltage;i++){
-      reg_value = i; 
-      reg_value |= (reg_value << 8);
-      DeviceWrite(reg_trolley_power, reg_value);                              // Set the Trolley Voltage Control Register
-      DeviceWrite(reg_trolley_power_set, 0x00000001);                 // Load the new voltage setting.
-      usleep(10000);
-    }
-  } 
+  
+  unsigned int readback;
+  DeviceRead(reg_trolley_power, &readback);
+  cm_msg(MINFO,"init","Trolley Power : %d",readback & 0xFF);
 
   //Configure power
  // DeviceWrite(reg_power_control2,0x0004);
@@ -237,14 +238,16 @@ INT frontend_exit()
   int reg_value = 0;
   for (int i=SetTrolleyVoltage;i>=0;i--){
     reg_value = i; 
+    reg_value &= 0xFF;
     reg_value |= (reg_value << 8);
+    if (reg_value !=0){
+      reg_value |= 0x00220000;; //Enable both potentiometers
+    }
     DeviceWrite(reg_trolley_power, reg_value);                              // Set the Trolley Voltage Control Register
     DeviceWrite(reg_trolley_power_set, 0x00000001);                 // Load the new voltage setting.
     usleep(10000);
   }
-  reg_value = 0x00220000;   // Shutdown state.
-  DeviceWrite(reg_trolley_power, reg_value);                              // Set the Trolley Voltage Control Register
-  DeviceWrite(reg_trolley_power_set, 0x00000001);                 // Load the new voltage setting.
+
   //Disconnect from Trolley interface
   int err = DeviceDisconnect();
   if (err==0){
@@ -739,17 +742,17 @@ void ControlDevice(){
     db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cmd",&Cmd,&Size_INT,TID_INT, 0);
     if (Cmd == 1){
       int reg_value = 0;
-      if (SetTrolleyVoltage == 0){
-	reg_value = 0x00220000;   // Shutdown state.
-	DeviceWrite(reg_trolley_power, reg_value);                              // Set the Trolley Voltage Control Register
-	DeviceWrite(reg_trolley_power_set, 0x00000001);                 // Load the new voltage setting.
+      reg_value = SetTrolleyVoltage; 
+      reg_value &= 0xFF;
+      reg_value |= (reg_value << 8);
+      if (reg_value !=0){
+	reg_value |= 0x00220000;; //Enable both potentiometers
       }
-      else{
-	reg_value = SetTrolleyVoltage; 
-	reg_value |= (reg_value << 8);
-	DeviceWrite(reg_trolley_power, reg_value);                              // Set the Trolley Voltage Control Register
-	DeviceWrite(reg_trolley_power_set, 0x00000001);                 // Load the new voltage setting.
-      } 
+      DeviceWrite(reg_trolley_power, reg_value);                              // Set the Trolley Voltage Control Register
+      DeviceWrite(reg_trolley_power_set, 0x00000001);                 // Load the new voltage setting.
+      unsigned int readback;
+      DeviceRead(reg_trolley_power, &readback);
+      cm_msg(MINFO,"init","Trolley Power : %d",readback & 0xFF);
       LoadOdbToInterface();
       Cmd = 0;
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cmd",&Cmd,Size_INT, 1 ,TID_INT); 

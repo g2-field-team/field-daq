@@ -50,7 +50,7 @@ set "Preamp Period" 12327
 set "Gate Delay" 0
 set "Gate Period" 15000
 set "Transmit Delay" 300
-set "Transmit Period" 5
+set "Transmit Period" 310
 
 cd "/Equipment/TrolleyInterface/Settings"
 mkdir "Barcode Registry"
