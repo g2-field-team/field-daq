@@ -180,7 +180,7 @@ INT frontend_init(){
   free(ip_addr_path); 
 
   // connect to the yokogawa
-  int rc = yokogawa::open_connection(ip_addr);  
+  int rc = yokogawa_interface::open_connection(ip_addr);  
 
   if (rc==0) {
     cm_msg(MINFO,"init","Yokogawa is connected");
@@ -189,13 +189,13 @@ INT frontend_init(){
     return FE_ERR_HW; 
   }
 
-  rc = yokogawa::set_mode(yokogawa::kCURRENT); 
+  rc = yokogawa_interface::set_mode(yokogawa_interface::kCURRENT); 
   cm_msg(MINFO,"init","Yokogawa set to CURRENT mode.");
-  rc = yokogawa::set_range_max(); 
+  rc = yokogawa_interface::set_range_max(); 
   cm_msg(MINFO,"init","Yokogawa set to maximum range.");
-  rc = yokogawa::set_level(0.0); 
+  rc = yokogawa_interface::set_level(0.0); 
   cm_msg(MINFO,"init","Yokogawa current set to 0 mA.");
-  rc = yokogawa::set_output_state(yokogawa::kENABLED); 
+  rc = yokogawa_interface::set_output_state(yokogawa_interface::kENABLED); 
   cm_msg(MINFO,"init","Yokogawa output ENABLED.");
 
   return SUCCESS;
@@ -209,11 +209,11 @@ INT frontend_exit(){
   int rc=0;
 
   // set to zero mA 
-  rc = yokogawa::set_level(0.0); 
+  rc = yokogawa_interface::set_level(0.0); 
   // disable output 
-  rc = yokogawa::set_output_state(yokogawa::kDISABLED); 
+  rc = yokogawa_interface::set_output_state(yokogawa_interface::kDISABLED); 
   // close connection  
-  rc = yokogawa::close_connection();
+  rc = yokogawa_interface::close_connection();
   
   if (rc==0) {
     cm_msg(MINFO,"exit","Yokogawa disconnected successfully.");
@@ -302,13 +302,13 @@ INT end_of_run(INT run_number, char *error){
   int rc=0; 
 
   // set to zero mA 
-  rc = yokogawa::set_level(0.0); 
+  rc = yokogawa_interface::set_level(0.0); 
   if (rc!=0) { 
      cm_msg(MERROR,"exit","Cannot set Yokogawa current to 0 mA!");
   }
 
   // disable output 
-  rc = yokogawa::set_output_state(yokogawa::kDISABLED); 
+  rc = yokogawa_interface::set_output_state(yokogawa_interface::kDISABLED); 
   if (rc!=0) { 
      cm_msg(MERROR,"exit","Cannot disable Yokogawa output!");
   }
@@ -455,18 +455,18 @@ void read_from_device(){
       mlock.unlock();
       if (!localRunActive) break;
       // grab the data 
-      is_enabled = yokogawa::get_output_state(); 
-      mode       = yokogawa::get_mode(); 
-      lvl        = yokogawa::get_level(); 
+      is_enabled = yokogawa_interface::get_output_state(); 
+      mode       = yokogawa_interface::get_mode(); 
+      lvl        = yokogawa_interface::get_level(); 
       // fill the data structure  
       yoko_data->sys_clock  = 0;
       yoko_data->gps_clock  = 0;
       yoko_data->mode       = mode;  
       yoko_data->is_enabled = is_enabled;  
-      if (mode==yokogawa::kVOLTAGE) {
+      if (mode==yokogawa_interface::kVOLTAGE) {
 	 yoko_data->current = 0.; 
 	 yoko_data->voltage = lvl; 
-      } else if (mode==yokogawa::kCURRENT) {
+      } else if (mode==yokogawa_interface::kCURRENT) {
 	 yoko_data->current = lvl; 
 	 yoko_data->voltage = 0.; 
       }
