@@ -463,10 +463,10 @@ void read_from_device(){
       yoko_data->gps_clock  = 0;
       yoko_data->mode       = mode;  
       yoko_data->is_enabled = is_enabled;  
-      if (mode==0) {
+      if (mode==yokogawa::kVOLTAGE) {
 	 yoko_data->current = 0.; 
 	 yoko_data->voltage = lvl; 
-      } else if (mode==1) {
+      } else if (mode==yokogawa::kCURRENT) {
 	 yoko_data->current = lvl; 
 	 yoko_data->voltage = 0.; 
       }
