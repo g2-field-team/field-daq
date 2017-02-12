@@ -406,22 +406,22 @@ INT read_event(char *pevent, INT off){
     GCmd(g,CmdBuffer);
     GCmd(g,"BGA");
     mlock.unlock();
-    if (IY>=StepNumber[1]){
-      IY=0;
-      //move back to Y0
-      sprintf(CmdBuffer,"PRB=%d",-StepNumber[1]*StepSize[1]);
+    if (IZ>=StepNumber[2]){
+      IZ=0;
+      //move back to Z0
+      sprintf(CmdBuffer,"PRC=%d",-StepNumber[2]*StepSize[2]);
       mlock.lock();
       GCmd(g,CmdBuffer);
-      GCmd(g,"BGB");
+      GCmd(g,"BGC");
       mlock.unlock();
-      if (IZ>=StepNumber[2]){
-	IZ=0;
-	//move back to Z0
-	sprintf(CmdBuffer,"PRC=%d",-StepNumber[2]*StepSize[2]);
-        mlock.lock();
+      if (IY>=StepNumber[1]){
+	IY=0;
+	//move back to Y0
+	sprintf(CmdBuffer,"PRB=%d",-StepNumber[1]*StepSize[1]);
+	mlock.lock();
 	GCmd(g,CmdBuffer);
-	GCmd(g,"BGC");
-        mlock.unlock();
+	GCmd(g,"BGB");
+	mlock.unlock();
 	if (IS>=StepNumber[3]){
 	  IS=0;
 	  //move back to S0
@@ -446,22 +446,22 @@ INT read_event(char *pevent, INT off){
 	  IS++;
 	}
       }else{
-	//move forward in Z
-	sprintf(CmdBuffer,"PRC=%d",StepSize[2]);
-        mlock.lock();
+	//move forward in Y
+	sprintf(CmdBuffer,"PRB=%d",StepSize[1]);
+	mlock.lock();
 	GCmd(g,CmdBuffer);
-	GCmd(g,"BGC");
-        mlock.unlock();
-        IZ++;
+	GCmd(g,"BGB");
+	mlock.unlock();
+	IY++;
       }
     }else{
-      //move forward in Y
-      sprintf(CmdBuffer,"PRB=%d",StepSize[1]);
+      //move forward in Z
+      sprintf(CmdBuffer,"PRC=%d",StepSize[2]);
       mlock.lock();
       GCmd(g,CmdBuffer);
-      GCmd(g,"BGB");
+      GCmd(g,"BGC");
       mlock.unlock();
-      IY++;
+      IZ++;
     }
   }else{
     //move forward in X
