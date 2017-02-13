@@ -86,7 +86,7 @@ INT read_HeLevel_event(char *pevent, INT off);
 
 INT poll_event(INT source, INT count, BOOL test);
 INT interrupt_configure(INT cmd, INT source, POINTER_T adr);
-int SendWarning(string message);
+//int SendWarning(string message);
 int CompressorControl(int onoff);
 int ChillerControl(int onoff);
 
@@ -101,7 +101,7 @@ EQUIPMENT equipment[] = {
      0,                      /* event source */
      "MIDAS",                /* format */
      TRUE,                   /* enabled */
-     RO_RUNNING | RO_TRANSITIONS |   /* read when running and on transitions */
+     RO_ALWAYS |   /* read when running and on transitions */
      RO_ODB,                 /* and update ODB */
      30000,                  /* read every 1 hour */
      0,                      /* stop run after this event limit */
@@ -118,7 +118,7 @@ EQUIPMENT equipment[] = {
       0,                      /* event source */
       "MIDAS",                /* format */
       TRUE,                   /* enabled */
-      RO_RUNNING | RO_TRANSITIONS |   /* read when running and on transitions */
+      RO_ALWAYS |   /* read when running and on transitions */
 	RO_ODB,                 /* and update ODB */
       30000,                  /* read every 10 hour */
       0,                      /* stop run after this event limit */
@@ -412,11 +412,12 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    sprintf(inbuf, command.c_str());
    int b;
    int sta1;
+   string status = "0";
    b = write(fSerialPort1_ptr, &inbuf, 5);
    usleep(1000*500);
    b = read(fSerialPort1_ptr, &buf, 72);
    string received = buf;
-   string status = received.substr(43,1);
+   status = received.substr(43,1);
    cout << "Received: "<<received<<endl;
    
    if (status.compare("1")==0){
@@ -507,12 +508,13 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    float temp = float(temperature);
 
    // Get Chiller Status
+   string status3 = "0";
    tcflush( fSerialPort3_ptr, TCIOFLUSH );
    sprintf(inbuf3,"RW\r");
    b=write(fSerialPort3_ptr, &inbuf3,3);
    usleep(1000*400);
    b=read(fSerialPort3_ptr, &buf3_2, 2);
-   string status3 = buf3_2;
+   status3 = buf3_2;
    status3 = status3.substr(0,1);
    cout << "Received: "<<status3<<endl;
    int sta3;
@@ -573,10 +575,16 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    // Turn Compressor and Chiller on and off
   
    if ((comp_ctrl == 1 || comp_ctrl == 0) && comp_ctrl != sta1) {
-      CompressorControl(comp_ctrl);
+      if (CompressorControl(comp_ctrl) == 1){
+	comp_ctrl = 2;
+	db_set_value(hDBcontrol,0,"/Equipment/CompressorChiller/Settings/comp_ctrl",&comp_ctrl,&comp_ctrl_size,1,TID_INT);
+      }
    }
    if ((chil_ctrl == 1 || chil_ctrl == 0) && chil_ctrl != sta3) {
-      ChillerControl(chil_ctrl);
+      if (ChillerControl(chil_ctrl) == 1){
+	chil_ctrl = 2;
+	db_set_value(hDBcontrol,0,"/Equipment/CompressorChiller/Settings/chil_ctrl",&chil_ctrl,&chil_ctrl_size,1,TID_INT);
+      }
    }
 
    /* init bank structure */
@@ -638,7 +646,7 @@ INT read_HeLevel_event(char *pevent, INT off)
   //Communicating to port2
   float Threshold = 74.0;
 
-  double HeLevel=-1;
+  double HeLevel=102;
   float HeLevel_f;
   int nbyte;
   int err_read_message_sent = 0;
@@ -674,6 +682,9 @@ INT read_HeLevel_event(char *pevent, INT off)
     }
     sleep(1);
     n++;
+    if (n > 10){
+      break;
+    }
   }
 
   cout <<"He level is "<< HeLevel<<endl;
@@ -714,7 +725,7 @@ INT read_HeLevel_event(char *pevent, INT off)
 
   return bk_size(pevent);
 }
-
+/*
 int SendWarning(string message){
   ofstream messagefile;
   messagefile.open("emailmessage.txt",ios::out);
@@ -734,7 +745,7 @@ int SendWarning(string message){
   emaillist.close();
 
   return 0;
-}
+}*/
 
 int CompressorControl(int onoff){
   string command = "\x02";
@@ -744,7 +755,7 @@ int CompressorControl(int onoff){
   if (onoff == 0)s = "0";
   command+=s;
   command+="\r";
-  char inbuf[100];
+  /*char inbuf[100];
   char buf[2000];
   sprintf(inbuf, command.c_str());
   int b;
@@ -755,7 +766,9 @@ int CompressorControl(int onoff){
   cout << "Received: " << received << endl;
   
   if (received.substr(4,1) == s )return 1;
-  else return 0;
+  else return 0;*/
+  cout<<"Sending command: "<<command;
+  return 0;
 }
 
 int ChillerControl(int onoff){
@@ -763,14 +776,17 @@ int ChillerControl(int onoff){
   char buf3[2000];
   int b;
 
-  if (onoff == 1)sprintf(inbuf3,"SO1\r");
+  /*if (onoff == 1)sprintf(inbuf3,"SO1\r");
   if (onoff == 0)sprintf(inbuf3,"SO0\r");  
   b = write(fSerialPort3_ptr, &inbuf3,4);
   usleep(1000*400);
   b = read(fSerialPort3_ptr, &buf3, 7);
   string received = buf3;
   received = received.substr(0,6);
-  cout << "Received: "<<received<<endl;
+  cout << "Received: "<<received<<endl;*/
+ 
+  if (onoff == 1)cout<<"Sending command: "<<"SO1\r";
+  if (onoff == 0)cout<<"Sending command: "<<"SO0\r";
 
   return 0;
 }

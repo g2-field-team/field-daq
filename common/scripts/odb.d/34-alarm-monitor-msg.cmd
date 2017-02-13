@@ -6,7 +6,7 @@ cd "AlarmMsg"
 set "System message interval" 0
 set "Stop run" n
 set "Display BGColor" red
-set "Execute Command" "/home/newg2/Applications/field-daq/online/alarms/send_Msg '%s'"
+set "Execute Command" "/home/newg2/Applications/field-daq/online/alarms/send_Msg.sh '%s'"
 set "Execute Interval" 0
 
 cd "/Alarms/Alarms"
@@ -14,7 +14,7 @@ cp "Demo ODB" "Compressor Status"
 cd "Compressor Status"
 set "Active" n
 set "Check interval" 60
-set "Condition" "/Equipment/CompressorChiller/Variables/Sta1 = 1"
+set "Condition" "/Equipment/CompressorChiller/Variables/Sta1 = 0"
 set "Alarm Class" "AlarmMsg"
 set "Alarm Message" "Compressor is off or not read properly."
 
@@ -23,7 +23,7 @@ cp "Demo ODB" "Chiller Status"
 cd "Chiller Status"
 set "Active" n
 set "Check interval" 60
-set "Condition" "/Equipment/CompressorChiller/Variables/Sta3 = 1"
+set "Condition" "/Equipment/CompressorChiller/Variables/Sta3 = 0"
 set "Alarm Class" "AlarmMsg"
 set "Alarm Message" "Chiller is off or not read properly."
 
@@ -38,9 +38,19 @@ set "Alarm Message" "Chiller temperature is too high."
 
 cd "/Alarms/Alarms"
 cp "Demo ODB" "Helium Level"
-cd "Chiller Status"
+cd "Helium Level"
 set "Active" n
 set "Check interval" 60
 set "Condition" "/Equipment/HeLevel/Variables/HeLe < 74"
 set "Alarm Class" "AlarmMsg"
 set "Alarm Message" "Helium level is too low."
+
+cd "/Alarms/Alarms"
+cp "Demo ODB" "Helium Status"
+cd "Helium Status"
+set "Active" n
+set "Check interval" 60
+set "Condition" "/Equipment/HeLevel/Variables/HeLe > 101"
+set "Alarm Class" "AlarmMsg"
+set "Alarm Message" "Helium level is off or not read properly."
+
