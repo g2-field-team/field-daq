@@ -87,6 +87,8 @@ INT read_HeLevel_event(char *pevent, INT off);
 INT poll_event(INT source, INT count, BOOL test);
 INT interrupt_configure(INT cmd, INT source, POINTER_T adr);
 int SendWarning(string message);
+int CompressorControl(int onoff);
+int ChillerControl(int onoff);
 
 /*-- Equipment list ------------------------------------------------*/
 
@@ -101,7 +103,7 @@ EQUIPMENT equipment[] = {
      TRUE,                   /* enabled */
      RO_RUNNING | RO_TRANSITIONS |   /* read when running and on transitions */
      RO_ODB,                 /* and update ODB */
-     10000,                  /* read every 1 hour */
+     30000,                  /* read every 1 hour */
      0,                      /* stop run after this event limit */
      0,                      /* number of sub events */
      0,                      /* log history */
@@ -118,7 +120,7 @@ EQUIPMENT equipment[] = {
       TRUE,                   /* enabled */
       RO_RUNNING | RO_TRANSITIONS |   /* read when running and on transitions */
 	RO_ODB,                 /* and update ODB */
-      10000,                  /* read every 10 hour */
+      30000,                  /* read every 10 hour */
       0,                      /* stop run after this event limit */
       0,                      /* number of sub events */
       0,                      /* log history */
@@ -376,21 +378,31 @@ INT read_CompressorChiller_event(char *pevent, INT off)
 {
    WORD *pdata;
    float *pdata_f;
-   int comp_off_message_sent = 0;
-   int chill_off_message_sent = 0;
-   int high_temp_message_sent = 0;
-   int comp_off_size = sizeof(comp_off_message_sent);
-   int chill_off_size = sizeof(chill_off_message_sent);
-   int high_temp_size = sizeof(high_temp_message_sent);
-   float temp_threshold = 80;
-   int temp_threshold_size = sizeof(temp_threshold);
+   //int comp_off_message_sent = 0;
+   //int chill_off_message_sent = 0;
+   //int high_temp_message_sent = 0;
+   int comp_ctrl = 2;
+   int chil_ctrl = 2;
+   int comp_ctrl_size = sizeof(comp_ctrl);
+   int chil_ctrl_size = sizeof(chil_ctrl);
+   //int comp_off_size = sizeof(comp_off_message_sent);
+   //int chill_off_size = sizeof(chill_off_message_sent);
+   //int high_temp_size = sizeof(high_temp_message_sent);
+   //float temp_threshold = 80;
+   //int temp_threshold_size = sizeof(temp_threshold);
 
-   HNDLE hDBwarning;
-   cm_get_experiment_database(&hDBwarning, NULL);
-   db_get_value(hDBwarning,0,"/EmailWarning/comp_off",&comp_off_message_sent,&comp_off_size,TID_INT, 0);
-   db_get_value(hDBwarning,0,"/EmailWarning/chill_off",&chill_off_message_sent,&chill_off_size,TID_INT, 0);
-   db_get_value(hDBwarning,0,"/EmailWarning/high_temp",&high_temp_message_sent,&high_temp_size,TID_INT, 0);
-   db_get_value(hDBwarning,0,"/EmailWarning/Temp_threshold",&temp_threshold,&temp_threshold_size,TID_FLOAT, 0);
+
+   HNDLE hDBcontrol;
+   cm_get_experiment_database(&hDBcontrol, NULL);
+   db_get_value(hDBcontrol,0,"/Equipment/CompressorChiller/Settings/comp_ctrl",&comp_ctrl,&comp_ctrl_size,TID_INT, 0);
+   db_get_value(hDBcontrol,0,"/Equipment/CompressorChiller/Settings/chil_ctrl",&chil_ctrl,&chil_ctrl_size,TID_INT, 0);
+
+   //HNDLE hDBwarning;
+   //cm_get_experiment_database(&hDBwarning, NULL);
+   //db_get_value(hDBwarning,0,"/EmailWarning/comp_off",&comp_off_message_sent,&comp_off_size,TID_INT, 0);
+   //db_get_value(hDBwarning,0,"/EmailWarning/chill_off",&chill_off_message_sent,&chill_off_size,TID_INT, 0);
+   //db_get_value(hDBwarning,0,"/EmailWarning/high_temp",&high_temp_message_sent,&high_temp_size,TID_INT, 0);
+   //db_get_value(hDBwarning,0,"/EmailWarning/Temp_threshold",&temp_threshold,&temp_threshold_size,TID_FLOAT, 0);
 
    //Communicate with port1
    string command = "\x02";
@@ -399,12 +411,19 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    char buf[100];
    sprintf(inbuf, command.c_str());
    int b;
+   int sta1;
    b = write(fSerialPort1_ptr, &inbuf, 5);
    usleep(1000*500);
    b = read(fSerialPort1_ptr, &buf, 72);
    string received = buf;
    string status = received.substr(43,1);
-   //cout << "Received: "<<received<<endl;
+   cout << "Received: "<<received<<endl;
+   
+   if (status.compare("1")==0){
+     sta1 = 1;
+   }else{
+     sta1 = 0;
+   }
 
    //Error Handling
    bool CompressorError = false;
@@ -413,7 +432,7 @@ INT read_CompressorChiller_event(char *pevent, INT off)
       CompressorError = true;
    }
    //string CompressorErrorString = received.substr(52,16);
-   string CompressorErrorMessage = "\nErrors: ";
+   string CompressorErrorMessage = "Errors: ";
    
    //Add error description to email message
    if (received.substr(52,1) == "1") {
@@ -455,19 +474,18 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    if (received.substr(64,1) == "1") {
       CompressorErrorMessage += "MAINS LEVEL !!!!, ";
    }
-                
-   //output1<<m<<" "<<status<<" "<<received<<endl;
-   
+   cout << CompressorErrorMessage << endl;   
+                   
    if (status.compare("1") == 0){
      cout << "Compressor is ON."<<endl;
    }else{
      cout << "Compressor is OFF."<<endl;
-     string outmessage = "Compressor is off or not read properly: "+status+CompressorErrorMessage;
-     if(comp_off_message_sent==0){
-       SendWarning(outmessage);
-       comp_off_message_sent=1;
-       db_set_value(hDBwarning,0,"/EmailWarning/comp_off",&comp_off_message_sent,comp_off_size,1,TID_INT);
-     }
+   //  string outmessage = "Compressor is off or not read properly: "+status+CompressorErrorMessage;
+   //  if(comp_off_message_sent==0){
+   //    SendWarning(outmessage);
+   //    comp_off_message_sent=1;
+   //    db_set_value(hDBwarning,0,"/EmailWarning/comp_off",&comp_off_message_sent,comp_off_size,1,TID_INT);
+   //  }
    }
 
    //Communicate with port3
@@ -476,9 +494,6 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    char buf3_2[2000];
    char buf3_3[2000];
    char buf3_4[2000];
-   //char buf3_5[2000];
-   //char buf3_6[2000];
-   //char buf3_7[2000];
    
    // Get Chiller Temperature
    sprintf(inbuf3,"RT\r");
@@ -500,85 +515,69 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    string status3 = buf3_2;
    status3 = status3.substr(0,1);
    cout << "Received: "<<status3<<endl;
+   int sta3;
+   if (status3.compare("1")==0){
+     sta3 = 1;
+   }else{
+     sta3 = 0;
+   }
 
    // Get Chiller Pressure
    tcflush( fSerialPort3_ptr, TCIOFLUSH );
    sprintf(inbuf3,"RK\r");
    b=write(fSerialPort3_ptr, &inbuf3,3);
    usleep(1000*400);
-   b=read(fSerialPort3_ptr, &buf3_3, 2);
+   b=read(fSerialPort3_ptr, &buf3_3, 7);
    string pressureStr = buf3_3;
-   //pressureStr = pressureStr.substr(0,6);
+   pressureStr = pressureStr.substr(0,6);
    cout << "Received: "<<pressureStr<<endl;
-   //double pressureD = strtod(buf3_3,NULL);
-   //float pressure = float(pressureD);
+   double pressureD = strtod(buf3_3,NULL);
+   float pressure = float(pressureD);
    
    // Get Chiller Flow
    tcflush( fSerialPort3_ptr, TCIOFLUSH );
    sprintf(inbuf3,"RL\r");
    b=write(fSerialPort3_ptr, &inbuf3,3);
    usleep(1000*400);
-   b=read(fSerialPort3_ptr, &buf3_4, 2);
+   b=read(fSerialPort3_ptr, &buf3_4, 7);
    string flowStr = buf3_4;
-   //flowStr = flowStr.substr(0,6);
+   flowStr = flowStr.substr(0,6);
    cout << "Received: "<<flowStr<<endl;
-   //double flowD = strtod(buf3_4,NULL);
-   //float flow = float(flowD);
+   double flowD = strtod(buf3_4,NULL);
+   float flow = float(flowD);
    
-   /* Possible needed data calls to chiller
-   // Get Chiller Flow
-   tcflush( fSerialPort3_ptr, TCIOFLUSH );
-   sprintf(inbuf3,"RH\r");
-   b=write(fSerialPort3_ptr, &inbuf3,3);
-   usleep(1000*400);
-   b=read(fSerialPort3_ptr, &buf3_5, 2);
-   string dischargeStr = buf3_5;
-   //status3 = status3.substr(0,1);
-   cout << "Received: "<<dischargeStr<<endl;
-   
-   // Get Chiller Flow
-   tcflush( fSerialPort3_ptr, TCIOFLUSH );
-   sprintf(inbuf3,"RR\r");
-   b=write(fSerialPort3_ptr, &inbuf3,3);
-   usleep(1000*400);
-   b=read(fSerialPort3_ptr, &buf3_6, 2);
-   string probeTempStr = buf3_6;
-   //status3 = status3.substr(0,1);
-   cout << "Received: "<<probeTempStr<<endl;
-   
-   // Get Chiller Flow
-   tcflush( fSerialPort3_ptr, TCIOFLUSH );
-   sprintf(inbuf3,"RA\r");
-   b=write(fSerialPort3_ptr, &inbuf3,3);
-   usleep(1000*400);
-   b=read(fSerialPort3_ptr, &buf3_7, 2);
-   string ambientTempStr = buf3_7;
-   //status3 = status3.substr(0,1);
-   cout << "Received: "<<ambientTempStr<<endl;*/
-
    if (status3.compare("1")==0){
      cout << "Chiller is ON."<<endl;
    }else{
      cout << "Chiller is OFF."<<endl;
-     string outmessage = "Chiller is off or not read properly: "+status3;
-     if(chill_off_message_sent==0){
-       SendWarning(outmessage);
-       chill_off_message_sent=1;
-       db_set_value(hDBwarning,0,"/EmailWarning/chill_off",&chill_off_message_sent,chill_off_size,1,TID_INT);
-     }
+     //string outmessage = "Chiller is off or not read properly: "+status3;
+     //if(chill_off_message_sent==0){
+     //  SendWarning(outmessage);
+     //  chill_off_message_sent=1;
+     //  db_set_value(hDBwarning,0,"/EmailWarning/chill_off",&chill_off_message_sent,chill_off_size,1,TID_INT);
+     //}
    }
-   cout <<"Temperature is "<<temperature<<endl;
-   if (temperature>temp_threshold){
-     if(high_temp_message_sent==0){
-       high_temp_message_sent=1;
-       db_set_value(hDBwarning,0,"/EmailWarning/high_temp",&high_temp_message_sent,high_temp_size,1,TID_INT);
-       SendWarning("Chiller temperature is too high.");
-     }
-   }
+   //cout <<"Temperature is "<<temperature<<endl;
+   //if (temperature>temp_threshold){
+   //  if(high_temp_message_sent==0){
+   //   high_temp_message_sent=1;
+   //    db_set_value(hDBwarning,0,"/EmailWarning/high_temp",&high_temp_message_sent,high_temp_size,1,TID_INT);
+   //    SendWarning("Chiller temperature is too high.");
+   //  }
+   //}
 
    //Output to text file
    output1_3<<status<<" "<<status3<<" "<<temperature<<endl;
    //output1_3<<status<<" "<<status3<<" "<<temperature<<" "<<pressure<" "<<flow<<endl;
+
+   // Turn Compressor and Chiller on and off
+  
+   if ((comp_ctrl == 1 || comp_ctrl == 0) && comp_ctrl != sta1) {
+      CompressorControl(comp_ctrl);
+   }
+   if ((chil_ctrl == 1 || chil_ctrl == 0) && chil_ctrl != sta3) {
+      ChillerControl(chil_ctrl);
+   }
 
    /* init bank structure */
    bk_init(pevent);
@@ -607,7 +606,7 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    bk_create(pevent, "Temp", TID_FLOAT, (void **)&pdata_f);
    *pdata_f++=temp;
    bk_close(pevent, pdata_f);
-/*
+
    // create structured pressure bank 
    bk_create(pevent, "Pres", TID_FLOAT, (void **)&pdata_f);
    *pdata_f++=pressure;
@@ -617,7 +616,7 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    bk_create(pevent, "Flow", TID_FLOAT, (void **)&pdata_f);
    *pdata_f++=flow;
    bk_close(pevent, pdata_f);
-*/
+
    ss_sleep(10);
 
    return bk_size(pevent);
@@ -648,11 +647,11 @@ INT read_HeLevel_event(char *pevent, INT off)
   int low_he_size = sizeof(low_he_message_sent);
   int ThresholdSize = sizeof(Threshold);
   
-  HNDLE hDBwarning;
-  cm_get_experiment_database(&hDBwarning, NULL);
-  db_get_value(hDBwarning,0,"/EmailWarning/err_read",&err_read_message_sent,&err_read_size,TID_INT, 0);
-  db_get_value(hDBwarning,0,"/EmailWarning/low_he",&low_he_message_sent,&low_he_size,TID_INT, 0);
-  db_get_value(hDBwarning,0,"/EmailWarning/He_threshold",&Threshold,&ThresholdSize,TID_FLOAT, 0);
+  //HNDLE hDBwarning;
+  //cm_get_experiment_database(&hDBwarning, NULL);
+  //db_get_value(hDBwarning,0,"/EmailWarning/err_read",&err_read_message_sent,&err_read_size,TID_INT, 0);
+  //db_get_value(hDBwarning,0,"/EmailWarning/low_he",&low_he_message_sent,&low_he_size,TID_INT, 0);
+  //db_get_value(hDBwarning,0,"/EmailWarning/He_threshold",&Threshold,&ThresholdSize,TID_FLOAT, 0);
 
   sprintf(line,"\x1B");
   nbyte=write(fSerialPort2_ptr, line, 1);
@@ -685,16 +684,16 @@ INT read_HeLevel_event(char *pevent, INT off)
   if (HeLevel<0){
     cout << "Read out error!"<<endl;
     if(err_read_message_sent==0){
-      SendWarning("He level is not read properly.");
+      //SendWarning("He level is not read properly.");
       err_read_message_sent=1;
-      db_set_value(hDBwarning,0,"/EmailWarning/err_read",&err_read_message_sent,err_read_size,1,TID_INT);
+      //db_set_value(hDBwarning,0,"/EmailWarning/err_read",&err_read_message_sent,err_read_size,1,TID_INT);
     }
   }else if (HeLevel>=0 && HeLevel<Threshold){
     cout << "He level is too low!";
     if(low_he_message_sent==0){
-      SendWarning("He level is too low.");
+      //SendWarning("He level is too low.");
       low_he_message_sent=1;
-      db_set_value(hDBwarning,0,"/EmailWarning/low_he",&low_he_message_sent,low_he_size,1,TID_INT);
+      //db_set_value(hDBwarning,0,"/EmailWarning/low_he",&low_he_message_sent,low_he_size,1,TID_INT);
     }
   }else{
     cout << "He level is OK!"<<endl;
@@ -733,6 +732,45 @@ int SendWarning(string message){
     cout <<"Email sent."<<endl;
   }
   emaillist.close();
+
+  return 0;
+}
+
+int CompressorControl(int onoff){
+  string command = "\x02";
+  command+="SYS";
+  string s;
+  if (onoff == 1)s = "1";
+  if (onoff == 0)s = "0";
+  command+=s;
+  command+="\r";
+  char inbuf[100];
+  char buf[2000];
+  sprintf(inbuf, command.c_str());
+  int b;
+  b = write(fSerialPort1_ptr, &inbuf, 6);
+  usleep(1000*500);
+  b = read(fSerialPort1_ptr, &buf, 6);
+  string received = buf;
+  cout << "Received: " << received << endl;
+  
+  if (received.substr(4,1) == s )return 1;
+  else return 0;
+}
+
+int ChillerControl(int onoff){
+  char inbuf3[100];
+  char buf3[2000];
+  int b;
+
+  if (onoff == 1)sprintf(inbuf3,"SO1\r");
+  if (onoff == 0)sprintf(inbuf3,"SO0\r");  
+  b = write(fSerialPort3_ptr, &inbuf3,4);
+  usleep(1000*400);
+  b = read(fSerialPort3_ptr, &buf3, 7);
+  string received = buf3;
+  received = received.substr(0,6);
+  cout << "Received: "<<received<<endl;
 
   return 0;
 }
