@@ -12,7 +12,7 @@ function update()  {
     updateTimerId = setTimeout('update()', updatePeriod);
 }
 function load()   {
-  mjsonrpc_db_get_values(["/Equipment/CompressorChiller/Variables/sta1","/Equipment/CompressorChiller/Variables/CompressorErrors","/Equipment/CompressorChiller/Variables/sta3","/Equipment/CompressorChiller/Variables/temperature","/Equipment/CompressorChiller/Variables/pressure","/Equipment/CompressorChiller/Variables/flow","/Equipment/HeLevel/Variables/HeLevel"]).then(function(rpc) {
+  mjsonrpc_db_get_values(["/Equipment/CompressorChiller/Variables/sta1","/Equipment/CompressorChiller/Variables/CompressorErrors","/Equipment/CompressorChiller/Variables/sta3","/Equipment/CompressorChiller/Variables/temp","/Equipment/CompressorChiller/Variables/pres","/Equipment/CompressorChiller/Variables/flow","/Equipment/HeLevel/Variables/HeLe"]).then(function(rpc) {
       var CoS = String(rpc.result.data[0]);
       document.getElementById("CoS").innerHTML = CoS;
       var CoE = String(rpc.result.data[1]);
@@ -89,7 +89,7 @@ function SetOnOff(machine, chSta){
     if (curSta == chSta) {
       alert("Compressor is already " + strOnOff);
     } else {
-      mjsonrpc_db_paste(["/Equipment/CompressorChiller/variables/setCoOnOff"],[chSta]).then(function(rpc){;}).catch(function(error) {
+      mjsonrpc_db_paste(["/Equipment/CompressorChiller/Settings/setCoOnOff"],[chSta]).then(function(rpc){;}).catch(function(error) {
       mjsonrpc_error_alert(error);
       });
     }
@@ -99,7 +99,7 @@ function SetOnOff(machine, chSta){
     if (curSta == chSta) {
       alert("Chiller is already " + strOnOff);
     } else {
-      mjsonrpc_db_paste(["/Equipment/CompressorChiller/variables/setChOnOff"],[chSta]).then(function(rpc){;}).catch(function(error) {
+      mjsonrpc_db_paste(["/Equipment/CompressorChiller/Settings/setChOnOff"],[chSta]).then(function(rpc){;}).catch(function(error) {
       mjsonrpc_error_alert(error);
       });
     }
