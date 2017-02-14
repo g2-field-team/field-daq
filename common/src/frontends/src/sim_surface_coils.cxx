@@ -176,44 +176,6 @@ INT frontend_init()
   int top_size = sizeof(top_set_values);
 
   db_get_data(hDB, hkey, &top_set_values, &top_size, TID_DOUBLE);
-  /*
-  //connect to server
-  cm_msg(MINFO, "init", "Connecting to server");
-  socket.connect("tcp://localhost:5555");
-
-  //send data to driver boards
-  zmq::message_t message(18);
-  zmq::message_t reply;
-  snprintf((char *) message.data(), 18, "%f %f", bot_set_values[0], bot_set_values[1]);
-
-  bool st = false; //status of request/reply
-
-  do{
-    st = socket.send(message, ZMQ_DONTWAIT);
-    cm_msg(MINFO, "init", "Current values sent to beaglebone");
-
-    if(st == true){
-      do{
-	st = socket.recv(&reply, ZMQ_DONTWAIT);
-	cm_msg(MINFO, "init", "Received reply from beaglebone");
-      } while(!st);
-    }
-    
-    sleep(3); //wait a little while if something goes wrong
-  } while(!st);
-
-  //Wait for response that currents were sent
-  //Expects back the read out currents of the channels that were set
-  double Ch0Set, Ch1Set;
-  std::istringstream iss(static_cast<char*>(reply.data()));
-  iss >> Ch0Set >> Ch1Set;
-  cm_msg(MINFO, "info", "Received values %f %f", Ch0Set, Ch1Set);
-
-  //Now connect subscriber to receive data being pushed by beaglebones
-  subscriber.connect("tcp://localhost:5556");
-  //Subscribe to all incoming data                                             
-  subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
-  */
 
   run_in_progress = false;
   
@@ -241,17 +203,18 @@ INT begin_of_run(INT run_number, char *error)
   int size;
   BOOL flag;
 
-  //connect to server                                                         
-  cm_msg(MINFO, "init", "Connecting to server");                                 socket.connect("tcp://localhost:5555");                                                                            
+  //bind to server                                                         
+  cm_msg(MINFO, "init", "Binding to server");                                
+  socket.bind("tcp://127.0.0.1:5555");                                                                            
   //send data to driver boards                                                 
-  zmq::message_t message(18);                                                    zmq::message_t reply;                                                                                              
-  snprintf((char *) message.data(), 18, "%f %f", bot_set_values[0], bot_set_values[1]);                              
+  zmq::message_t message(37);                                                    zmq::message_t reply;                                                                                              
+  snprintf((char *) message.data(), 37, "%f %f %f %f", bot_set_values[0], bot_set_values[1], bot_set_values[2], bot_set_values[3]);                              
   bool st = false; //status of request/reply                                   
   do{
     st = socket.send(message, ZMQ_DONTWAIT);                                   
-    cm_msg(MINFO, "init", "Current values sent to beaglebone");               
+    cm_msg(MINFO, "begin_of_run", "Current values sent to beaglebone");         
     if(st == true){                                                            
-      do{                                                                      
+      do{	
         st = socket.recv(&reply, ZMQ_DONTWAIT);                                
       } while(!st);                                                            
     }                                                                          
@@ -261,14 +224,17 @@ INT begin_of_run(INT run_number, char *error)
   cm_msg(MINFO, "init", "Received reply from beaglebone");
 
   //Wait for response that currents were sent                                    //Expects back the read out currents of the channels that were set           
-  double Ch0Set, Ch1Set;                                                       
+  double Ch0Set, Ch1Set, Ch2Set, Ch3Set;                                                       
   std::istringstream iss(static_cast<char*>(reply.data()));                    
-  iss >> Ch0Set >> Ch1Set;                                                     
-  cm_msg(MINFO, "info", "Received values %f %f", Ch0Set, Ch1Set);              
+  iss >> Ch0Set >> Ch1Set >> Ch2Set >> Ch3Set;                                                     
+  cm_msg(MINFO, "info", "Received values %f %f %f %f", Ch0Set, Ch1Set, Ch2Set, Ch3Set);              
 
-  //Now connect subscriber to receive data being pushed by beaglebones         
-  subscriber.bind("tcp://*:5556");                                 
-                                      
+  //Now bind subscriber to receive data being pushed by beaglebones         
+  std::cout << "Binding to subscribe socket" << std::endl;
+  subscriber.bind("tcp://127.0.0.1:5556");    
+  cm_msg(MINFO, "info", "Bound to subscribe socket");
+  std::cout << "Bound" << std::endl;
+                                     
   //Subscribe to all incoming data                                             
   subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);        
 
@@ -452,6 +418,7 @@ INT interrupt_configure(INT cmd, INT source, PTYPE adr)
 //--- Event Readout ----------------------------------------------------------//
 INT read_surface_coils(char *pevent, INT c)
 {
+  std::cout << "Made it into readout routine" << std::endl;
   static unsigned long long num_events;
   static unsigned long long events_written;
 
@@ -478,7 +445,6 @@ INT read_surface_coils(char *pevent, INT c)
   bool rc = false;
   int counter = 0;
   
-  std::cout << "Test 1" << std::endl;
   do{
     rc = subscriber.recv(&bbVals,ZMQ_DONTWAIT);
    }
@@ -487,10 +453,10 @@ INT read_surface_coils(char *pevent, INT c)
   std::cout << rc << " " << counter << std::endl;
 
   std::istringstream iss (static_cast<char*>(bbVals.data()));
-  iss >> bot_currents[0] >> bot_temps[0] >> bot_currents[1] >> bot_temps[1];
+  iss >> bot_currents[0] >> bot_temps[0] >> bot_currents[1] >> bot_temps[1] >> bot_currents[2] >> bot_temps[2] >> bot_currents[3] >> bot_temps[3];
   
   //set other channels data to 0 for now
-  for(int i=2;i<nCoils;i++){
+  for(int i=4;i<nCoils;i++){
     bot_currents[i] = 0.0;
     bot_temps[i] = 0.0;
   }
