@@ -248,18 +248,18 @@ INT frontend_init()
   fSerialPort2_ptr = open(devname, O_RDWR | O_NOCTTY | O_NDELAY);
 
   if(fSerialPort2_ptr < 0) {
-    perror("Error opening device port3");
+    perror("Error opening device port2");
     return -1;
   }
   fcntl(fSerialPort2_ptr, F_SETFL, 0); // return immediately if no data
 
-  if(tcgetattr(fSerialPort2_ptr, &options3) < 0) {
+  if(tcgetattr(fSerialPort2_ptr, &options2) < 0) {
     perror("Error tcgetattr port2");
     return -2;
   }
 
-  cfsetospeed(&options3, B4800);
-  cfsetispeed(&options3, B4800);
+  cfsetospeed(&options2, B4800);
+  cfsetispeed(&options2, B4800);
 
   options2.c_cflag     &=  ~PARENB;        // Make 8n1
   options2.c_cflag     &=  ~CSTOPB;
@@ -273,6 +273,7 @@ INT frontend_init()
     perror("Error tcsetattr port2");
     return -3;
   }
+
   return SUCCESS;
 }
 
@@ -414,7 +415,7 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    int sta1;
    string status = "0";
    b = write(fSerialPort1_ptr, &inbuf, 5);
-   usleep(1000*500);
+   ss_sleep(5000);
    b = read(fSerialPort1_ptr, &buf, 72);
    string received = buf;
    status = received.substr(43,1);
@@ -499,7 +500,7 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    // Get Chiller Temperature
    sprintf(inbuf3,"RT\r");
    b = write(fSerialPort3_ptr, &inbuf3,3);
-   usleep(1000*400);
+   ss_sleep(400);
    b = read(fSerialPort3_ptr, &buf3, 7);
    received = buf3;
    received = received.substr(0,6);
@@ -512,7 +513,7 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    tcflush( fSerialPort3_ptr, TCIOFLUSH );
    sprintf(inbuf3,"RW\r");
    b=write(fSerialPort3_ptr, &inbuf3,3);
-   usleep(1000*400);
+   ss_sleep(400);
    b=read(fSerialPort3_ptr, &buf3_2, 2);
    status3 = buf3_2;
    status3 = status3.substr(0,1);
@@ -528,7 +529,7 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    tcflush( fSerialPort3_ptr, TCIOFLUSH );
    sprintf(inbuf3,"RK\r");
    b=write(fSerialPort3_ptr, &inbuf3,3);
-   usleep(1000*400);
+   ss_sleep(400);
    b=read(fSerialPort3_ptr, &buf3_3, 7);
    string pressureStr = buf3_3;
    pressureStr = pressureStr.substr(0,6);
@@ -540,7 +541,7 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    tcflush( fSerialPort3_ptr, TCIOFLUSH );
    sprintf(inbuf3,"RL\r");
    b=write(fSerialPort3_ptr, &inbuf3,3);
-   usleep(1000*400);
+   ss_sleep(400);
    b=read(fSerialPort3_ptr, &buf3_4, 7);
    string flowStr = buf3_4;
    flowStr = flowStr.substr(0,6);
@@ -663,16 +664,18 @@ INT read_HeLevel_event(char *pevent, INT off)
 
   sprintf(line,"\x1B");
   nbyte=write(fSerialPort2_ptr, line, 1);
-  sleep(5);
+  ss_sleep(5000);
 
   tcflush( fSerialPort2_ptr, TCIFLUSH );
 
   sprintf(line,"R\r");
   nbyte=write(fSerialPort2_ptr, line, 2);
-  sleep(5);
+  ss_sleep(5000);
+
   n=0;
   while(1){
     b=read(fSerialPort2_ptr, &buf, 500);
+    cout<<b<<endl;
     string teststring = buf;
     size_t found = teststring.find("6;41H");
     if (found!=string::npos){
@@ -680,7 +683,7 @@ INT read_HeLevel_event(char *pevent, INT off)
       HeLevel = strtod(substring.c_str(),NULL);
       break;
     }
-    sleep(1);
+    ss_sleep(1000);
     n++;
     if (n > 10){
       break;
