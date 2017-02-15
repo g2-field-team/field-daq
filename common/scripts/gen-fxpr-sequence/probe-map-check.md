@@ -1,0 +1,548 @@
+# Probe Map Check
+
+## Yoke A
+
+UW067 - A-B-1-O
+UW086 - A-B-1-M
+UW087 - A-B-1-I
+
+UW066 - A-T-1-O
+UW072 - A-T-1-M
+UW071 - A-T-1-I
+
+UW635 - A-B-2-O
+UW085 - A-B-2-M
+UW632 - A-B-2-I
+
+UW634 - A-T-2-O
+UW069 - A-T-2-M
+UW633 - A-T-2-I
+
+UW088 - A-B-3-O
+UW089 - A-B-3-M
+UW090 - A-B-3-I
+
+UW075 - A-T-3-O
+UW073 - A-T-3-M
+UW074 - A-T-3-I
+
+UW094 - A-B-4-O
+UW091 - A-B-4-M
+UW092 - A-B-4-I
+
+UW077 - A-T-4-O
+UW076 - A-T-4-M
+UW078 - A-T-4-I
+
+UW093 - A-B-5-O
+UW099 - A-B-5-M
+UW098 - A-B-5-I
+
+UW080 - A-T-5-O
+UW079 - A-T-5-M
+UW082 - A-T-5-I
+
+UW096 - A-B-6-O
+UW097 - A-B-6-M
+UW095 - A-B-6-I
+
+UW081 - A-T-6-O
+UW083 - A-T-6-M
+UW084 - A-T-6-I
+
+## Yoke B
+
+UW295 - B-B-1-O
+UW296 - B-B-1-M
+UW297 - B-B-1-I
+
+UW281 - B-T-1-O
+UW282 - B-T-1-M
+UW283 - B-T-1-I
+
+UW298 - B-B-2-O
+UW619 - B-B-2-M
+
+UW284 - B-T-2-O
+UW618 - B-T-2-M
+
+UW299 - B-B-3-O
+UW300 - B-B-3-M
+UW301 - B-B-3-I
+
+UW285 - B-T-3-O
+UW286 - B-T-3-M
+UW287 - B-T-3-I
+
+UW302 - B-B-4-O
+UW303 - B-B-4-M
+
+UW288 - B-T-4-O
+UW289 - B-T-4-M
+
+UW304 - B-B-5-O
+UW305 - B-B-5-M
+UW306 - B-B-5-I
+
+UW290 - B-T-5-O
+UW291 - B-T-5-M
+UW292 - B-T-5-I
+
+UW307 - B-B-6-O
+UW308 - B-B-6-M
+
+UW293 - B-T-6-O
+UW294 - B-T-6-M
+
+# Yoke C
+
+UW351 - C-B-1-O
+UW355 - C-B-1-M
+UW354 - C-B-1-I
+
+UW020 - C-T-1-O
+UW100 - C-T-1-M
+UW012 - C-T-1-I
+
+UW033 - C-B-2-O
+UW031 - C-B-2-M
+
+UW014 - C-T-2-O
+UW002 - C-T-2-M
+
+UW192 - C-B-3-O
+UW004 - C-B-3-M
+UW015 - C-B-3-I
+
+UW017 - C-T-3-O
+UW141 - C-T-3-M
+UW001 - C-T-3-I
+
+UW159 - C-B-4-O
+UW614 - C-B-4-M
+
+UW008 - C-T-4-O
+UW613 - C-T-4-M
+
+UW140 - C-B-5-O
+UW206 - C-B-5-M
+UW173 - C-B-5-I
+
+UW011 - C-T-5-O
+UW039 - C-T-5-M
+UW007 - C-T-5-I
+
+UW037 - C-B-6-O
+UW147 - C-B-6-M
+
+UW353 - C-T-6-O
+UW352 - C-T-6-M
+
+## Yoke D
+
+UW264 - D-B-1-O
+UW265 - D-B-1-M
+UW266 - D-B-1-I
+
+UW247 - D-T-1-O
+UW248 - D-T-1-M
+UW249 - D-T-1-I
+
+UW267 - D-B-2-O
+UW609 - D-B-2-M
+UW268 - D-B-2-I
+
+UW250 - D-T-2-O
+UW617 - D-T-2-M
+UW251 - D-T-2-I
+
+UW269 - D-B-3-O
+UW270 - D-B-3-M
+UW271 - D-B-3-I
+
+UW252 - D-T-3-O
+UW253 - D-T-3-M
+UW254 - D-T-3-I
+
+UW272 - D-B-4-O
+UW273 - D-B-4-M
+UW274 - D-B-4-I
+
+UW255 - D-T-4-O
+UW256 - D-T-4-M
+UW257 - D-T-4-I
+
+UW275 - D-B-5-O
+UW276 - D-B-5-M
+UW277 - D-B-5-I
+
+UW258 - D-T-5-O
+UW259 - D-T-5-M
+UW260 - D-T-5-I
+
+UW278 - D-B-6-O
+UW279 - D-B-6-M
+UW280 - D-B-6-I
+
+UW261 - D-T-6-O
+UW262 - D-T-6-M
+UW263 - D-T-6-I
+
+## Yoke E
+
+UW230 - E-B-1-O
+UW231 - E-B-1-M
+UW232 - E-B-1-I
+
+UW013 - E-T-1-O
+UW028 - E-T-1-M
+UW006 - E-T-1-I
+
+UW233 - E-B-2-O
+UW611 - E-B-2-M
+UW234 - E-B-2-I
+
+UW038 - E-T-2-O
+UW615 - E-T-2-M
+UW021 - E-T-2-I
+
+UW235 - E-B-3-O
+UW236 - E-B-3-M
+UW237 - E-B-3-I
+
+UW023 - E-T-3-O
+UW032 - E-T-3-M
+UW029 - E-T-3-I
+
+UW238 - E-B-4-O
+UW239 - E-B-4-M
+UW240 - E-B-4-I
+
+UW024 - E-T-4-O
+UW016 - E-T-4-M
+UW025 - E-T-4-I
+
+UW241 - E-B-5-O
+UW242 - E-B-5-M
+UW243 - E-B-5-I
+
+UW022 - E-T-5-O
+UW005 - E-T-5-M
+UW018 - E-T-5-I
+
+UW244 - E-B-6-O
+UW245 - E-B-6-M
+UW246 - E-B-6-I
+
+UW027 - E-T-6-O
+UW040 - E-T-6-M
+UW026 - E-T-6-I
+
+## Yoke F
+
+UW218 - F-B-1-O
+UW219 - F-B-1-M
+UW221 - F-B-1-I
+
+UW330 - F-T-1-O
+UW331 - F-T-1-M
+UW332 - F-T-1-I
+
+UW217 - F-B-2-O
+UW626 - F-B-2-M
+
+UW335 - F-T-2-O
+UW629 - F-T-2-M
+
+UW211 - F-B-3-O
+UW216 - F-B-3-M
+UW212 - F-B-3-I
+
+UW227 - F-T-3-O
+UW228 - F-T-3-M
+UW229 - F-T-3-I
+
+UW210 - F-B-4-O
+UW209 - F-B-4-M
+
+UW226 - F-T-4-O
+UW333 - F-T-4-M
+
+UW215 - F-B-5-O
+UW213 - F-B-5-M
+UW214 - F-B-5-I
+
+UW224 - F-T-5-O
+UW220 - F-T-5-M
+UW225 - F-T-5-I
+
+UW207 - F-B-6-O
+UW621 - F-B-6-M
+
+UW223 - F-T-6-O
+UW620 - F-T-6-M
+
+## Yoke G
+
+UW317 - G-B-1-O
+UW312 - G-B-1-M
+UW319 - G-B-1-I
+
+UW329 - G-T-1-O
+UW602 - G-T-1-M
+UW142 - G-T-1-I
+
+UW318 - G-B-2-O
+UW321 - G-B-2-M
+
+UW323 - G-T-2-O
+UW322 - G-T-2-M
+
+UW314 - G-B-3-O
+UW149 - G-B-3-M
+UW316 - G-B-3-I
+
+UW148 - G-T-3-O
+UW145 - G-T-3-M
+UW144 - G-T-3-I
+
+UW315 - G-B-4-O
+UW610 - G-B-4-M
+
+UW146 - G-T-4-O
+UW608 - G-T-4-M
+
+UW313 - G-B-5-O
+UW309 - G-B-5-M
+UW320 - G-B-5-I
+
+UW325 - G-T-5-O
+UW327 - G-T-5-M
+UW326 - G-T-5-I
+
+UW311 - G-B-6-O
+UW310 - G-B-6-M
+
+UW324 - G-T-6-O
+UW150 - G-T-6-M
+
+## Yoke H
+
+UW179 - H-B-1-O
+UW180 - H-B-1-M
+UW181 - H-B-1-I
+
+UW193 - H-T-1-O
+UW194 - H-T-1-M
+UW195 - H-T-1-I
+
+UW182 - H-B-2-O
+UW624 - H-B-2-M
+
+UW196 - H-T-2-O
+UW625 - H-T-2-M
+
+UW183 - H-B-3-O
+UW184 - H-B-3-M
+UW185 - H-B-3-I
+
+UW143 - H-T-3-O
+UW197 - H-T-3-M
+UW199 - H-T-3-I
+
+UW186 - H-B-4-O
+UW187 - H-B-4-M
+
+UW200 - H-T-4-O
+UW201 - H-T-4-M
+
+UW188 - H-B-5-O
+UW189 - H-B-5-M
+UW190 - H-B-5-I
+
+UW202 - H-T-5-O
+UW203 - H-T-5-M
+UW204 - H-T-5-I
+
+UW191 - H-B-6-O
+UW606 - H-B-6-M
+
+UW205 - H-T-6-O
+UW607 - H-T-6-M
+
+## Yoke I
+
+UW336 - I-B-1-O
+UW334 - I-B-1-M
+UW337 - I-B-1-I
+
+UW350 - I-T-1-O
+UW138 - I-T-1-M
+UW139 - I-T-1-I
+
+UW343 - I-B-2-O
+UW630 - I-B-2-M
+
+UW133 - I-T-2-O
+UW627 - I-T-2-M
+
+UW342 - I-B-3-O
+UW338 - I-B-3-M
+UW339 - I-B-3-I
+
+UW132 - I-T-3-O
+UW131 - I-T-3-M
+UW130 - I-T-3-I
+
+UW341 - I-B-4-O
+UW340 - I-B-4-M
+
+UW348 - I-T-4-O
+UW347 - I-T-4-M
+
+UW134 - I-B-5-O
+UW135 - I-B-5-M
+UW136 - I-B-5-I
+
+UW346 - I-T-5-O
+UW349 - I-T-5-M
+UW345 - I-T-5-I
+
+UW123 - I-B-6-O
+UW126 - I-B-6-M
+
+UW137 - I-T-6-O
+UW344 - I-T-6-M
+
+## Yoke J
+
+UW129 - J-B-1-O
+UW127 - J-B-1-M
+UW110 - J-B-1-I
+
+UW103 - J-T-1-O
+UW102 - J-T-1-M
+UW101 - J-T-1-I
+
+UW128 - J-B-2-O
+UW631 - J-B-2-M
+
+UW068 - J-T-2-O
+UW628 - J-T-2-M
+
+UW122 - J-B-3-O
+UW125 - J-B-3-M
+UW124 - J-B-3-I
+
+UW106 - J-T-3-O
+UW104 - J-T-3-M
+UW105 - J-T-3-I
+
+UW120 - J-B-4-O
+UW121 - J-B-4-M
+
+UW107 - J-T-4-O
+UW108 - J-T-4-M
+
+UW111 - J-B-5-O
+UW112 - J-B-5-M
+UW113 - J-B-5-I
+
+UW109 - J-T-5-O
+UW119 - J-T-5-M
+UW118 - J-T-5-I
+
+UW115 - J-B-6-O
+UW114 - J-B-6-M
+
+UW116 - J-T-6-O
+UW117 - J-T-6-M
+
+## Yoke K
+
+UW151 - K-B-1-O
+UW152 - K-B-1-M
+UW153 - K-B-1-I
+
+UW165 - K-T-1-O
+UW166 - K-T-1-M
+UW167 - K-T-1-I
+
+UW154 - K-B-2-O
+UW622 - K-B-2-I
+
+UW168 - K-T-2-O
+UW623 - K-T-2-I
+
+UW155 - K-B-3-O
+UW156 - K-B-3-M
+UW157 - K-B-3-I
+
+UW169 - K-T-3-O
+UW170 - K-T-3-M
+UW171 - K-T-3-I
+
+UW158 - K-B-4-O
+UW601 - K-B-4-I
+
+UW172 - K-T-4-O
+UW600 - K-T-4-I
+
+UW160 - K-B-5-O
+UW161 - K-B-5-M
+UW162 - K-B-5-I
+
+UW174 - K-T-5-O
+UW175 - K-T-5-M
+UW176 - K-T-5-I
+
+UW163 - K-B-6-O
+UW164 - K-B-6-I
+
+UW177 - K-T-6-O
+UW178 - K-T-6-I
+
+## Yoke L
+
+UW062 - L-B-1-O
+UW063 - L-B-1-M
+UW061 - L-B-1-I
+
+UW030 - L-T-1-O
+UW010 - L-T-1-M
+UW034 - L-T-1-I
+
+UW065 - L-B-2-O
+UW064 - L-B-2-M
+
+UW035 - L-T-2-O
+UW036 - L-T-2-M
+
+
+UW058 - L-B-3-O
+UW060 - L-B-3-M
+UW059 - L-B-3-I
+
+UW043 - L-T-3-O
+UW042 - L-T-3-M
+UW041 - L-T-3-I
+
+UW057 - L-B-4-O
+UW605 - L-B-4-M
+
+UW044 - L-T-4-O
+UW604 - L-T-4-M
+
+UW053 - L-B-5-O
+UW054 - L-B-5-M
+UW055 - L-B-5-I
+
+UW046 - L-T-5-O
+UW047 - L-T-5-M
+UW048 - L-T-5-I
+
+UW051 - L-B-6-O
+UW052 - L-B-6-M
+
+UW049 - L-T-6-O
+UW050 - L-T-6-M
