@@ -23,5 +23,12 @@ mrb g -b feature/tier0v7-field gm2dataproducts
 mrb g -b feature/tier0v7-field gm2midastoart
 mrb g -b feature/tier0v7-field gm2unpackers
 mrb g -b feature/tier0v7-field gm2dqm
+mrb g -b develop gm2field
+mrb g -b develop gm2util
+mrb g -b develop gm2geom
+
+# MIDAS (create UPS product stub)
+GM2MIDAS_DIR=/home/newg2/Packages/gm2midas
+product-stub gm2midas v0_00_01 $GM2MIDAS_DIR $MRB_INSTALL
 
 # End script
