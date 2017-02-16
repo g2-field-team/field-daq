@@ -30,9 +30,10 @@ using std::string;
 #include "TTree.h"
 
 //--- project includes ------------------------------------------------------//
+#include "g2field/core/field_structs.hh"
+#include "g2field/core/field_constants.hh"
 #include "fixed_probe_sequencer.hh"
 #include "frontend_utils.hh"
-#include "field_structs.hh"
 
 //--- globals ---------------------------------------------------------------//
 #define FRONTEND_NAME "Abs Fixed Probes"

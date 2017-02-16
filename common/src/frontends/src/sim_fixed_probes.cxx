@@ -29,12 +29,12 @@ using std::string;
 #include "TFile.h"
 #include "TTree.h"
 #include "fid.h"
-#include "g2field/common.hh"
 
 //--- project includes ------------------------------------------------------//
+#include "g2field/common.hh"
+#include "g2field/core/field_structs.hh"
 #include "fixed_probe_sequencer.hh"
 #include "frontend_utils.hh"
-#include "field_structs.hh"
 
 //--- globals ---------------------------------------------------------------//
 #define FRONTEND_NAME "Fixed Probes"

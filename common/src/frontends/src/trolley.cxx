@@ -25,9 +25,9 @@ $Id$
 #include <thread>
 #include <mutex>
 
-#include "TrolleyInterface.h"
-#include "field_constants.hh"
-#include "field_structs.hh"
+#include "g2field/TrolleyInterface.h"
+#include "g2field/core/field_constants.hh"
+#include "g2field/core/field_structs.hh"
 
 #include "TTree.h"
 #include "TFile.h"

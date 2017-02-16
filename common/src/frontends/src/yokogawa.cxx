@@ -24,9 +24,11 @@ $Id$
 #include <thread>
 #include <mutex>
 
-#include "YokogawaInterface.hh"
-#include "field_structs.hh"
-#include "field_constants.hh"
+#undef RPC_SUCCESS
+#undef SUCCESS
+#include "g2field/YokogawaInterface.hh"
+#include "g2field/core/field_structs.hh"
+#include "g2field/core/field_constants.hh"
 
 #include "TTree.h"
 #include "TFile.h"
@@ -131,8 +133,8 @@ vector<g2field::yokogawa_t> YokogawaBuffer;     // vector of yokogawa data
 void read_from_device();                        // pull data from the Yokogawa  
 
 const char * const yoko_bank_name = "YOKO";     // 4 letters, try to make sensible
-const char * const SETTINGS_DIR   = "/Equipment/Yokogawa/Settings"
-const char * const MONITOR_DIR    = "/Equipment/Yokogawa/Monitor"
+const char * const SETTINGS_DIR   = "/Equipment/Yokogawa/Settings";
+const char * const MONITOR_DIR    = "/Equipment/Yokogawa/Monitor";
 
 /********************************************************************\
   Callback routines for system transitions

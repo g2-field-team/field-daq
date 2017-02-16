@@ -26,8 +26,8 @@ $Id$
 #include <sstream>
 #include <thread>
 #include <mutex>
-#include "field_constants.hh"
-#include "field_structs.hh"
+#include "g2field/core/field_constants.hh"
+#include "g2field/core/field_structs.hh"
 #include "TTree.h"
 #include "TFile.h"
 
