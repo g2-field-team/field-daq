@@ -198,7 +198,7 @@ INT frontend_init()
     reg_value &= 0xFF;
     reg_value |= (reg_value << 8);
     if (reg_value !=0){
-      reg_value |= 0x00220000;; //Enable both potentiometers
+      reg_value |= 0x00220000; //Enable both potentiometers
     }
     DeviceWrite(reg_trolley_power, reg_value);                              // Set the Trolley Voltage Control Register
     DeviceWrite(reg_trolley_power_set, 0x00000001);                 // Load the new voltage setting.
@@ -750,6 +750,7 @@ void ControlDevice(){
       }
       DeviceWrite(reg_trolley_power, reg_value);                              // Set the Trolley Voltage Control Register
       DeviceWrite(reg_trolley_power_set, 0x00000001);                 // Load the new voltage setting.
+      usleep(10000);
       unsigned int readback;
       DeviceRead(reg_trolley_power, &readback);
       cm_msg(MINFO,"init","Trolley Power : %d",readback & 0xFF);
