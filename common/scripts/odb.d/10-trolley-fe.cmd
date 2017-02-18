@@ -34,8 +34,8 @@ set "Cmd" 0
 cd "/Equipment/TrolleyInterface/Settings"
 mkdir "Sg382"
 cd "/Equipment/TrolleyInterface/Settings/Sg382"
-create FLOAT "RF Frequency"
-create FLOAT "RF Amplitude"
+create DOUBLE "RF Frequency"
+create DOUBLE "RF Amplitude"
 set "RF Frequency" 61.766
 set "RF Amplitude" 6.1
 

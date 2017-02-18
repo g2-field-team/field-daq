@@ -821,11 +821,11 @@ void ControlDevice(){
       cm_msg(MINFO,"init","Trolley Power : %d",readback & 0xFF);
 
       //Set RF frequency and Amplitude
-      float RF_Freq;
-      float RF_Amp;
-      INT Size_FLOAT = sizeof(RF_Freq);
-      db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Sg382/RF Frequency",&RF_Freq,&Size_FLOAT,TID_FLOAT, 0);
-      db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Sg382/RF Amplitude",&RF_Amp,&Size_FLOAT,TID_FLOAT, 0);
+      double RF_Freq;
+      double RF_Amp;
+      INT Size_DOUBLE = sizeof(RF_Freq);
+      db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Sg382/RF Frequency",&RF_Freq,&Size_DOUBLE,TID_DOUBLE, 0);
+      db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Sg382/RF Amplitude",&RF_Amp,&Size_DOUBLE,TID_DOUBLE, 0);
       SetFrequency(RF_Freq);
       SetAmplitude(RF_Amp);
 
