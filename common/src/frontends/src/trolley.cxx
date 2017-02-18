@@ -198,6 +198,14 @@ INT frontend_init()
     return FE_ERR_HW;
   }
 
+  //Set RF frequency and Amplitude
+  float RF_Freq;
+  float RF_Amp;
+  INT Size_FLOAT = sizeof(RF_Freq);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Sg382/RF Frequency",&RF_Freq,&Size_FLOAT,TID_FLOAT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Sg382/RF Amplitude",&RF_Amp,&Size_FLOAT,TID_FLOAT, 0);
+  SetFrequency(RF_Freq);
+  SetAmplitude(RF_Amp);
   //Enable RF On sg382
   EnableRF();
 
@@ -811,6 +819,17 @@ void ControlDevice(){
       unsigned int readback;
       DeviceRead(reg_trolley_power, &readback);
       cm_msg(MINFO,"init","Trolley Power : %d",readback & 0xFF);
+
+      //Set RF frequency and Amplitude
+      float RF_Freq;
+      float RF_Amp;
+      INT Size_FLOAT = sizeof(RF_Freq);
+      db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Sg382/RF Frequency",&RF_Freq,&Size_FLOAT,TID_FLOAT, 0);
+      db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Sg382/RF Amplitude",&RF_Amp,&Size_FLOAT,TID_FLOAT, 0);
+      SetFrequency(RF_Freq);
+      SetAmplitude(RF_Amp);
+
+      //Load odb to trolley interface
       LoadOdbToInterface();
       Cmd = 0;
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cmd",&Cmd,Size_INT, 1 ,TID_INT); 

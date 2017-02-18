@@ -31,6 +31,15 @@ set "Root Dir" "/home/newg2/Applications/field-daq/resources/Root/"
 create INT "Cmd" 
 set "Cmd" 0
 
+cd "/Equipment/TrolleyInterface/Settings"
+mkdir "Sg382"
+cd "/Equipment/TrolleyInterface/Settings/Sg382"
+create FLOAT "RF Frequency"
+create FLOAT "RF Amplitude"
+set "RF Frequency" 61.766
+set "RF Amplitude" 6.1
+
+cd "/Equipment/TrolleyInterface/Settings"
 mkdir "Trolley Power Registry"
 cd "/Equipment/TrolleyInterface/Settings/Trolley Power Registry"
 create INT "Voltage"
