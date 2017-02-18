@@ -26,6 +26,7 @@ $Id$
 #include <mutex>
 
 #include "g2field/TrolleyInterface.h"
+#include "g2field/Sg382Interface.h"
 #include "g2field/core/field_constants.hh"
 #include "g2field/core/field_structs.hh"
 
@@ -36,6 +37,7 @@ $Id$
 
 using namespace std;
 using namespace TrolleyInterface;
+using namespace Sg382Interface;
 
 /* make frontend functions callable from the C framework */
 #ifdef __cplusplus
@@ -184,6 +186,21 @@ INT frontend_init()
     return FE_ERR_HW;
   }
 
+  //Connect to Sg382
+  err = Sg382Connect("192.168.1.122");
+  if (err==0){
+    //cout << "connection successful\n";
+    cm_msg(MINFO,"init","Sg382 Interface connection successful");
+  }
+  else {
+    //   cout << "connection failed \n";
+    cm_msg(MERROR,"init","Sg382 Interface connection failed. Error code: %d",err);
+    return FE_ERR_HW;
+  }
+
+  //Enable RF On sg382
+  EnableRF();
+
   //Makesure the measurements are stopped
   DeviceWrite(reg_command,0x0000);
   //Send Trolley interface command to stop data taking
@@ -257,6 +274,19 @@ INT frontend_exit()
   else {
     //   cout << "connection failed \n";
     cm_msg(MERROR,"exit","Trolley Interface disconnection failed. Error code: %d",err);
+  }
+
+  //Disable RF On sg382
+  DisableRF();
+  //Disconnect from Trolley interface
+  err = Sg382Disconnect();
+  if (err==0){
+    //cout << "connection successful\n";
+    cm_msg(MINFO,"exit","Sg382 Interface disconnection successful");
+  }
+  else {
+    //   cout << "connection failed \n";
+    cm_msg(MERROR,"exit","Sg382 Interface disconnection failed. Error code: %d",err);
   }
   return SUCCESS;
 }
