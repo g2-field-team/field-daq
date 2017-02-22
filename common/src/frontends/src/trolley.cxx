@@ -25,9 +25,10 @@ $Id$
 #include <thread>
 #include <mutex>
 
-#include "TrolleyInterface.h"
-#include "field_constants.hh"
-#include "field_structs.hh"
+#include "g2field/TrolleyInterface.h"
+#include "g2field/Sg382Interface.h"
+#include "g2field/core/field_constants.hh"
+#include "g2field/core/field_structs.hh"
 
 #include "TTree.h"
 #include "TFile.h"
@@ -36,6 +37,7 @@ $Id$
 
 using namespace std;
 using namespace TrolleyInterface;
+using namespace Sg382Interface;
 
 /* make frontend functions callable from the C framework */
 #ifdef __cplusplus
@@ -184,6 +186,29 @@ INT frontend_init()
     return FE_ERR_HW;
   }
 
+  //Connect to Sg382
+  err = Sg382Connect("192.168.1.122");
+  if (err==0){
+    //cout << "connection successful\n";
+    cm_msg(MINFO,"init","Sg382 Interface connection successful");
+  }
+  else {
+    //   cout << "connection failed \n";
+    cm_msg(MERROR,"init","Sg382 Interface connection failed. Error code: %d",err);
+    return FE_ERR_HW;
+  }
+
+  //Set RF frequency and Amplitude
+  double RF_Freq;
+  double RF_Amp;
+  INT Size_DOUBLE = sizeof(RF_Freq);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Sg382/RF Frequency",&RF_Freq,&Size_DOUBLE,TID_DOUBLE, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Sg382/RF Amplitude",&RF_Amp,&Size_DOUBLE,TID_DOUBLE, 0);
+  SetFrequency(RF_Freq);
+  SetAmplitude(RF_Amp);
+  //Enable RF On sg382
+  EnableRF();
+
   //Makesure the measurements are stopped
   DeviceWrite(reg_command,0x0000);
   //Send Trolley interface command to stop data taking
@@ -193,20 +218,21 @@ INT frontend_init()
   INT Size_INT = sizeof(SetTrolleyVoltage);
   db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Trolley Power Registry/Voltage",&SetTrolleyVoltage,&Size_INT,TID_INT, 0);
   int reg_value = 0;
-  if (SetTrolleyVoltage == 0){
-    reg_value = 0x00220000;   // Shutdown state.
+  for (int i=1;i<=SetTrolleyVoltage;i++){
+    reg_value = i; 
+    reg_value &= 0xFF;
+    reg_value |= (reg_value << 8);
+    if (reg_value !=0){
+      reg_value |= 0x00220000; //Enable both potentiometers
+    }
     DeviceWrite(reg_trolley_power, reg_value);                              // Set the Trolley Voltage Control Register
     DeviceWrite(reg_trolley_power_set, 0x00000001);                 // Load the new voltage setting.
+    usleep(10000);
   }
-  else{
-    for (int i=1;i<=SetTrolleyVoltage;i++){
-      reg_value = i; 
-      reg_value |= (reg_value << 8);
-      DeviceWrite(reg_trolley_power, reg_value);                              // Set the Trolley Voltage Control Register
-      DeviceWrite(reg_trolley_power_set, 0x00000001);                 // Load the new voltage setting.
-      usleep(10000);
-    }
-  } 
+  
+  unsigned int readback;
+  DeviceRead(reg_trolley_power, &readback);
+  cm_msg(MINFO,"init","Trolley Power : %d",readback & 0xFF);
 
   //Configure power
  // DeviceWrite(reg_power_control2,0x0004);
@@ -237,14 +263,16 @@ INT frontend_exit()
   int reg_value = 0;
   for (int i=SetTrolleyVoltage;i>=0;i--){
     reg_value = i; 
+    reg_value &= 0xFF;
     reg_value |= (reg_value << 8);
+    if (reg_value !=0){
+      reg_value |= 0x00220000;; //Enable both potentiometers
+    }
     DeviceWrite(reg_trolley_power, reg_value);                              // Set the Trolley Voltage Control Register
     DeviceWrite(reg_trolley_power_set, 0x00000001);                 // Load the new voltage setting.
     usleep(10000);
   }
-  reg_value = 0x00220000;   // Shutdown state.
-  DeviceWrite(reg_trolley_power, reg_value);                              // Set the Trolley Voltage Control Register
-  DeviceWrite(reg_trolley_power_set, 0x00000001);                 // Load the new voltage setting.
+
   //Disconnect from Trolley interface
   int err = DeviceDisconnect();
   if (err==0){
@@ -254,6 +282,19 @@ INT frontend_exit()
   else {
     //   cout << "connection failed \n";
     cm_msg(MERROR,"exit","Trolley Interface disconnection failed. Error code: %d",err);
+  }
+
+  //Disable RF On sg382
+  DisableRF();
+  //Disconnect from Trolley interface
+  err = Sg382Disconnect();
+  if (err==0){
+    //cout << "connection successful\n";
+    cm_msg(MINFO,"exit","Sg382 Interface disconnection successful");
+  }
+  else {
+    //   cout << "connection failed \n";
+    cm_msg(MERROR,"exit","Sg382 Interface disconnection failed. Error code: %d",err);
   }
   return SUCCESS;
 }
@@ -516,6 +557,15 @@ void ReadFromDevice(){
   PowersupplyStatus[0] = FALSE;
   PowersupplyStatus[1] = FALSE;
   PowersupplyStatus[2] = FALSE;
+  //Monitor values from the data
+  float PowerFactor;
+  float Temperature1;
+  float PressureTemperature;
+  float Pressure;
+  float Vmin1;
+  float Vmax1;
+  float Vmin2;
+  float Vmax2;
 
   BOOL BarcodeErrorOld;
   BOOL TemperatureInteruptOld;
@@ -684,6 +734,15 @@ void ReadFromDevice(){
     TrlyMonitorDataUnit->FrameCheckSum = FrameCheckSum;
     TrlyMonitorDataUnit->FrameSum = sum2;
 
+    PowerFactor = TrlyMonitorDataUnit->RFPower2 / TrlyMonitorDataUnit->RFPower1;
+    Temperature1 = TrlyMonitorDataUnit->TMonitorExt1;
+    PressureTemperature = TrlyMonitorDataUnit->PMonitorTemp;
+    Pressure = TrlyMonitorDataUnit->PMonitorVal;
+    Vmin1 = TrlyMonitorDataUnit->V1Min;
+    Vmax1 = TrlyMonitorDataUnit->V1Max;
+    Vmin2 = TrlyMonitorDataUnit->V2Min;
+    Vmax2 = TrlyMonitorDataUnit->V2Max;
+
     //Update odb error monitors and sending messages
     mlock.lock();
     db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Barcode Error",&BarcodeError,sizeof(BarcodeError), 1 ,TID_BOOL);
@@ -691,6 +750,15 @@ void ReadFromDevice(){
     db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Power Supply Status",&PowersupplyStatus,sizeof(PowersupplyStatus), 3 ,TID_BOOL);
     db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/NMR Check Sum",&NMRCheckSumPassed,sizeof(NMRCheckSumPassed), 1 ,TID_BOOL);
     db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Frame Check Sum",&FrameCheckSumPassed,sizeof(FrameCheckSumPassed), 1 ,TID_BOOL);
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Power Factor",&PowerFactor,sizeof(PowerFactor),1,TID_FLOAT);
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Temperature 1",&Temperature1,sizeof(Temperature1),1,TID_FLOAT);
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Pressure Temperature",&PressureTemperature,sizeof(PressureTemperature),1,TID_FLOAT);
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Pressure",&Pressure,sizeof(Pressure),1,TID_FLOAT);
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Vmin 1",&Vmin1,sizeof(Vmin1),1,TID_FLOAT);
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Vmax 1",&Vmax1,sizeof(Vmax1),1,TID_FLOAT);
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Vmin 2",&Vmin2,sizeof(Vmin2),1,TID_FLOAT);
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Vmax 2",&Vmax2,sizeof(Vmax2),1,TID_FLOAT);
+
     if(BarcodeError && (!BarcodeErrorOld || i==0))cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Barcode reading error. At iteration %d",i);
     if(TemperatureInterupt && (!TemperatureInteruptOld || i==0))cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Temperature interupt. At iteration %d",i);
     if(!PowersupplyStatus[0] && (PowersupplyStatusOld[0]) || i==0 )cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Power supply error 1.At iteration %d",i);
@@ -739,17 +807,29 @@ void ControlDevice(){
     db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cmd",&Cmd,&Size_INT,TID_INT, 0);
     if (Cmd == 1){
       int reg_value = 0;
-      if (SetTrolleyVoltage == 0){
-	reg_value = 0x00220000;   // Shutdown state.
-	DeviceWrite(reg_trolley_power, reg_value);                              // Set the Trolley Voltage Control Register
-	DeviceWrite(reg_trolley_power_set, 0x00000001);                 // Load the new voltage setting.
+      reg_value = SetTrolleyVoltage; 
+      reg_value &= 0xFF;
+      reg_value |= (reg_value << 8);
+      if (reg_value !=0){
+	reg_value |= 0x00220000;; //Enable both potentiometers
       }
-      else{
-	reg_value = SetTrolleyVoltage; 
-	reg_value |= (reg_value << 8);
-	DeviceWrite(reg_trolley_power, reg_value);                              // Set the Trolley Voltage Control Register
-	DeviceWrite(reg_trolley_power_set, 0x00000001);                 // Load the new voltage setting.
-      } 
+      DeviceWrite(reg_trolley_power, reg_value);                              // Set the Trolley Voltage Control Register
+      DeviceWrite(reg_trolley_power_set, 0x00000001);                 // Load the new voltage setting.
+      usleep(10000);
+      unsigned int readback;
+      DeviceRead(reg_trolley_power, &readback);
+      cm_msg(MINFO,"init","Trolley Power : %d",readback & 0xFF);
+
+      //Set RF frequency and Amplitude
+      double RF_Freq;
+      double RF_Amp;
+      INT Size_DOUBLE = sizeof(RF_Freq);
+      db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Sg382/RF Frequency",&RF_Freq,&Size_DOUBLE,TID_DOUBLE, 0);
+      db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Sg382/RF Amplitude",&RF_Amp,&Size_DOUBLE,TID_DOUBLE, 0);
+      SetFrequency(RF_Freq);
+      SetAmplitude(RF_Amp);
+
+      //Load odb to trolley interface
       LoadOdbToInterface();
       Cmd = 0;
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cmd",&Cmd,Size_INT, 1 ,TID_INT); 
@@ -762,6 +842,20 @@ void ControlDevice(){
 void LoadOdbToInterface()
 {
   //Get ODB Values for registies
+  INT Interface_Comm_Start;
+  INT Interface_Comm_Data_Start;
+  INT Interface_Comm_Stop;
+  INT Trolley_Comm_Start;
+  INT Trolley_Comm_Data_Start;
+  INT Trolley_Comm_Stop;
+  INT Switch_To_RF;
+  INT Power_ON;
+  INT RF_Enable;
+  INT RF_Disable;
+  INT Power_OFF;
+  INT Switch_To_Comm;
+  INT Cycle_Length;
+
   INT NMR_RF_Prescale;
   INT NMR_Probe_Select;
   INT NMR_Probe_Delay;
@@ -781,6 +875,20 @@ void LoadOdbToInterface()
   double BC_LED_Voltage = 0.0;
   int BC_LED_V_size = sizeof(BC_LED_Voltage);
 
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Communication Registry/Interface Comm Start",&Interface_Comm_Start,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Communication Registry/Interface Comm Data Start",&Interface_Comm_Data_Start,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Communication Registry/Interface Comm Stop",&Interface_Comm_Stop,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Communication Registry/Trolley Comm Start",&Trolley_Comm_Start,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Communication Registry/Trolley Comm Data Start",&Trolley_Comm_Data_Start,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Communication Registry/Trolley Comm Stop",&Trolley_Comm_Stop,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Communication Registry/Switch To RF",&Switch_To_RF,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Communication Registry/Power ON",&Power_ON,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Communication Registry/RF Enable",&RF_Enable,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Communication Registry/RF Disable",&RF_Disable,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Communication Registry/Power OFF",&Power_OFF,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Communication Registry/Switch To Comm",&Switch_To_Comm,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Communication Registry/Cycle Length",&Cycle_Length,&Size_INT,TID_INT, 0);
+
   db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/RF Prescale",&NMR_RF_Prescale,&Size_INT,TID_INT, 0);
   db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Probe Select",&NMR_Probe_Select,&Size_INT,TID_INT, 0);
   db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Probe Delay",&NMR_Probe_Delay,&Size_INT,TID_INT, 0);
@@ -798,6 +906,20 @@ void LoadOdbToInterface()
   db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Barcode Registry/LED Voltage",&BC_LED_Voltage,&BC_LED_V_size,TID_DOUBLE, 0);
 
   //Load registries to Trolley Interface
+  DeviceWrite(reg_comm_t_tid_start,static_cast<unsigned int>(Interface_Comm_Start));
+  DeviceWrite(reg_comm_t_tid,static_cast<unsigned int>(Interface_Comm_Data_Start));   
+  DeviceWrite(reg_comm_t_tid_stop,static_cast<unsigned int>(Interface_Comm_Stop));
+  DeviceWrite(reg_comm_t_td_start,static_cast<unsigned int>(Trolley_Comm_Start));
+  DeviceWrite(reg_comm_t_td,static_cast<unsigned int>(Trolley_Comm_Data_Start));     
+  DeviceWrite(reg_comm_t_td_stop,static_cast<unsigned int>(Trolley_Comm_Stop));  
+  DeviceWrite(reg_comm_t_switch_rf,static_cast<unsigned int>(Switch_To_RF));
+  DeviceWrite(reg_comm_t_power_on,static_cast<unsigned int>(Power_ON)); 
+  DeviceWrite(reg_comm_t_rf_on,static_cast<unsigned int>(RF_Enable));   
+  DeviceWrite(reg_comm_t_rf_off,static_cast<unsigned int>(RF_Disable)); 
+  DeviceWrite(reg_comm_t_power_off,static_cast<unsigned int>(Power_OFF));
+  DeviceWrite(reg_comm_t_switch_comm,static_cast<unsigned int>(Switch_To_Comm));
+  DeviceWrite(reg_comm_t_cycle_length,static_cast<unsigned int>(Cycle_Length));
+
   DeviceWrite(reg_nmr_rf_prescale,static_cast<unsigned int>(NMR_RF_Prescale));
   DeviceWrite(reg_nmr_rf_probe_select,static_cast<unsigned int>(NMR_Probe_Select));
   DeviceWrite(reg_nmr_rf_probe_delay,static_cast<unsigned int>(NMR_Probe_Delay));

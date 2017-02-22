@@ -1,0 +1,24 @@
+{
+    "devices": {
+        "sis_3316": {
+            "sis_3316_0": "/tmp/fxpr-config/sis3316_0.json"
+        },
+        "sis_3302": {
+            "sis_3302_0": "/tmp/fxpr-config/sis3302_0.json"
+        },
+        "nmr_pulser": {
+            "dio_board_id": "d",
+            "dio_port_num": "0",
+            "dio_trg_mask": "63"
+        }
+    },
+    "max_event_time": "50000",
+    "mux_switch_time": "15000",
+    "analyze_fids_online": "true",
+    "use_fast_fids_class": "true",
+    "event_rate_limit": "10",
+    "trg_seq_file": "/tmp/fxpr-config/nmr-sequence.json",
+    "mux_conf_file": "/tmp/fxpr-config/mux-connections.json",
+    "fid_conf_file": "/tmp/fxpr-config/fid-params.json",
+    "logfile": "output/fixed-probe-test.log"
+}

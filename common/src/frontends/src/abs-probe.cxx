@@ -26,8 +26,8 @@ $Id$
 #include <sstream>
 #include <thread>
 #include <mutex>
-#include "field_constants.hh"
-#include "field_structs.hh"
+#include "g2field/core/field_constants.hh"
+#include "g2field/core/field_structs.hh"
 
 #include "TTree.h"
 #include "TFile.h"
@@ -453,7 +453,27 @@ INT read_event(char *pevent, INT off){
   //Execute the DAQ command
   if (DAQReady){
     string cmd = "./muon_g2_nmr /dev/sis1100_00remote 0x5500ffff";
-    if (!SimulationSwitch)system(cmd.c_str());
+    if (!SimulationSwitch){
+      ifstream fStatus;
+      int key_status = 0;
+      //Check the status file
+      while (key_status==0){
+	sleep(1);
+	fStatus.open("status.dat");
+	fStatus >> key_status;
+	fStatus.close();
+      }
+      //Excecute DAQ command
+      system(cmd.c_str());
+      //Check the status file
+      key_status = 0;
+      while (key_status==0){
+	sleep(1);
+	fStatus.open("status.dat");
+	fStatus >> key_status;
+	fStatus.close();
+      }
+    }
     else cout << "This is a simulation."<<endl;
     //system("ls");
     DAQReady = false; // Do not execute DAQ until all pulses are read in

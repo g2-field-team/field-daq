@@ -1,0 +1,128 @@
+{
+    "mux_01": {
+        "wfd_name": "sis_3316_0",
+        "wfd_chan": "0",
+        "dio_board_id": "a",
+        "dio_port_num": "0"
+    },
+    "mux_02": {
+        "wfd_name": "sis_3316_0",
+        "wfd_chan": "1",
+        "dio_board_id": "a",
+        "dio_port_num": "1"
+    },
+    "mux_03": {
+        "wfd_name": "sis_3316_0",
+        "wfd_chan": "2",
+        "dio_board_id": "a",
+        "dio_port_num": "2"
+    },
+    "mux_04": {
+        "wfd_name": "sis_3316_0",
+        "wfd_chan": "3",
+        "dio_board_id": "a",
+        "dio_port_num": "3"
+    },
+    "mux_05": {
+        "wfd_name": "sis_3316_0",
+        "wfd_chan": "4",
+        "dio_board_id": "a",
+        "dio_port_num": "4"
+    },
+    "mux_06": {
+        "wfd_name": "sis_3316_0",
+        "wfd_chan": "5",
+        "dio_board_id": "a",
+        "dio_port_num": "5"
+    },
+    "mux_07": {
+        "wfd_name": "sis_3316_0",
+        "wfd_chan": "6",
+        "dio_board_id": "a",
+        "dio_port_num": "6"
+    },
+    "mux_08": {
+        "wfd_name": "sis_3316_0",
+        "wfd_chan": "7",
+        "dio_board_id": "a",
+        "dio_port_num": "7"
+    },
+    "mux_08": {
+        "wfd_name": "sis_3316_0",
+        "wfd_chan": "7",
+        "dio_board_id": "a",
+        "dio_port_num": "7"
+    },
+    "mux_09": {
+        "wfd_name": "sis_3316_0",
+        "wfd_chan": "8",
+        "dio_board_id": "b",
+        "dio_port_num": "0"
+    },
+    "mux_10": {
+        "wfd_name": "sis_3316_0",
+        "wfd_chan": "9",
+        "dio_board_id": "b",
+        "dio_port_num": "1"
+    },
+    "mux_11": {
+        "wfd_name": "sis_3316_0",
+        "wfd_chan": "10",
+        "dio_board_id": "b",
+        "dio_port_num": "2"
+    },
+    "mux_12": {
+        "wfd_name": "sis_3316_0",
+        "wfd_chan": "11",
+        "dio_board_id": "b",
+        "dio_port_num": "3"
+    },
+    "mux_13": {
+        "wfd_name": "sis_3316_0",
+        "wfd_chan": "12",
+        "dio_board_id": "b",
+        "dio_port_num": "4"
+    },
+    "mux_14": {
+        "wfd_name": "sis_3316_0",
+        "wfd_chan": "13",
+        "dio_board_id": "b",
+        "dio_port_num": "5"
+    },
+    "mux_15": {
+        "wfd_name": "sis_3316_0",
+        "wfd_chan": "14",
+        "dio_board_id": "b",
+        "dio_port_num": "6"
+    },
+    "mux_16": {
+        "wfd_name": "sis_3316_0",
+        "wfd_chan": "15",
+        "dio_board_id": "b",
+        "dio_port_num": "7"
+    },
+    "mux_17": {
+        "wfd_name": "sis_3302_0",
+        "wfd_chan": "0",
+        "dio_board_id": "c",
+        "dio_port_num": "0"
+    },
+    "mux_18": {
+        "wfd_name": "sis_3302_0",
+        "wfd_chan": "1",
+        "dio_board_id": "c",
+        "dio_port_num": "1"
+    },
+    "mux_19": {
+        "wfd_name": "sis_3302_0",
+        "wfd_chan": "2",
+        "dio_board_id": "c",
+        "dio_port_num": "2"
+    },
+    "mux_20": {
+        "wfd_name": "sis_3302_0",
+        "wfd_chan": "3",
+        "dio_board_id": "c",
+        "dio_port_num": "3"
+    }
+}

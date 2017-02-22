@@ -26,8 +26,8 @@ $Id$
 #include <sstream>
 #include <thread>
 #include <mutex>
-#include "field_constants.hh"
-#include "field_structs.hh"
+#include "g2field/core/field_constants.hh"
+#include "g2field/core/field_structs.hh"
 
 #define GALIL_EXAMPLE_OK G_NO_ERROR //return code for correct code execution
 #define GALIL_EXAMPLE_ERROR -100
