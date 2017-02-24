@@ -26,6 +26,7 @@ $Id$
 #include <mutex>
 
 #include "g2field/TrolleyInterface.h"
+#include "g2field/Sg382Interface.h"
 #include "g2field/core/field_constants.hh"
 #include "g2field/core/field_structs.hh"
 
@@ -36,6 +37,7 @@ $Id$
 
 using namespace std;
 using namespace TrolleyInterface;
+using namespace Sg382Interface;
 
 /* make frontend functions callable from the C framework */
 #ifdef __cplusplus
@@ -184,6 +186,29 @@ INT frontend_init()
     return FE_ERR_HW;
   }
 
+  //Connect to Sg382
+  err = Sg382Connect("192.168.1.122");
+  if (err==0){
+    //cout << "connection successful\n";
+    cm_msg(MINFO,"init","Sg382 Interface connection successful");
+  }
+  else {
+    //   cout << "connection failed \n";
+    cm_msg(MERROR,"init","Sg382 Interface connection failed. Error code: %d",err);
+    return FE_ERR_HW;
+  }
+
+  //Set RF frequency and Amplitude
+  double RF_Freq;
+  double RF_Amp;
+  INT Size_DOUBLE = sizeof(RF_Freq);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Sg382/RF Frequency",&RF_Freq,&Size_DOUBLE,TID_DOUBLE, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Sg382/RF Amplitude",&RF_Amp,&Size_DOUBLE,TID_DOUBLE, 0);
+  SetFrequency(RF_Freq);
+  SetAmplitude(RF_Amp);
+  //Enable RF On sg382
+  EnableRF();
+
   //Makesure the measurements are stopped
   DeviceWrite(reg_command,0x0000);
   //Send Trolley interface command to stop data taking
@@ -257,6 +282,19 @@ INT frontend_exit()
   else {
     //   cout << "connection failed \n";
     cm_msg(MERROR,"exit","Trolley Interface disconnection failed. Error code: %d",err);
+  }
+
+  //Disable RF On sg382
+  DisableRF();
+  //Disconnect from Trolley interface
+  err = Sg382Disconnect();
+  if (err==0){
+    //cout << "connection successful\n";
+    cm_msg(MINFO,"exit","Sg382 Interface disconnection successful");
+  }
+  else {
+    //   cout << "connection failed \n";
+    cm_msg(MERROR,"exit","Sg382 Interface disconnection failed. Error code: %d",err);
   }
   return SUCCESS;
 }
@@ -781,6 +819,17 @@ void ControlDevice(){
       unsigned int readback;
       DeviceRead(reg_trolley_power, &readback);
       cm_msg(MINFO,"init","Trolley Power : %d",readback & 0xFF);
+
+      //Set RF frequency and Amplitude
+      double RF_Freq;
+      double RF_Amp;
+      INT Size_DOUBLE = sizeof(RF_Freq);
+      db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Sg382/RF Frequency",&RF_Freq,&Size_DOUBLE,TID_DOUBLE, 0);
+      db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Sg382/RF Amplitude",&RF_Amp,&Size_DOUBLE,TID_DOUBLE, 0);
+      SetFrequency(RF_Freq);
+      SetAmplitude(RF_Amp);
+
+      //Load odb to trolley interface
       LoadOdbToInterface();
       Cmd = 0;
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cmd",&Cmd,Size_INT, 1 ,TID_INT); 
