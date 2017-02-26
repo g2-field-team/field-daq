@@ -12,7 +12,7 @@ cd $(dirname $(readlink -f $0))
 
 # Now proceed with setting up gm2 packages via UPS.
 source /cvmfs/gm2.opensciencegrid.org/prod7/g-2/setup
-setup gm2 v7_02_00 -q prof
+setup gm2 v7_03_01 -q prof
 
 # And initialize a new development space.
 mrb newDev -f
