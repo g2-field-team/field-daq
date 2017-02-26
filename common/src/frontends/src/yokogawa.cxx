@@ -1,6 +1,6 @@
 /********************************************************************\
 
-Name:    yokogawa.cxx
+Name:     yokogawa.cxx
 Author :  David Flay (flay@umass.edu)  
 Contents: Code to talk to the Yokogawa  
 
@@ -67,7 +67,6 @@ extern "C" {
   /* buffer size to hold events */
   INT event_buffer_size = 100 * 10000;
 
-
   /*-- Function declarations -----------------------------------------*/
   INT frontend_init();
   INT frontend_exit();
@@ -98,7 +97,7 @@ extern "C" {
 	"MIDAS",                  /* format */
 	TRUE,                     /* enabled */
 	RO_RUNNING,               /* read when running and on odb */
-	1E+3,                     /* period (read every 1000 ms) */
+	1000,                     /* period (read every 1000 ms) */
 	0,                        /* stop run after this event limit */
 	0,                        /* number of sub events */
 	0,                        /* log history, logged once per minute */
@@ -127,8 +126,8 @@ BOOL write_root = false;
 TFile *pf;
 TTree *pt_norm;
 // my data structures 
-g2field::yokogawa_t YokogawaCurrent;            // current value of yokogawa data 
-vector<g2field::yokogawa_t> YokogawaBuffer;     // vector of yokogawa data 
+g2field::yokogawa_t YokoCurrent;            // current value of yokogawa data 
+vector<g2field::yokogawa_t> YokoBuffer;     // vector of yokogawa data 
 // my functions 
 void read_from_device();                        // pull data from the Yokogawa  
 
@@ -182,7 +181,7 @@ INT frontend_init(){
   free(ip_addr_path); 
 
   // connect to the yokogawa
-  int rc = yokogawa_interface::open_connection(ip_addr);  
+  int rc = yokogawa_interface::open_connection( ip_addr.c_str() );  
 
   if (rc==0) {
     cm_msg(MINFO,"init","Yokogawa is connected");
@@ -269,12 +268,12 @@ INT begin_of_run(INT run_number, char *error){
     pt_norm->SetAutoFlush(20);
 
     string yoko_br_name("YOKO");
-    pt_norm->Branch(yoko_bank_name, &YokogawaCurrent, g2field::yokogawa_str);
+    pt_norm->Branch(yoko_bank_name, &YokoCurrent, g2field::yokogawa_str);
   }
 
   // clear data buffers 
   mlock.lock(); 
-  YokogawaBuffer.clear(); 
+  YokoBuffer.clear(); 
   mlock.unlock();
   cm_msg(MINFO,"begin_of_run","Data buffer is emptied at the beginning of the run.");
   
@@ -474,7 +473,7 @@ void read_from_device(){
       }
       // fill buffer 
       mlockdata.lock(); 
-      YokogawaBuffer.push_back(*yoko_data); 
+      YokoBuffer.push_back(*yoko_data); 
       mlockdata.unlock(); 
       // clean up for next read 
       delete yoko_data;
