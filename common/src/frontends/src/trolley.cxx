@@ -211,14 +211,17 @@ INT frontend_init()
 
   //Makesure the measurements are stopped
   DeviceWrite(reg_command,0x0000);
-  //Send Trolley interface command to stop data taking
+  //Enable Data flow
   DeviceWriteMask(reg_event_data_control,0x00000001,0x00000000);
   //Ramp up the trolley voltage
+  unsigned int readback;
+  DeviceRead(reg_trolley_ldo_status, &readback);
+  INT InitialVoltage = static_cast<unsigned int>readback;
   INT SetTrolleyVoltage = 0;
   INT Size_INT = sizeof(SetTrolleyVoltage);
   db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Trolley Power Registry/Voltage",&SetTrolleyVoltage,&Size_INT,TID_INT, 0);
   int reg_value = 0;
-  for (int i=1;i<=SetTrolleyVoltage;i++){
+  for (int i=InitialVoltage;i<=SetTrolleyVoltage;i++){
     reg_value = i; 
     reg_value &= 0xFF;
     reg_value |= (reg_value << 8);
@@ -234,12 +237,10 @@ INT frontend_init()
   DeviceRead(reg_trolley_power, &readback);
   cm_msg(MINFO,"init","Trolley Power : %d",readback & 0xFF);
 
-  //Configure power
- // DeviceWrite(reg_power_control2,0x0004);
+  //Load Odb settings to interface
+  LoadOdbToInterface();
+
   //Configure Probe
-  DeviceWrite(0x400004C0,17);
-  DeviceWrite(reg_nmr_rf_probe_select,0);
-  DeviceWrite(reg_bc_refdac2,1024);
   DeviceWrite(reg_command,0x0100);
   DeviceWrite(reg_command,0x0200);
   sleep(1);
@@ -342,8 +343,6 @@ INT begin_of_run(INT run_number, char *error)
   TrlyMonitorBuffer.clear();
   mlock.unlock();
   cm_msg(MINFO,"begin_of_run","Data buffer is emptied at the beginning of the run.");
-
-  LoadOdbToInterface();
 
   //Send Trolley interface command to start data taking
   DeviceWrite(reg_command,0x0031);
@@ -486,7 +485,6 @@ INT read_trly_event(char *pevent, INT off){
   //Check consistency
   /*  BarcodeError;
       BCToNMROffset;
-      PressureSensorCal[7];
       BarcodeRegisters[5];
       TrlyRegisters[16];
       */
@@ -895,6 +893,7 @@ void LoadOdbToInterface()
   db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Probe Period",&NMR_Probe_Period,&Size_INT,TID_INT, 0);
   db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Preamp Delay",&NMR_Preamp_Delay,&Size_INT,TID_INT, 0);
   db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Preamp Period",&NMR_Preamp_Period,&Size_INT,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Gate Delay",&NMR_Gate_Delay,&Size_INT,TID_INT, 0);
   db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Gate Delay",&NMR_Gate_Delay,&Size_INT,TID_INT, 0);
   db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Gate Period",&NMR_Gate_Period,&Size_INT,TID_INT, 0);
   db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/NMR Registry/Transmit Delay",&NMR_Transmit_Delay,&Size_INT,TID_INT, 0);

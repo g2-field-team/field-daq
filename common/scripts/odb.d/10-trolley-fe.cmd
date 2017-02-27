@@ -40,72 +40,147 @@ set "RF Frequency" 61.766
 set "RF Amplitude" 6.1
 
 cd "/Equipment/TrolleyInterface/Settings"
-mkdir "Trolley Power Registry"
-cd "/Equipment/TrolleyInterface/Settings/Trolley Power Registry"
+mkdir "Trolley Power"
+cd "/Equipment/TrolleyInterface/Settings/Trolley Power"
 create INT "Voltage"
 set "Voltage" 156
 
 cd "/Equipment/TrolleyInterface/Settings"
-mkdir "Communication Registry"
-cd "/Equipment/TrolleyInterface/Settings/Communication Registry"
-create INT "Interface Comm Start"
-create INT "Interface Comm Data Start"
-create INT "Interface Comm Stop"
-create INT "Trolley Comm Start"
+mkdir "Run Config"
+cd "/Equipment/TrolleyInterface/Settings/Run Config"
+create STRING "Mode"
+create STRING "Idle Mode"
+set "Mode" "Continuous"
+set "Idle Mode" "Idle"
+mkdir "Continous"
+cd "/Equipment/TrolleyInterface/Settings/Run Config/Continous"
+create INT "Baseline Cycles"
+create INT "Debug Level"
+set "Baseline Cycles" 1
+set "Debug Level" 0
+cd "/Equipment/TrolleyInterface/Settings/Run Config"
+mkdir "Idle"
+cd "/Equipment/TrolleyInterface/Settings/Run Config/Idle"
+create BOOL "Read Barcode"
+set "Read Barcode" false
+cd "/Equipment/TrolleyInterface/Settings/Run Config"
+mkdir "Sleep"
+cd "/Equipment/TrolleyInterface/Settings/Run Config/Sleep"
+create BOOL "Power Down"
+set "Power Down" false
+cd "/Equipment/TrolleyInterface/Settings/Run Config"
+mkdir "Interactive"
+cd "/Equipment/TrolleyInterface/Settings/Run Config/Interactive"
+create INT "Trigger"
+set "Trigger" 0
+
+cd "/Equipment/TrolleyInterface/Settings"
+mkdir "Cycle"
+cd "/Equipment/TrolleyInterface/Settings/Cycle"
+
+create INT "Interface Comm Data Stop"
 create INT "Trolley Comm Data Start"
-create INT "Trolley Comm Stop"
+create INT "Trolley Comm Data"
+create INT "Trolley Comm Data Stop"
 create INT "Switch To RF"
 create INT "Power ON"
 create INT "RF Enable"
-create INT "RF Disable"
-create INT "Power OFF"
 create INT "Switch To Comm"
+create INT "Interface Comm Data Start"
 create INT "Cycle Length"
-set "Interface Comm Start" 0
-set "Interface Comm Data Start" 100
-set "Interface Comm Stop" 400 
-set "Trolley Comm Start" 500 
-set "Trolley Comm Data Start" 600
-set "Trolley Comm Stop" 9700 
-set "Switch To RF" 12991
-set "Power ON" 9700
-set "RF Enable" 13091
-set "RF Disable" 29091
-set "Power OFF" 29091
-set "Switch To Comm" 29191
-set "Cycle Length" 29191
+create INT "RF Prescale"
+create INT "Switch RF Offset"
+create INT "Switch Comm Offset"
+
+set "Interface Comm Data Stop" 0 
+set "Trolley Comm Data Start" 0
+set "Trolley Comm Data" 0
+set "Trolley Comm Data Stop" 0 
+set "Switch To RF" 0
+set "Power ON" 0
+set "RF Enable" 0
+set "Switch To Comm" 0
+set "Interface Comm Data Start" 0
+set "Cycle Length" 0
+set "RF Prescale" 0
+set "Switch RF Offset" 0
+set "Switch Comm Offset" 0
 
 cd "/Equipment/TrolleyInterface/Settings"
-mkdir "NMR Registry"
-cd "/Equipment/TrolleyInterface/Settings/NMR Registry"
-create INT "RF Prescale"
-create INT "Probe Select"
-create INT "Probe Delay" 
-create INT "Probe Period"
+mkdir "Probe"
+cd "/Equipment/TrolleyInterface/Settings/Probe"
+create STRING "Source[1][256]"
+set Source "odb"
+create STRING "Script Dir[1][256]"
+set "Script Dir" "/home/newg2/Applications/field-daq/online/TrolleyProbeScripts/"
+create STRING "Script[1][256]"
+set "Script" "Test"
+
+mkdir "Probe0"
+cd "Probe0"
+create INT "Probe ID"
+create INT "Probe Enable"
 create INT "Preamp Delay" 
 create INT "Preamp Period"
-create INT "Gate Delay"
-create INT "Gate Period"
-create INT "Transmit Delay"
-create INT "Transmit Period"
-set "RF Prescale" 62
-set "Probe Select" 0
-set "Probe Delay" 12700
-set "Probe Period" 20000
+create INT "ADC Gate Delay"
+create INT "ADC Gate Offset"
+create INT "ADC Gate Period"
+create INT "TX Delay"
+create INT "TX Period"
+create INT "User Data"
+set "Probe ID" 0
+set "Probe Enable" 0
 set "Preamp Delay" 373 
 set "Preamp Period" 12327
-set "Gate Delay" 0
-set "Gate Period" 15000
-set "Transmit Delay" 300
-set "Transmit Period" 310
+set "ADC Gate Delay" 0
+set "ADC Gate Offset" 0
+set "ADC Gate Period" 15000
+set "TX Delay" 300
+set "TX Period" 310
+set "User Data" 8606
+cd "/Equipment/TrolleyInterface/Settings/Probe"
+cp "Probe0" "Probe1"
+cp "Probe0" "Probe2"
+cp "Probe0" "Probe3"
+cp "Probe0" "Probe4"
+cp "Probe0" "Probe5"
+cp "Probe0" "Probe6"
+cp "Probe0" "Probe7"
+cp "Probe0" "Probe8"
+cp "Probe0" "Probe9"
+cp "Probe0" "Probe10"
+cp "Probe0" "Probe11"
+cp "Probe0" "Probe12"
+cp "Probe0" "Probe13"
+cp "Probe0" "Probe14"
+cp "Probe0" "Probe15"
+cp "Probe0" "Probe16"
+set "Probe1/Probe ID" 1
+set "Probe2/Probe ID" 2
+set "Probe3/Probe ID" 3
+set "Probe4/Probe ID" 4
+set "Probe5/Probe ID" 5
+set "Probe6/Probe ID" 6
+set "Probe7/Probe ID" 7
+set "Probe8/Probe ID" 8
+set "Probe9/Probe ID" 9
+set "Probe10/Probe ID" 10
+set "Probe11/Probe ID" 11
+set "Probe12/Probe ID" 12
+set "Probe13/Probe ID" 13
+set "Probe14/Probe ID" 14
+set "Probe15/Probe ID" 15
+set "Probe16/Probe ID" 16
 
 cd "/Equipment/TrolleyInterface/Settings"
-mkdir "Barcode Registry"
-cd "/Equipment/TrolleyInterface/Settings/Barcode Registry"
-create DOUBLE "LED Voltage"
+mkdir "Barcode"
+cd "/Equipment/TrolleyInterface/Settings/Barcode"
+create INT "LED Voltage"
+create INT "LED Status"
 create INT "Sample Period"
 create INT "Acq Delay"
-set "LED Voltage" 1.0
+set "LED Voltage" 0
+set "LED Status" 1
 set "Sample Period" 100000
 set "Acq Delay" 800
 
