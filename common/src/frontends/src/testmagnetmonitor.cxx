@@ -259,7 +259,7 @@ INT frontend_init()
   fSerialPort2_ptr = open(devname, O_RDWR | O_NOCTTY | O_NDELAY);
 
   if(fSerialPort2_ptr < 0) {
-    perror("Error opening device port3");
+    perror("Error opening device port2");
     return -1;
   }
   fcntl(fSerialPort2_ptr, F_SETFL, 0); // return immediately if no data
@@ -291,7 +291,6 @@ INT frontend_init()
   }
 
   resetPort2();  
-
 
   return SUCCESS;
 }
@@ -437,7 +436,7 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    string status = "0";
    char hoursStr[5];
    b = write(fSerialPort1_ptr, &inbuf, 5);
-   usleep(1000*1000);
+   ss_sleep(5000);
    b = read(fSerialPort1_ptr, &buf, 72);
    string received = buf;
    size_t found = received.find("\x02");
@@ -529,7 +528,7 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    // Get Chiller Temperature
    sprintf(inbuf3,"RT\r");
    b = write(fSerialPort3_ptr, &inbuf3,3);
-   usleep(1000*400);
+   ss_sleep(400);
    b = read(fSerialPort3_ptr, &buf3, 7);
    received = buf3;
    received = received.substr(0,6);
@@ -542,7 +541,7 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    tcflush( fSerialPort3_ptr, TCIOFLUSH );
    sprintf(inbuf3,"RW\r");
    b=write(fSerialPort3_ptr, &inbuf3,3);
-   usleep(1000*400);
+   ss_sleep(400);
    b=read(fSerialPort3_ptr, &buf3_2, 2);
    status3 = buf3_2;
    status3 = status3.substr(0,1);
@@ -558,7 +557,7 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    tcflush( fSerialPort3_ptr, TCIOFLUSH );
    sprintf(inbuf3,"RK\r");
    b=write(fSerialPort3_ptr, &inbuf3,3);
-   usleep(1000*400);
+   ss_sleep(400);
    b=read(fSerialPort3_ptr, &buf3_3, 7);
    string pressureStr = buf3_3;
    pressureStr = pressureStr.substr(0,6);
@@ -570,7 +569,7 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    tcflush( fSerialPort3_ptr, TCIOFLUSH );
    sprintf(inbuf3,"RL\r");
    b=write(fSerialPort3_ptr, &inbuf3,3);
-   usleep(1000*400);
+   ss_sleep(400);
    b=read(fSerialPort3_ptr, &buf3_4, 7);
    string flowStr = buf3_4;
    flowStr = flowStr.substr(0,6);
@@ -711,6 +710,7 @@ INT read_HeLevel_event(char *pevent, INT off)
   //db_get_value(hDBwarning,0,"/EmailWarning/err_read",&err_read_message_sent,&err_read_size,TID_INT, 0);
   //db_get_value(hDBwarning,0,"/EmailWarning/low_he",&low_he_message_sent,&low_he_size,TID_INT, 0);
   //db_get_value(hDBwarning,0,"/EmailWarning/He_threshold",&Threshold,&ThresholdSize,TID_FLOAT, 0);
+
 
   int m = 0;  
   while(HeLevel==102 && m < 3){
