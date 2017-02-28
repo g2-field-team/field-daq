@@ -18,7 +18,10 @@
 #include <fstream>
 #include <string>
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
+#include <signal.h>
+#include <string.h>
 
 #include <termios.h>
 #include <fcntl.h>
@@ -51,13 +54,13 @@ BOOL frontend_call_loop = FALSE;
 INT display_period = 3000;
 
 /* maximum event size produced by this frontend */
-INT max_event_size = 10000;
+INT max_event_size = 1000000;
 
 /* maximum event size for fragmented events (EQ_FRAGMENTED) */
 INT max_event_size_frag = 5 * 1024 * 1024;
 
 /* buffer size to hold events */
-INT event_buffer_size = 100 * 10000;
+INT event_buffer_size = 100 * 1000000;
 
 //Terminal IO
 int fSerialPort1_ptr;
@@ -70,6 +73,10 @@ ofstream output2;
 
 //ODB
 HNDLE hDB;
+
+//Timeout for Helium Read
+sig_atomic_t alarm_counter;
+bool timeout;
 
 /*-- Function declarations -----------------------------------------*/
 
@@ -87,8 +94,12 @@ INT read_HeLevel_event(char *pevent, INT off);
 INT poll_event(INT source, INT count, BOOL test);
 INT interrupt_configure(INT cmd, INT source, POINTER_T adr);
 //int SendWarning(string message);
+int resetPort2();
 int CompressorControl(int onoff);
 int ChillerControl(int onoff);
+
+void alarm_handler(int signal);
+void setup_alarm_handler();
 
 /*-- Equipment list ------------------------------------------------*/
 
@@ -103,7 +114,7 @@ EQUIPMENT equipment[] = {
      TRUE,                   /* enabled */
      RO_ALWAYS |   /* read when running and on transitions */
      RO_ODB,                 /* and update ODB */
-     30000,                  /* read every 1 hour */
+     300000,                  /* read every 1 hour */
      0,                      /* stop run after this event limit */
      0,                      /* number of sub events */
      0,                      /* log history */
@@ -120,7 +131,7 @@ EQUIPMENT equipment[] = {
       TRUE,                   /* enabled */
       RO_ALWAYS |   /* read when running and on transitions */
 	RO_ODB,                 /* and update ODB */
-      30000,                  /* read every 10 hour */
+      300000,                  /* read every 10 hour */
       0,                      /* stop run after this event limit */
       0,                      /* number of sub events */
       0,                      /* log history */
@@ -253,13 +264,13 @@ INT frontend_init()
   }
   fcntl(fSerialPort2_ptr, F_SETFL, 0); // return immediately if no data
 
-  if(tcgetattr(fSerialPort2_ptr, &options3) < 0) {
+  if(tcgetattr(fSerialPort2_ptr, &options2) < 0) {
     perror("Error tcgetattr port2");
     return -2;
   }
 
-  cfsetospeed(&options3, B4800);
-  cfsetispeed(&options3, B4800);
+  cfsetospeed(&options2, B4800);
+  cfsetispeed(&options2, B4800);
 
   options2.c_cflag     &=  ~PARENB;        // Make 8n1
   options2.c_cflag     &=  ~CSTOPB;
@@ -267,12 +278,21 @@ INT frontend_init()
   options2.c_cflag     |=  CS8;
   options2.c_cflag     &=  ~CRTSCTS;       // no flow control
 
+  //Set Non canonical and timeout
+  options2.c_lflag     &= ~(ICANON | ECHO | ECHOE | ISIG);
+  options2.c_cc[VTIME] = 0;
+  options2.c_cc[VMIN]  = 0;
+
   tcflush( fSerialPort2_ptr, TCIFLUSH );
 
   if(tcsetattr(fSerialPort2_ptr, TCSANOW, &options2) < 0) {
     perror("Error tcsetattr port2");
     return -3;
   }
+
+  resetPort2();  
+
+
   return SUCCESS;
 }
 
@@ -378,13 +398,15 @@ INT read_CompressorChiller_event(char *pevent, INT off)
 {
    WORD *pdata;
    float *pdata_f;
+   int *pdata_i;
+   char *pdata_str;
    //int comp_off_message_sent = 0;
    //int chill_off_message_sent = 0;
    //int high_temp_message_sent = 0;
-   int comp_ctrl = 2;
-   int chil_ctrl = 2;
-   int comp_ctrl_size = sizeof(comp_ctrl);
-   int chil_ctrl_size = sizeof(chil_ctrl);
+   INT comp_ctrl = 2;
+   INT chil_ctrl = 2;
+   INT comp_ctrl_size = sizeof(comp_ctrl);
+   INT chil_ctrl_size = sizeof(chil_ctrl);
    //int comp_off_size = sizeof(comp_off_message_sent);
    //int chill_off_size = sizeof(chill_off_message_sent);
    //int high_temp_size = sizeof(high_temp_message_sent);
@@ -413,13 +435,19 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    int b;
    int sta1;
    string status = "0";
+   char hoursStr[5];
    b = write(fSerialPort1_ptr, &inbuf, 5);
-   usleep(1000*500);
+   usleep(1000*1000);
    b = read(fSerialPort1_ptr, &buf, 72);
    string received = buf;
-   status = received.substr(43,1);
+   size_t found = received.find("\x02");
+   //cout<<found<<endl;
+   status = received.substr(found+43,1);
+   strncpy(hoursStr, buf + found + 9, 6);
+   long int hours = strtol(hoursStr, NULL, 10); 
    cout << "Received: "<<received<<endl;
-   
+   cout << "Hours: " << hoursStr << endl;
+    
    if (status.compare("1")==0){
      sta1 = 1;
    }else{
@@ -432,47 +460,49 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    if (numErrors != "00") {
       CompressorError = true;
    }
-   //string CompressorErrorString = received.substr(52,16);
-   string CompressorErrorMessage = "Errors: ";
+   char CompressorErrorString[16];
+   strncpy(CompressorErrorString, buf + found + 52, 16);
+
+  string CompressorErrorMessage = "Errors: ";
    
    //Add error description to email message
-   if (received.substr(52,1) == "1") {
+   if (received.substr(found+52,1) == "1") {
       CompressorErrorMessage += "SYSTEM ERROR, ";
    }
-   if (received.substr(53,1) == "1") {
+   if (received.substr(found+53,1) == "1") {
       CompressorErrorMessage += "Compressor fail, ";
    }
-   if (received.substr(54,1) == "1") {
+   if (received.substr(found+54,1) == "1") {
       CompressorErrorMessage += "Locked rotor, ";
    }
-   if (received.substr(55,1) == "1") {
+   if (received.substr(found+55,1) == "1") {
       CompressorErrorMessage += "OVERLOAD, ";
    }
-   if (received.substr(56,1) == "1") {
+   if (received.substr(found+56,1) == "1") {
       CompressorErrorMessage += "Phase/fuse ERROR, ";
    }
-   if (received.substr(57,1) == "1") {
+   if (received.substr(found+57,1) == "1") {
       CompressorErrorMessage += "Pressure alarm, ";
    }
-   if (received.substr(58,1) == "1") {
+   if (received.substr(found+58,1) == "1") {
       CompressorErrorMessage += "Helium temp. fail, ";
    }
-   if (received.substr(59,1) == "1") {
+   if (received.substr(found+59,1) == "1") {
       CompressorErrorMessage += "Oil circuit fail, ";
    }
-   if (received.substr(60,1) == "1") {
+   if (received.substr(found+60,1) == "1") {
       CompressorErrorMessage += "RAM ERROR, ";
    }
-   if (received.substr(61,1) == "1") {
+   if (received.substr(found+61,1) == "1") {
       CompressorErrorMessage += "ROM ERROR, ";
    }
-   if (received.substr(62,1) == "1") {
+   if (received.substr(found+62,1) == "1") {
       CompressorErrorMessage += "EEPROM ERROR, ";
    }
-   if (received.substr(63,1) == "1") {
+   if (received.substr(found+63,1) == "1") {
       CompressorErrorMessage += "DC Voltage error, ";
    }
-   if (received.substr(64,1) == "1") {
+   if (received.substr(found+64,1) == "1") {
       CompressorErrorMessage += "MAINS LEVEL !!!!, ";
    }
    cout << CompressorErrorMessage << endl;   
@@ -575,15 +605,17 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    // Turn Compressor and Chiller on and off
   
    if ((comp_ctrl == 1 || comp_ctrl == 0) && comp_ctrl != sta1) {
-      if (CompressorControl(comp_ctrl) == 1){
-	comp_ctrl = 2;
-	db_set_value(hDBcontrol,0,"/Equipment/CompressorChiller/Settings/comp_ctrl",&comp_ctrl,&comp_ctrl_size,1,TID_INT);
+      if (comp_ctrl != sta1) {      
+         if (CompressorControl(comp_ctrl) == 1){
+	   comp_ctrl = 2;
+	   db_set_value(hDBcontrol,0,"/Equipment/CompressorChiller/Settings/comp_ctrl",&comp_ctrl,comp_ctrl_size,1,TID_INT);
+         }
       }
    }
    if ((chil_ctrl == 1 || chil_ctrl == 0) && chil_ctrl != sta3) {
       if (ChillerControl(chil_ctrl) == 1){
 	chil_ctrl = 2;
-	db_set_value(hDBcontrol,0,"/Equipment/CompressorChiller/Settings/chil_ctrl",&chil_ctrl,&chil_ctrl_size,1,TID_INT);
+	db_set_value(hDBcontrol,0,"/Equipment/CompressorChiller/Settings/chil_ctrl",&chil_ctrl,chil_ctrl_size,1,TID_INT);
       }
    }
 
@@ -625,7 +657,26 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    *pdata_f++=flow;
    bk_close(pevent, pdata_f);
 
+   // Compressor hours counter bank
+   bk_create(pevent, "Hour", TID_INT, (void **)&pdata_i);
+   *pdata_i++=hours;
+   bk_close(pevent, pdata_i);
+
+   // Compressor errors bank
+   bk_create(pevent, "Errs", TID_WORD, (void **)&pdata);
+   for (int i = 0; i < 16; i++){
+      if (CompressorErrorString[i] == '1'){
+         *pdata++ = 1;
+      }else{
+         *pdata++ = 0;
+      }
+   }
+   bk_close(pevent, pdata);
+
+
    ss_sleep(10);
+
+   cout << bk_size(pevent) << endl;
 
    return bk_size(pevent);
 }
@@ -638,7 +689,7 @@ INT read_HeLevel_event(char *pevent, INT off)
   int k = 0;
   char line[100];
   int n;
-  int b;
+  int b=2;
   char *ptr;
   int nbytes;
   float *pdata;
@@ -661,30 +712,49 @@ INT read_HeLevel_event(char *pevent, INT off)
   //db_get_value(hDBwarning,0,"/EmailWarning/low_he",&low_he_message_sent,&low_he_size,TID_INT, 0);
   //db_get_value(hDBwarning,0,"/EmailWarning/He_threshold",&Threshold,&ThresholdSize,TID_FLOAT, 0);
 
-  sprintf(line,"\x1B");
-  nbyte=write(fSerialPort2_ptr, line, 1);
-  sleep(5);
+  int m = 0;  
+  while(HeLevel==102 && m < 3){
+    sprintf(line,"\x1B");
+    nbyte=write(fSerialPort2_ptr, line, 1);
+    ss_sleep(5000);
 
-  tcflush( fSerialPort2_ptr, TCIFLUSH );
+    //sprintf(line,"\r");
+    //nbyte=write(fSerialPort2_ptr, line, 1);
+    //ss_sleep(5000);
 
-  sprintf(line,"R\r");
-  nbyte=write(fSerialPort2_ptr, line, 2);
-  sleep(5);
-  n=0;
-  while(1){
-    b=read(fSerialPort2_ptr, &buf, 500);
-    string teststring = buf;
-    size_t found = teststring.find("6;41H");
-    if (found!=string::npos){
-      string substring = teststring.substr(found+5,4);
-      HeLevel = strtod(substring.c_str(),NULL);
-      break;
+    tcflush( fSerialPort2_ptr, TCIFLUSH );
+
+    sprintf(line,"R\r");
+
+    nbyte=write(fSerialPort2_ptr, line, 2);
+    ss_sleep(5000);
+    n=0;
+    while(b>1){
+      //cout<<"Reading..."<<endl;
+
+      b=read(fSerialPort2_ptr, &buf, 500);
+
+
+      cout<<n<<" Read "<< b << " bytes  "<< endl;
+      //cout<<buf<<endl;
+      string teststring = buf;
+      size_t found = teststring.find("6;41H");
+      if (found!=string::npos){
+        string substring = teststring.substr(found+5,4);
+        HeLevel = strtod(substring.c_str(),NULL);
+        break;
+      }
+      ss_sleep(1000);
+      n++;
+      if (n > 20){
+        break;
+      }
     }
-    sleep(1);
-    n++;
-    if (n > 10){
-      break;
+
+    if (HeLevel == 102){
+      resetPort2();
     }
+    m++;
   }
 
   cout <<"He level is "<< HeLevel<<endl;
@@ -692,28 +762,20 @@ INT read_HeLevel_event(char *pevent, INT off)
   //Output to text file
   output2<<HeLevel<<endl;
 
-  if (HeLevel<0){
+  if (HeLevel>101){
     cout << "Read out error!"<<endl;
-    if(err_read_message_sent==0){
-      //SendWarning("He level is not read properly.");
-      err_read_message_sent=1;
-      //db_set_value(hDBwarning,0,"/EmailWarning/err_read",&err_read_message_sent,err_read_size,1,TID_INT);
-    }
-  }else if (HeLevel>=0 && HeLevel<Threshold){
+  }else if (HeLevel<Threshold){
     cout << "He level is too low!";
-    if(low_he_message_sent==0){
-      //SendWarning("He level is too low.");
-      low_he_message_sent=1;
-      //db_set_value(hDBwarning,0,"/EmailWarning/low_he",&low_he_message_sent,low_he_size,1,TID_INT);
-    }
   }else{
     cout << "He level is OK!"<<endl;
   }
 
-  /* init bank structure */
+  // init bank structure 
+  // Only write if Helium was read correctly
+
   bk_init(pevent);
 
-  /* create SCLR bank */
+  // create SCLR bank */
   bk_create(pevent, "HeLe", TID_FLOAT, (void **)&pdata);
 
   HeLevel_f = float(HeLevel);
@@ -721,8 +783,7 @@ INT read_HeLevel_event(char *pevent, INT off)
   *pdata++=HeLevel;
 
   bk_close(pevent, pdata);
-
-
+  
   return bk_size(pevent);
 }
 /*
@@ -746,6 +807,24 @@ int SendWarning(string message){
 
   return 0;
 }*/
+
+int resetPort2(){
+
+  char line[100];
+  int nbyte;
+
+  sprintf(line,"\r");
+  nbyte=write(fSerialPort2_ptr, line, 1);
+  ss_sleep(5000);
+
+  tcflush( fSerialPort2_ptr, TCIFLUSH );
+
+  sprintf(line,"R\r");
+  nbyte=write(fSerialPort2_ptr, line, 2);
+  ss_sleep(5000);
+
+  return 1;
+}
 
 int CompressorControl(int onoff){
   string command = "\x02";
