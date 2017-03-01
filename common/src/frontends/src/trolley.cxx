@@ -137,9 +137,11 @@ void ControlDevice();
 int RampTrolleyVoltage(int InitialVoltage,int TargetVoltage);
 int LoadProbeSettings();
 BOOL FrontendActive;
-BOOL RunActive;
+BOOL RunActiveForRead;
+BOOL RunActiveForControl;
 string CurrentMode;
 BOOL SimSwitch = false;
+INT DebugLevel;
 
 BOOL write_root = false;
 TFile *pf;
@@ -207,7 +209,8 @@ INT frontend_init()
     //Set FrontendActive to True, then the read/control loop will keep active
     mlock.lock();
     FrontendActive=true;
-    RunActive=false;
+    RunActiveForRead=false;
+    RunActiveForControl=false;
     mlock.unlock();
   }else{
     //Connect to trolley interface
@@ -224,7 +227,7 @@ INT frontend_init()
     }
 
     //Connect to Sg382
-    err = Sg382Connect("192.168.1.122");
+/*    err = Sg382Connect("192.168.1.122");
     if (err==0){
       //cout << "connection successful\n";
       cm_msg(MINFO,"init","Sg382 Interface connection successful");
@@ -234,7 +237,7 @@ INT frontend_init()
       cm_msg(MERROR,"init","Sg382 Interface connection failed. Error code: %d",err);
       //    return FE_ERR_HW;
     }
-
+*/
     //Set RF frequency and Amplitude
     double RF_Freq;
     double RF_Amp;
@@ -278,13 +281,12 @@ INT frontend_init()
     //Set FrontendActive to True, then the read/control loop will keep active
     mlock.lock();
     FrontendActive=true;
-    RunActive=false;
+    RunActiveForRead=false;
+    RunActiveForControl=false;
     mlock.unlock();
 
     //Start control thread
     control_thread = thread(ControlDevice);
-    INT Cmd = 1; //Execute control command when initializing
-    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cmd",&Cmd,sizeof(Cmd), 1 ,TID_INT); 
   }
 
   //Start read thread
@@ -300,7 +302,8 @@ INT frontend_exit()
   //Set FrontendActive to False, then the read/control loop will react to it
   mlock.lock();
   FrontendActive=false;
-  RunActive=false;
+  RunActiveForRead=false;
+  RunActiveForControl=false;
   mlock.unlock();
   //Join read/control threads
   read_thread.join();
@@ -410,13 +413,19 @@ INT begin_of_run(INT run_number, char *error)
   mlock.unlock();
   cm_msg(MINFO,"begin_of_run","Data buffer is emptied at the beginning of the run.");
 
-  //Set RunActive to True, then the read/control loop will keep active
+  //Set RunActiveControl to True, then the control loop will keep active
   mlock.lock();
-  RunActive=true;
+  RunActiveForControl=true;
   mlock.unlock();
   //Send command to the control loop through odb
   INT Cmd = 2; //Start-run command
   db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cmd",&Cmd,sizeof(Cmd), 1 ,TID_INT); 
+
+  usleep(100000);
+  //Set RunActiveRead to True, then the read loop will keep active
+  mlock.lock();
+  RunActiveForRead=true;
+  mlock.unlock();
 
   return SUCCESS;
 }
@@ -425,9 +434,14 @@ INT begin_of_run(INT run_number, char *error)
 
 INT end_of_run(INT run_number, char *error)
 {
-  //Set RunActive to True, then the read/control loop will keep active
+  //Set RunActiveForRead to false, then the read loop will stop packing data
   mlock.lock();
-  RunActive=false;
+  RunActiveForRead=false;
+  mlock.unlock();
+
+  //Set RunActiveControl to false, then the control loop will react
+  mlock.lock();
+  RunActiveForControl=false;
   mlock.unlock();
   //Send command to the control loop through odb
   INT Cmd = 3; //Stop-run command
@@ -664,11 +678,15 @@ void ReadFromDevice(){
     if (!localFrontendActive)break;
 
     //For simulatin, do not read file until run starts
-    if (SimSwitch && !RunActive)continue;
+    if (SimSwitch && !RunActiveForRead)continue;
 
     //Read Frame
     rc = DataReceive((void *)FrameA, (void *)FrameB, &FrameASize, &FrameBSize);
-    //cm_msg(MINFO,"ReadFromDevice","FrameA size = %d , FrameB size = %d",FrameASize,FrameBSize);
+//    cm_msg(MINFO,"ReadFromDevice","FrameA size = %d , FrameB size = %d",FrameASize,FrameBSize);
+/*    unsigned int command;
+    DeviceRead(reg_command, &command);
+    cm_msg(MINFO,"ReadFromDevice","command = %d",command);
+*/
     if (rc<0){
       ReadThreadActive = 0;
       mlock.lock();
@@ -683,7 +701,7 @@ void ReadFromDevice(){
     }
     if (FrameASize!=0){
       memcpy(&FrameANumber,&(FrameA[9]),sizeof(int));
-      cm_msg(MINFO,"ReadFromDevice","Frame number %d",FrameANumber);
+    //  cm_msg(MINFO,"ReadFromDevice","Frame number %d",FrameANumber);
       if (FrameACountingStart){
 	LastFrameANumber = FrameANumber - 1;
 	FrameACountingStart = false;
@@ -710,6 +728,11 @@ void ReadFromDevice(){
       TrlyNMRDataUnit->probe_index = (0x1F & FrameA[11]);
       TrlyNMRDataUnit->length = FrameA[12];
       unsigned short NSamNMR = FrameA[12];
+   /*   if (NSamNMR>0){
+	cm_msg(MINFO,"ReadFromDevice","Probe index %d",TrlyNMRDataUnit->probe_index);
+	cm_msg(MINFO,"ReadFromDevice","NMR Samples %d",NSamNMR);
+	cm_msg(MINFO,"ReadFromDevice","User Data %d",FrameA[92]);
+      }*/
       //Check if this is larger than the MAX
       if (NSamNMR>TRLY_NMR_LENGTH){
 	NSamNMR = TRLY_NMR_LENGTH;
@@ -896,16 +919,17 @@ void ReadFromDevice(){
       if(!PowersupplyStatus[2] && (PowersupplyStatusOld[2]) || i==0)cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Power supply error 3. At iteration %d",i);
 //      if(!NMRCheckSumPassed && (NMRCheckSumPassedOld || i==0))cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: NMR check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,NMRCheckSum,NMRCheckSum-sum1);
 //      if(!FrameCheckSumPassed && (FrameCheckSumPassedOld || i==0))cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Frame check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,FrameCheckSum,FrameCheckSum-sum2);
-      if(!NMRCheckSumPassed )cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: NMR check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,NMRCheckSum,NMRCheckSum-sum1);
+ /*     if(!NMRCheckSumPassed )cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: NMR check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,NMRCheckSum,NMRCheckSum-sum1);
       if(!ConfigCheckSumPassed )cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Config check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,ConfigCheckSum,ConfigCheckSum-sum3);
       if(!FrameCheckSumPassed )cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Frame check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,FrameCheckSum,FrameCheckSum-sum2);
+      */
       mlock.unlock();
 
     }
 
     //Push to buffer
     mlockdata.lock();
-    if (RunActive && CurrentMode.compare("Sleep")!=0){
+    if (RunActiveForRead && CurrentMode.compare("Sleep")!=0 && FrameASize!=0){
       TrlyNMRBuffer.push_back(*TrlyNMRDataUnit);
       TrlyBarcodeBuffer.push_back(*TrlyBarcodeDataUnit);
       TrlyMonitorBuffer.push_back(*TrlyMonitorDataUnit);
@@ -930,7 +954,6 @@ void ControlDevice(){
   //Configs for each mode
   INT BaselineCycles;
   INT Repeat;
-  INT DebugLevel;
   BOOL ReadBarcode;
   BOOL PowerDown;
   int size_INT = sizeof(BaselineCycles);
@@ -945,6 +968,10 @@ void ControlDevice(){
 
   //Startup Mode: Sleep
   CurrentMode = string("Sleep");
+  DeviceWrite(reg_command,0x0000);
+  //Clear FIFO
+  DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000001);
+  DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000000);
 
   while (1){
     int ControlThreadActive = 1;
@@ -980,20 +1007,20 @@ void ControlDevice(){
       //Check Current mode
       char buffer[500];
       int buffer_size = sizeof(buffer);
-      if (RunActive){
+      if (RunActiveForControl){
 	db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Run Config/Mode",&buffer,&buffer_size,TID_STRING, 0);
 	CurrentMode = string(buffer);
-	if (CurrentMode.compare("Continous")==0 || CurrentMode.compare("Interactive") || CurrentMode.compare("Idle") || CurrentMode.compare("Sleep")){
+	if (CurrentMode.compare("Continuous")==0 || CurrentMode.compare("Interactive")==0 || CurrentMode.compare("Idle")==0 || CurrentMode.compare("Sleep")==0){
 	  cm_msg(MINFO,"control loop","Current Mode: %s",CurrentMode.c_str());
 	}else{
 	  cm_msg(MERROR,"control loop","Invalid mode for running: %s",CurrentMode.c_str());
-	  CurrentMode = string("Continous");
+	  CurrentMode = string("Continuous");
 	  cm_msg(MINFO,"control loop","Current Mode: %s",CurrentMode.c_str());
 	}
       }else{
 	db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Run Config/Idle Mode",&buffer,&buffer_size,TID_STRING, 0);
 	CurrentMode = string(buffer);
-	if (CurrentMode.compare("Idle") || CurrentMode.compare("Sleep")){
+	if (CurrentMode.compare("Idle")==0 || CurrentMode.compare("Sleep")==0){
 	  cm_msg(MINFO,"control loop","Current Mode: %s",CurrentMode.c_str());
 	}else{
 	  cm_msg(MERROR,"control loop","Invalid mode for idle state: %s",CurrentMode.c_str());
@@ -1074,8 +1101,6 @@ void ControlDevice(){
       if (Cmd==2){
 	if (CurrentMode.compare("Continuous")==0){
 	  StartUpCount = BaselineCycles;
-	  //Load FIFO
-	  LoadProbeSettings();
 	  if (StartUpCount>0){
 	    DeviceWriteMask(reg_power_control1,0x00001000, 0x00001000);//Disable TX
 	    //Single shot
@@ -1085,6 +1110,8 @@ void ControlDevice(){
 	    //Set Fifo to be circular
 	    DeviceWriteMask(reg_nmr_control,0x00000002, 0x00000000);
 	  }
+	  //Load FIFO
+	  LoadProbeSettings();
 	  //Start FIFO
 	  DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000001);
 	  DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000000);
@@ -1115,10 +1142,13 @@ void ControlDevice(){
     char ModeName[32];
     sprintf(ModeName,"%s",CurrentMode.c_str());
     db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Current Mode",&ModeName,sizeof(ModeName), 1 ,TID_STRING); 
+
+    unsigned int FIFORunning = 0;
+    //Check FIFO status
+    DeviceReadMask(reg_nmr_status,0x00000001,&FIFORunning);
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/FIFO Status",(INT *)&FIFORunning,sizeof(FIFORunning), 1 ,TID_INT); 
     if (CurrentMode.compare("Continuous")==0 && StartUpCount>0){
-      bool FIFOFinished = false;
-      //Check FIFO status
-      if (FIFOFinished){
+      if (FIFORunning==0){
 	StartUpCount--;
 	if (StartUpCount<=0){
 	  DeviceWriteMask(reg_power_control1,0x00001000, 0x00000000);//Enable TX
@@ -1132,14 +1162,11 @@ void ControlDevice(){
 	DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000000);
       }
     }else if (CurrentMode.compare("Interactive")==0){
-      if (Executing = 1){
-	bool FIFOFinished = false;
-	//Check FIFO status
-	if (FIFOFinished){
+      if (Executing == 1){
+	if (FIFORunning==0){
 	  RepeatCount--;
 	  if (RepeatCount<=0){
 	    Executing = 0;
-	    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/FIFO Status",&Executing,size_INT, 1 ,TID_INT); 
 	  }else{
 	    //Load Probe settings
 	    LoadProbeSettings();
@@ -1399,7 +1426,7 @@ int LoadProbeSettings()
       db_get_value(hDB,0,key,&TXPeriod,&size_INT,TID_INT, 0);
       sprintf(key,"/Equipment/TrolleyInterface/Settings/Probe/Probe%d/User Data",i);
       db_get_value(hDB,0,key,&UserData,&size_INT,TID_INT, 0);
-      NMR_Setting.NMR_Command = static_cast<unsigned int>(ProbeID) | (static_cast<unsigned int>(ProbeEnable) <15); 
+      NMR_Setting.NMR_Command = static_cast<unsigned int>(ProbeID) | (static_cast<unsigned int>(ProbeEnable) <<15); 
       NMR_Setting.NMR_Preamp_Delay = static_cast<unsigned int>(PreampDelay);
       NMR_Setting.NMR_Preamp_Period = static_cast<unsigned int>(PreampPeriod);
       NMR_Setting.NMR_ADC_Gate_Delay = static_cast<unsigned int>(ADCGateDelay);
@@ -1408,6 +1435,10 @@ int LoadProbeSettings()
       NMR_Setting.NMR_TX_Delay = static_cast<unsigned int>(TXDelay);
       NMR_Setting.NMR_TX_Period = static_cast<unsigned int>(TXPeriod);
       NMR_Setting.User_Defined_Data = static_cast<unsigned int>(UserData);
+      if (DebugLevel>0){
+	cm_msg(MINFO,"LoadProbeSettings","NMR_Command: %x",NMR_Setting.NMR_Command);
+	cm_msg(MINFO,"LoadProbeSettings","NMR_TX_Period: %d",NMR_Setting.NMR_TX_Period);
+      }
       //Write to FIFO
       DeviceLoadNMRSetting(NMR_Setting);
       ConfigCount++;
