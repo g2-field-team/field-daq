@@ -10,7 +10,9 @@ create BOOL "Barcode Error"
 create BOOL "Temperature Interrupt"
 create BOOL "Power Supply Status[3]"
 create BOOL "Read Thread Active"
+create BOOL "Control Thread Active"
 create BOOL "NMR Check Sum"
+create BOOL "Config Check Sum"
 create BOOL "Frame Check Sum"
 create FLOAT "Power Factor"
 create FLOAT "Temperature 1"
@@ -22,14 +24,25 @@ create FLOAT "Vmin 2"
 create FLOAT "Vmax 2"
 create INT "Data Frame Index"
 create INT "Buffer Load"
+create INT "Interface Buffer Load"
+create INT "FIFO Status"
+create STRING "Current Mode"
 
 cd "/Equipment/TrolleyInterface/Settings"
 create BOOL "Root Output"
 set "Root Output" false
 create STRING "Root Dir[1][256]"
 set "Root Dir" "/home/newg2/Applications/field-daq/resources/Root/"
+create BOOL "Simulation Switch"
+set "Simulation Switch" false
 create INT "Cmd" 
 set "Cmd" 0
+
+cd "/Equipment/TrolleyInterface/Settings"
+mkdir "Simulation"
+cd "/Equipment/TrolleyInterface/Settings/Simulation"
+create STRING "Data Source[1][256]"
+set "Data Source" "/home/newg2/Applications/field-daq/resources/NMRDataTemp/data-2017-02-28_20-08-11.dat"
 
 cd "/Equipment/TrolleyInterface/Settings"
 mkdir "Sg382"
@@ -50,14 +63,14 @@ mkdir "Run Config"
 cd "/Equipment/TrolleyInterface/Settings/Run Config"
 create STRING "Mode"
 create STRING "Idle Mode"
+create INT "Debug Level"
 set "Mode" "Continuous"
 set "Idle Mode" "Idle"
-mkdir "Continous"
-cd "/Equipment/TrolleyInterface/Settings/Run Config/Continous"
-create INT "Baseline Cycles"
-create INT "Debug Level"
-set "Baseline Cycles" 1
 set "Debug Level" 0
+mkdir "Continuous"
+cd "/Equipment/TrolleyInterface/Settings/Run Config/Continuous"
+create INT "Baseline Cycles"
+set "Baseline Cycles" 1
 cd "/Equipment/TrolleyInterface/Settings/Run Config"
 mkdir "Idle"
 cd "/Equipment/TrolleyInterface/Settings/Run Config/Idle"
@@ -72,45 +85,47 @@ cd "/Equipment/TrolleyInterface/Settings/Run Config"
 mkdir "Interactive"
 cd "/Equipment/TrolleyInterface/Settings/Run Config/Interactive"
 create INT "Trigger"
+create INT "Repeat"
 set "Trigger" 0
+set "Repeat" 1
 
 cd "/Equipment/TrolleyInterface/Settings"
 mkdir "Cycle"
 cd "/Equipment/TrolleyInterface/Settings/Cycle"
 
-create INT "Interface Comm Data Stop"
+create INT "Interface Comm Stop"
+create INT "Trolley Comm Start"
 create INT "Trolley Comm Data Start"
-create INT "Trolley Comm Data"
-create INT "Trolley Comm Data Stop"
+create INT "Trolley Comm Stop"
 create INT "Switch To RF"
 create INT "Power ON"
 create INT "RF Enable"
 create INT "Switch To Comm"
-create INT "Interface Comm Data Start"
+create INT "Interface Comm Start"
 create INT "Cycle Length"
 create INT "RF Prescale"
 create INT "Switch RF Offset"
 create INT "Switch Comm Offset"
 
-set "Interface Comm Data Stop" 0 
-set "Trolley Comm Data Start" 0
-set "Trolley Comm Data" 0
-set "Trolley Comm Data Stop" 0 
-set "Switch To RF" 0
-set "Power ON" 0
-set "RF Enable" 0
-set "Switch To Comm" 0
-set "Interface Comm Data Start" 0
-set "Cycle Length" 0
-set "RF Prescale" 0
-set "Switch RF Offset" 0
-set "Switch Comm Offset" 0
+set "Interface Comm Stop" 22 
+set "Trolley Comm Start" 5250
+set "Trolley Comm Data Start" 5350
+set "Trolley Comm Stop" 14150 
+set "Switch To RF" 14250
+set "Power ON" 13250
+set "RF Enable" 13750
+set "Switch To Comm" 29350
+set "Interface Comm Start" 29390
+set "Cycle Length" 29410
+set "RF Prescale" 62
+set "Switch RF Offset" 100
+set "Switch Comm Offset" 100
 
 cd "/Equipment/TrolleyInterface/Settings"
 mkdir "Probe"
 cd "/Equipment/TrolleyInterface/Settings/Probe"
 create STRING "Source[1][256]"
-set Source "odb"
+set Source "Odb"
 create STRING "Script Dir[1][256]"
 set "Script Dir" "/home/newg2/Applications/field-daq/online/TrolleyProbeScripts/"
 create STRING "Script[1][256]"
@@ -129,7 +144,7 @@ create INT "TX Delay"
 create INT "TX Period"
 create INT "User Data"
 set "Probe ID" 0
-set "Probe Enable" 0
+set "Probe Enable" 1
 set "Preamp Delay" 373 
 set "Preamp Period" 12327
 set "ADC Gate Delay" 0
