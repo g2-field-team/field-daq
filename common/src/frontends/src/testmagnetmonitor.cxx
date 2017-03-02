@@ -54,13 +54,13 @@ BOOL frontend_call_loop = FALSE;
 INT display_period = 3000;
 
 /* maximum event size produced by this frontend */
-INT max_event_size = 1000000;
+INT max_event_size = 10000;
 
 /* maximum event size for fragmented events (EQ_FRAGMENTED) */
 INT max_event_size_frag = 5 * 1024 * 1024;
 
 /* buffer size to hold events */
-INT event_buffer_size = 100 * 1000000;
+INT event_buffer_size = 100 * 10000;
 
 //Terminal IO
 int fSerialPort1_ptr;
@@ -290,8 +290,6 @@ INT frontend_init()
     return -3;
   }
 
-  resetPort2();  
-
   return SUCCESS;
 }
 
@@ -315,10 +313,10 @@ INT begin_of_run(INT run_number, char *error)
   cm_get_experiment_database(&hDB, NULL);
   db_get_value(hDB,0,"/Runinfo/Run number",&RunNumber,&RunNumber_size,TID_INT, 0);
   char filename[1000];
-  sprintf(filename,"/home/newg2/TestMagnetMonitor/Data/Monitor_Port1_3_%04d.txt",RunNumber);
+  sprintf(filename,"/home/newg2/Applications/field-daq/resources/data/Monitor_Port1_3_%04d.txt",RunNumber);
   output1_3.open(filename,ios::out);
 
-  sprintf(filename,"/home/newg2/TestMagnetMonitor/Data/Monitor_Port2_%04d.txt",RunNumber);
+  sprintf(filename,"/home/newg2/Applications/field-daq/resources/data/Monitor_Port2_%04d.txt",RunNumber);
   output2.open(filename,ios::out);
 
    return SUCCESS;
@@ -444,7 +442,7 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    status = received.substr(found+43,1);
    strncpy(hoursStr, buf + found + 9, 6);
    long int hours = strtol(hoursStr, NULL, 10); 
-   cout << "Received: "<<received<<endl;
+   cout << "Received: "<<status<<endl;
    cout << "Hours: " << hoursStr << endl;
     
    if (status.compare("1")==0){
@@ -693,21 +691,19 @@ INT read_HeLevel_event(char *pevent, INT off)
   int nbytes;
   float *pdata;
   char buf[2000];
+
   //Communicating to port2
   float Threshold = 74.0;
 
   double HeLevel=102;
   float HeLevel_f;
   int nbyte;
-  int err_read_message_sent = 0;
-  int low_he_message_sent = 0;
-  int err_read_size = sizeof(err_read_message_sent);
-  int low_he_size = sizeof(low_he_message_sent);
-  int ThresholdSize = sizeof(Threshold);
+  float prevHe;
+  int prevHe_size = sizeof(prevHe);
   
-  //HNDLE hDBwarning;
-  //cm_get_experiment_database(&hDBwarning, NULL);
-  //db_get_value(hDBwarning,0,"/EmailWarning/err_read",&err_read_message_sent,&err_read_size,TID_INT, 0);
+  HNDLE hDBhe;
+  cm_get_experiment_database(&hDBhe, NULL);
+  db_get_value(hDBhe,0,"/Equipment/HeLevel/Variables/HeLe",&prevHe,&prevHe_size,TID_FLOAT, 0);
   //db_get_value(hDBwarning,0,"/EmailWarning/low_he",&low_he_message_sent,&low_he_size,TID_INT, 0);
   //db_get_value(hDBwarning,0,"/EmailWarning/He_threshold",&Threshold,&ThresholdSize,TID_FLOAT, 0);
 
@@ -727,7 +723,7 @@ INT read_HeLevel_event(char *pevent, INT off)
     sprintf(line,"R\r");
 
     nbyte=write(fSerialPort2_ptr, line, 2);
-    ss_sleep(5000);
+    ss_sleep(2000);
     n=0;
     while(b>1){
       //cout<<"Reading..."<<endl;
@@ -735,7 +731,7 @@ INT read_HeLevel_event(char *pevent, INT off)
       b=read(fSerialPort2_ptr, &buf, 500);
 
 
-      cout<<n<<" Read "<< b << " bytes  "<< endl;
+      //cout<<n<<" Read "<< b << " bytes  "<< endl;
       //cout<<buf<<endl;
       string teststring = buf;
       size_t found = teststring.find("6;41H");
@@ -752,15 +748,16 @@ INT read_HeLevel_event(char *pevent, INT off)
     }
 
     if (HeLevel == 102){
+      cout<<m<<": Reseting"<<endl;
       resetPort2();
     }
     m++;
   }
 
-  cout <<"He level is "<< HeLevel<<endl;
+  cout <<m<<": He level is "<< HeLevel<<endl;
 
   //Output to text file
-  output2<<HeLevel<<endl;
+  output2<<m<<" "<<HeLevel<<endl;
 
   if (HeLevel>101){
     cout << "Read out error!"<<endl;
@@ -773,14 +770,24 @@ INT read_HeLevel_event(char *pevent, INT off)
   // init bank structure 
   // Only write if Helium was read correctly
 
+  int HeAlarm = 0;
+  int HeAlarm_size = sizeof(HeAlarm);
+
   bk_init(pevent);
 
   // create SCLR bank */
   bk_create(pevent, "HeLe", TID_FLOAT, (void **)&pdata);
 
   HeLevel_f = float(HeLevel);
-
-  *pdata++=HeLevel;
+  
+  if (HeLevel != 102){
+    *pdata++=HeLevel;
+  } else {
+    *pdata++=prevHe;
+    HeAlarm = 1; 
+   }
+  
+  db_set_value(hDBhe,0,"/Equipment/HeLevel/Settings/Alarm",&HeAlarm,HeAlarm_size,1,TID_INT);
 
   bk_close(pevent, pdata);
   
@@ -810,6 +817,51 @@ int SendWarning(string message){
 
 int resetPort2(){
 
+  /*char devname[100];
+  struct termios options2;
+
+  close(fSerialPort2_ptr);
+  ss_sleep(7500);
+  
+  printf(devname, "/dev/ttyUSB1");
+  //output3.open("/home/newg2/TestMagnetMonitor/Data/Port3DirectOutput.txt", ios::out);
+  //cout << "About to connect to serial port 3" <<endl;
+  fSerialPort2_ptr = open(devname, O_RDWR | O_NOCTTY | O_NDELAY);
+  
+  if(fSerialPort2_ptr < 0) {
+  perror("Error opening device port2");
+  return -1;
+  }
+  fcntl(fSerialPort2_ptr, F_SETFL, 0); // return immediately if no data
+  
+  if(tcgetattr(fSerialPort2_ptr, &options2) < 0) {
+  perror("Error tcgetattr port2");
+  return -2;
+  }
+  
+  cfsetospeed(&options2, B4800);
+  cfsetispeed(&options2, B4800);
+  
+  options2.c_cflag     &=  ~PARENB;        // Make 8n1
+  options2.c_cflag     &=  ~CSTOPB;
+  options2.c_cflag     &=  ~CSIZE;
+  options2.c_cflag     |=  CS8;
+  options2.c_cflag     &=  ~CRTSCTS;       // no flow control
+  
+  //Set Non canonical and timeout
+  options2.c_lflag     &= ~(ICANON | ECHO | ECHOE | ISIG);
+  options2.c_cc[VTIME] = 0;
+  options2.c_cc[VMIN]  = 0;
+  
+  tcflush( fSerialPort2_ptr, TCIFLUSH );
+  
+  if(tcsetattr(fSerialPort2_ptr, TCSANOW, &options2) < 0) {
+  perror("Error tcsetattr port2");
+  return -3;
+  }
+
+  ss_sleep(5000);
+  */
   char line[100];
   int nbyte;
 
@@ -821,9 +873,9 @@ int resetPort2(){
 
   sprintf(line,"R\r");
   nbyte=write(fSerialPort2_ptr, line, 2);
-  ss_sleep(5000);
+  ss_sleep(10000);
 
-  return 1;
+  return SUCCESS;
 }
 
 int CompressorControl(int onoff){
