@@ -66,7 +66,7 @@ create STRING "Idle Mode"
 create INT "Debug Level"
 set "Mode" "Continuous"
 set "Idle Mode" "Idle"
-set "Debug Level" 0
+set "Debug Level" 1
 mkdir "Continuous"
 cd "/Equipment/TrolleyInterface/Settings/Run Config/Continuous"
 create INT "Baseline Cycles"
@@ -75,7 +75,7 @@ cd "/Equipment/TrolleyInterface/Settings/Run Config"
 mkdir "Idle"
 cd "/Equipment/TrolleyInterface/Settings/Run Config/Idle"
 create BOOL "Read Barcode"
-set "Read Barcode" false
+set "Read Barcode" true
 cd "/Equipment/TrolleyInterface/Settings/Run Config"
 mkdir "Sleep"
 cd "/Equipment/TrolleyInterface/Settings/Run Config/Sleep"
@@ -144,7 +144,7 @@ create INT "TX Delay"
 create INT "TX Period"
 create INT "User Data"
 set "Probe ID" 0
-set "Probe Enable" 1
+set "Probe Enable" 0
 set "Preamp Delay" 373 
 set "Preamp Period" 12327
 set "ADC Gate Delay" 0
@@ -191,13 +191,11 @@ cd "/Equipment/TrolleyInterface/Settings"
 mkdir "Barcode"
 cd "/Equipment/TrolleyInterface/Settings/Barcode"
 create INT "LED Voltage"
-create INT "LED Status"
 create INT "Sample Period"
 create INT "Acq Delay"
-set "LED Voltage" 0
-set "LED Status" 1
-set "Sample Period" 100000
-set "Acq Delay" 800
+set "LED Voltage" 1024
+set "Sample Period" 2000
+set "Acq Delay" 16
 
 cd /
 cp "/Equipment/TrolleyInterface" "/Equipment/SimTrolleyInterface"

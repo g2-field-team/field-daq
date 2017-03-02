@@ -277,6 +277,9 @@ INT frontend_init()
     LoadGeneralSettingsToInterface();
     //To initialize, ask the trolley doing nothing
     DeviceWrite(reg_command,0x0000);
+    DeviceWrite(reg_command,0x0121);
+    usleep(10000);
+    DeviceWrite(reg_command,0x0000);
 
     //Set FrontendActive to True, then the read/control loop will keep active
     mlock.lock();
@@ -326,6 +329,7 @@ INT frontend_exit()
   }else{
     //Send Trolley interface command to stop data taking
     DeviceWrite(reg_command,0x0000);
+    usleep(100000);//Wait for all commands are properly sent and executed
     DeviceWriteMask(reg_event_data_control,0x00000001,0x00000001);
 
     //Clear buffer
@@ -844,6 +848,7 @@ void ReadFromDevice(){
       memcpy(&(NMRCheckSum),&(FrameA[48]),sizeof(int));
       memcpy(&(ConfigCheckSum),&(FrameA[94]),sizeof(int));
       memcpy(&(FrameCheckSum),&(FrameA[96+NSamNMR+NSamBarcode+FrameA[13]*2+NFlashWords]),sizeof(int));
+
       for (short ii=0;ii<7;ii++){
 	PressureSensorCal[ii] = FrameA[23+ii];;
       }
@@ -868,7 +873,7 @@ void ReadFromDevice(){
       //Correction for 0x7FFF
       sum2+=0x7FFF;
       //////////////////////
-      for(int ii=64;ii<94;ii++){
+      for(int ii=64;ii<93;ii++){
 	sum3+=(unsigned int)FrameA[ii];
       }
       NMRCheckSumPassed = (sum1==NMRCheckSum);
@@ -919,7 +924,7 @@ void ReadFromDevice(){
       if(!PowersupplyStatus[2] && (PowersupplyStatusOld[2]) || i==0)cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Power supply error 3. At iteration %d",i);
 //      if(!NMRCheckSumPassed && (NMRCheckSumPassedOld || i==0))cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: NMR check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,NMRCheckSum,NMRCheckSum-sum1);
 //      if(!FrameCheckSumPassed && (FrameCheckSumPassedOld || i==0))cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Frame check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,FrameCheckSum,FrameCheckSum-sum2);
- /*     if(!NMRCheckSumPassed )cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: NMR check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,NMRCheckSum,NMRCheckSum-sum1);
+      /*if(!NMRCheckSumPassed )cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: NMR check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,NMRCheckSum,NMRCheckSum-sum1);
       if(!ConfigCheckSumPassed )cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Config check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,ConfigCheckSum,ConfigCheckSum-sum3);
       if(!FrameCheckSumPassed )cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Frame check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,FrameCheckSum,FrameCheckSum-sum2);
       */
@@ -966,9 +971,9 @@ void ControlDevice(){
   INT Trigger = 0;
   INT Executing = 0;
 
-  //Startup Mode: Sleep
-  CurrentMode = string("Sleep");
-  DeviceWrite(reg_command,0x0000);
+  //Startup Mode: Idle, and reading out barcode
+  CurrentMode = string("Idle");
+  DeviceWrite(reg_command,0x0021);
   //Clear FIFO
   DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000001);
   DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000000);
