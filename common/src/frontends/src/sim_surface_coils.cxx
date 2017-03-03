@@ -109,18 +109,13 @@ RUNINFO runinfo;
 //Anonymous namespace for "globals"
 namespace{
   
-  int event_number = 0;
+  signed int event_number = 0;
   bool write_midas = true;
   bool write_root = true;
 
   //for zmq
   zmq::context_t context(1);
-  zmq::socket_t requester1(context, ZMQ_REQ); //for sending set point currents
-  zmq::socket_t requester2(context, ZMQ_REQ);
-  zmq::socket_t requester3(context, ZMQ_REQ);
-  zmq::socket_t requester4(context, ZMQ_REQ);
-  zmq::socket_t requester5(context, ZMQ_REQ);
-  zmq::socket_t requester6(context, ZMQ_REQ);
+  zmq::socket_t publisher(context, ZMQ_PUB); //for sending set point currents
   zmq::socket_t subscriber(context, ZMQ_SUB); //subscribe to data being sent back from beaglebones
 
   TFile *pf;
@@ -277,180 +272,33 @@ INT begin_of_run(INT run_number, char *error)
   }
   
   //bind to server                                                         
-  cm_msg(MINFO, "init", "Binding to servers");                                
-  requester1.connect("tcp://127.0.0.1:5551");                                               
-  requester2.connect("tcp://127.0.0.1:5552");
-  requester3.connect("tcp://127.0.0.1:5553");
-  requester4.connect("tcp://127.0.0.1:5554");
-  requester5.connect("tcp://127.0.0.1:5555");
-  requester6.connect("tcp://127.0.0.1:5556");
+  cm_msg(MINFO, "init", "Binding to server");                                
+  publisher.bind("tcp://127.0.0.1:5550");                                               
 
   //send data to driver boards                                                 
-  std::string buffer = request.dump();
-  zmq::message_t message1 (buffer.size());
-  std::copy(buffer.begin(), buffer.end(), (char *)message1.data());
-  zmq::message_t message2 (buffer.size());
-  std::copy(buffer.begin(), buffer.end(), (char *)message2.data());
-  zmq::message_t message3 (buffer.size());
-  std::copy(buffer.begin(), buffer.end(), (char *)message3.data());
-  zmq::message_t message4 (buffer.size());
-  std::copy(buffer.begin(), buffer.end(), (char *)message4.data());
-  zmq::message_t message5 (buffer.size());
-  std::copy(buffer.begin(), buffer.end(), (char *)message5.data());
-  zmq::message_t message6 (buffer.size());
-  std::copy(buffer.begin(), buffer.end(), (char *)message6.data());
+  for(int i=0;i<5;i++){
+    std::string buffer = request.dump();
+    zmq::message_t message (buffer.size());
+    std::copy(buffer.begin(), buffer.end(), (char *)message.data());
   
-  zmq::message_t reply1(4096);
-  zmq::message_t reply2(4096);
-  zmq::message_t reply3(4096);
-  zmq::message_t reply4(4096);
-  zmq::message_t reply5(4096);
-  zmq::message_t reply6(4096);
+    bool st = false; //status of publishing
 
-  bool st1 = false; //status of request/reply for crate 1
-  bool st2 = false;
-  bool st3 = false;
-  bool st4 = false;
-  bool st5 = false;
-  bool st6 = false;
+    do{
+      try{
+	st = publisher.send(message, ZMQ_DONTWAIT);
+	usleep(200);
+	std::cout << "Sent a message" << std::endl;
+      } catch(const zmq::error_t e1) {std::cout << "Problem publishing" << std::endl;};
+    } while(!st);
+    
+    usleep(500000);
+  }//end for loop
 
-  do{
-    try{
-      st1 = requester1.send(message1, ZMQ_DONTWAIT);
-      usleep(200);
-    } catch(const zmq::error_t e1) {std::cout << "Problem sending to crate 1" << std::endl;};
-    try{
-      st2 = requester2.send(message2, ZMQ_DONTWAIT);
-      usleep(200);
-    } catch(const zmq::error_t e2) {std::cout << "Problem sending to crate 2" << std::endl;};
-    try{
-      st3 = requester3.send(message3, ZMQ_DONTWAIT);
-      usleep(200);
-    } catch(const zmq::error_t e3) {std::cout << "Problem sending to crate 3" << std::endl;};
-    try{
-      st4 = requester4.send(message4, ZMQ_DONTWAIT);
-      usleep(200);
-    } catch(const zmq::error_t e4) {std::cout << "Problem sending to crate 4" << std::endl;};
-    try{
-      st5 = requester5.send(message5, ZMQ_DONTWAIT);
-      usleep(200);
-    } catch(const zmq::error_t e5) {std::cout << "Problem sending to crate 5" << std::endl;};
-    try{
-      st6 = requester6.send(message6, ZMQ_DONTWAIT);
-      usleep(200);
-    } catch(const zmq::error_t e6) {std::cout << "Problem sending to crate 6" << std::endl;};
-
-    cm_msg(MINFO, "begin_of_run", "Current values sent to beaglebones");         
-   
-    if(st1 == true){                                                            
-      do{	
-	try{
-	  st1 = requester1.recv(&reply1, ZMQ_DONTWAIT | ZMQ_NOBLOCK);
-	  usleep(200);
-	} catch(const zmq::error_t e11) {std::cout << "Prob response crate 1" << std::endl;};
-      } while(!st1);                                                            
-    }
-    if(st2 == true){
-      do{
-        try{
-          st2 = requester2.recv(&reply2, ZMQ_DONTWAIT | ZMQ_NOBLOCK);
-          usleep(200);
-        } catch(const zmq::error_t e12) {std::cout << "Prob response crate 2" << std::endl;};
-      } while(!st2);
-    }
-    if(st3 == true){
-      do{
-        try{
-          st3 = requester3.recv(&reply3, ZMQ_DONTWAIT | ZMQ_NOBLOCK);
-          usleep(200);
-        } catch(const zmq::error_t e13) {std::cout << "Prob response crate 3" << std::endl;};
-      } while(!st3);
-    }
-    if(st4 == true){
-      do{
-        try{
-          st4 = requester4.recv(&reply4, ZMQ_DONTWAIT | ZMQ_NOBLOCK);
-          usleep(200);
-        } catch(const zmq::error_t e14) {std::cout << "Prob response crate 4" << std::endl;};
-      } while(!st4);
-    }
-    if(st5 == true){
-      do{
-        try{
-          st5 = requester5.recv(&reply5, ZMQ_DONTWAIT | ZMQ_NOBLOCK);
-          usleep(200);
-        } catch(const zmq::error_t e15) {std::cout << "Prob response crate 5" << std::endl;};
-      } while(!st5);
-    }
-    if(st6 == true){
-      do{
-        try{
-          st6 = requester6.recv(&reply6, ZMQ_DONTWAIT | ZMQ_NOBLOCK);
-          usleep(200);
-        } catch(const zmq::error_t e16) {std::cout << "Prob response crate 6" << std::endl;};
-      } while(!st6);
-    }
-                                                                          
-    } while(!st1 && !st2 && !st3 && !st4 && !st5 && !st6);
-
-  cm_msg(MINFO, "begin_of_run", "Received replies from beaglebones");
-  //Wait for response that currents were sent                       
-  //Expects back the read out currents of the channels that were set
-  string s1(static_cast<char*>(reply1.data()));
-  s1.resize(reply1.size());
-  string s2(static_cast<char*>(reply2.data()));
-  s2.resize(reply2.size());
-  string s3(static_cast<char*>(reply3.data()));
-  s3.resize(reply3.size());
-  string s4(static_cast<char*>(reply4.data()));
-  s4.resize(reply4.size());
-  string s5(static_cast<char*>(reply5.data()));
-  s5.resize(reply5.size());
-  string s6(static_cast<char*>(reply6.data()));
-  s6.resize(reply6.size());
-
-  //Want to combine the strings into one json object
-  //Need to get rid of brackets that would otherwise be in middle of combined string
-  s1.replace(s1.size()-1,1,","); //replace ending "}" with ","
-  s2.replace(0,1,""); //remove starting "{"
-  s2.replace(s2.size()-1,1,",");
-  s3.replace(0,1,"");
-  s3.replace(s3.size()-1,1,",");
-  s4.replace(0,1,"");
-  s4.replace(s4.size()-1,1,",");
-  s5.replace(0,1,"");
-  s5.replace(s5.size()-1,1,",");
-  s6.replace(0,1,"");
-
-  string com_str = s1+s2+s3+s4+s5+s6;
-  json reply_data = json::parse(com_str);
-  
-  //Check that the initial currents match the set points.
-  //Data we have now is ordered as hw_id : current
-  //To check vs setpoint need to use reverse_coil_map to get sc_id : current
-  /*  std::cout << "Starting my check vs. setpoint" << std::endl;
-  for(int i=1;i<nCoils+1;i++){
-    string newCoilNum;
-    if(i >= 0 && i <= 9) newCoilNum = "00" + std::to_string(i);
-    if(i > 9 && i <= 99) newCoilNum = "0" + std::to_string(i);
-    if(i==100) newCoilNum = std::to_string(i);
-    string newTopString = "T-"+newCoilNum;
-    string newBotString = "B-"+newCoilNum;
-    std::cout << newBotString << std::endl;
-    std::cout << coil_map[newBotString] << std::endl;
-    //std::cout << reply_data[coil_map[newBotString]] << std::endl;
-    //float botVal = float(reply_data[coil_map[newBotString]]);
-    //float topVal = float(reply_data[coil_map[newTopString]]);
-    std::cout << "AM I WORKING HERE" << std::endl;
-    //if(std::abs(botVal - bot_set_values[i-1]) > setPoint) std::cout << "Problem with " << botString << std::endl;
-    //if(std::abs(topVal - top_set_values[i-1]) > setPoint) std::cout << "Problem with " << topString << std::endl;
-    }*/
-
-
-
+  cm_msg(MINFO, "begin_of_run", "Current values sent to beaglebones");            
+ 
   //Now bind subscriber to receive data being pushed by beaglebones         
   std::cout << "Binding to subscribe socket" << std::endl;
-  subscriber.bind("tcp://127.0.0.1:5557");    
+  subscriber.bind("tcp://127.0.0.1:5551");    
   cm_msg(MINFO, "info", "Bound to subscribe socket");
   std::cout << "Bound" << std::endl;
                                      
@@ -522,13 +370,8 @@ INT begin_of_run(INT run_number, char *error)
 INT end_of_run(INT run_number, char *error)
 {
   //Disconnect the sockets. Necessary so that next run starts properly
-  requester1.disconnect("tcp://127.0.0.1:5551");
-  requester2.disconnect("tcp://127.0.0.1:5552");
-  requester3.disconnect("tcp://127.0.0.1:5553");
-  requester4.disconnect("tcp://127.0.0.1:5554");
-  requester5.disconnect("tcp://127.0.0.1:5555");
-  requester6.disconnect("tcp://127.0.0.1:5556");
-  subscriber.disconnect("tcp://127.0.0.1:5557");
+  publisher.disconnect("tcp://127.0.0.1:5550");
+  subscriber.disconnect("tcp://127.0.0.1:5551");
   
   // Make sure we write the ROOT data.                                                    
   if (run_in_progress && write_root) {
@@ -655,12 +498,14 @@ INT read_surface_coils(char *pevent, INT c)
    json reply_data = json::parse(s);
    dataVector.push_back(reply_data);
   }
-  cm_msg(MINFO, "read_surface_coils", "Received reply from beaglebone 1");
+  cm_msg(MINFO, "read_surface_coils", "Received reply from beaglebones");
  
   //Process the data in the vector. Loops through all json objects. 
   //In the end, only most recent data is stored in array
   for (auto &reply_data : dataVector) { 
-    for(json::iterator it = reply_data.begin(); it != reply_data.end(); ++it){ 
+
+    for(json::iterator it = reply_data.begin(); it != reply_data.end(); ++it){
+
       //loop through all entries in json object
       //First need to turn hw_id into sc_id. 
       //Get element index (get ###-1 from A-### where A = T or B)
@@ -668,6 +513,7 @@ INT read_surface_coils(char *pevent, INT c)
       string coil_id = rev_coil_map[it.key()];
       int coil_index = stoi(coil_id.substr(2,3).erase(0,coil_id.substr(2,3).find_first_not_of('0')))-1; //Get coil index without leading zeros
       string tb = coil_id.substr(0,1); //Top or bottom?
+      
       if(tb == "B"){
 	bot_currents[coil_index] = it.value()[0];
 	bot_temps[coil_index] = it.value()[1];
@@ -677,9 +523,12 @@ INT read_surface_coils(char *pevent, INT c)
 	bot_temps[coil_index] = it.value()[1];
       }
       else std::cout << "PROBLEM! Neither a T nor a B!" << std::endl;
+
       }
+
     }
  
+
   for(int idx = 0; idx < nCoils; ++idx){
     data.bot_sys_clock[idx] = hw::systime_us();
     data.top_sys_clock[idx] = hw::systime_us();
@@ -689,8 +538,6 @@ INT read_surface_coils(char *pevent, INT c)
     data.top_coil_temps[idx] = top_temps[idx];
     data.bot_coil_temps[idx] = 27.0;
     data.top_coil_temps[idx] = 27.0;
-    //Add a check here to see if the currents match set point
-    //Alarm if not? Reset current?
   }
 
   //write root output
@@ -715,6 +562,51 @@ INT read_surface_coils(char *pevent, INT c)
   pdata += sizeof(data) / sizeof(DWORD);
 
   bk_close(pevent, pdata);
+  /*
+  //Check values vs set points. Set a flag if something drifts out of range
+  if(event_number % 10 == 0){
+    //json reset_request;
+    
+    for(int i=0;i<nCoils;i++){ //Check all the values. Fill json with problem channels
+
+      string coilNum;
+      if(i >= 0 && i <= 8) coilNum = "00" + std::to_string(i+1);
+      if(i > 8 && i <= 98) coilNum = "0" + std::to_string(i+1);
+      if(i==99) coilNum = std::to_string(i+1);
+      string topString = "T-"+coilNum;
+      string botString = "B-"+coilNum;
+
+      if(abs(bot_currents[i]- bot_set_values[i]) > setPoint){
+	cm_msg(MINFO, "read_surface_coils", "Problem  with %s, out of range", botString.c_str());
+	//reset_request[coil_map[botString]] = bot_set_values[i];
+      }
+      if(abs(top_currents[i]- top_set_values[i]) > setPoint){
+	cm_msg(MINFO, "read_surface_coils", "Problem  with %s, out of range", topString.c_str());
+        //reset_request[coil_map[topString]] = top_set_values[i];
+      }
+
+    }
+    }*/
+    /*
+    //Publish json of problem channels
+    for(int i=0;i<5;i++){
+      std::string buffer = reset_request.dump();
+      zmq::message_t message (buffer.size());
+      std::copy(buffer.begin(), buffer.end(), (char *)message.data());
+
+      bool st = false; //status of publishing                                   
+
+      do{
+	try{
+	  st = publisher.send(message, ZMQ_DONTWAIT);
+	  usleep(200);
+	} catch(const zmq::error_t e1) {std::cout << "Problem publishing" << std::endl;};
+      } while(!st);
+
+    }
+  }
+  */
+  event_number++;
 
   cm_msg(MINFO, "read_surface_coils", "Finished generating event");
   return bk_size(pevent);
