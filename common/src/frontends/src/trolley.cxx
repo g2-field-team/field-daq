@@ -248,6 +248,9 @@ INT frontend_init()
     //  SetAmplitude(RF_Amp);
     //Enable RF On sg382
     //EnableRF();
+    
+    //Temp: diable V/I protection
+    DeviceWrite(reg_power_control,0x00010000);
 
     //Disable Data flow
     DeviceWriteMask(reg_event_data_control,0x00000001,0x00000001);
@@ -628,6 +631,7 @@ void ReadFromDevice(){
   //Monitor values from the data
   float PowerFactor;
   float Temperature1;
+  float TemperatureIn;
   float PressureTemperature;
   float Pressure;
   float Vmin1;
@@ -892,7 +896,8 @@ void ReadFromDevice(){
       }else{
 	PowerFactor = 0;
       }
-      Temperature1 = TrlyMonitorDataUnit->TMonitorExt1;
+      TemperatureIn = TrlyMonitorDataUnit->TMonitorIn/128.0;
+      Temperature1 = TrlyMonitorDataUnit->TMonitorExt1/128.0;
       PressureTemperature = TrlyMonitorDataUnit->PMonitorTemp;
       Pressure = TrlyMonitorDataUnit->PMonitorVal;
       Vmin1 = TrlyMonitorDataUnit->V1Min;
@@ -909,7 +914,8 @@ void ReadFromDevice(){
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Config Check Sum",&ConfigCheckSumPassed,sizeof(ConfigCheckSumPassed), 1 ,TID_BOOL);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Frame Check Sum",&FrameCheckSumPassed,sizeof(FrameCheckSumPassed), 1 ,TID_BOOL);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Power Factor",&PowerFactor,sizeof(PowerFactor),1,TID_FLOAT);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Temperature 1",&Temperature1,sizeof(Temperature1),1,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Temperature In",&TemperatureIn,sizeof(TemperatureIn),1,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Temperature Ext1",&Temperature1,sizeof(Temperature1),1,TID_FLOAT);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Pressure Temperature",&PressureTemperature,sizeof(PressureTemperature),1,TID_FLOAT);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Pressure",&Pressure,sizeof(Pressure),1,TID_FLOAT);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Vmin 1",&Vmin1,sizeof(Vmin1),1,TID_FLOAT);
@@ -1319,23 +1325,23 @@ void UpdateGeneralOdbSettings()
   DeviceRead(reg_free_event_memory,(unsigned int *)(& Buffer_Load));
 
   //Load values back to odb
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Interface Comm Stop",&Interface_Comm_Stop,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Trolley Comm Start",&Trolley_Comm_Start,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Trolley Comm Data Start",&Trolley_Comm_Data_Start,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Trolley Comm Stop",&Trolley_Comm_Stop,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Switch To RF",&Switch_To_RF,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Power ON",&Power_ON,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/RF Enable",&RF_Enable,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Switch To Comm",&Switch_To_Comm,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Interface Comm Start",&Interface_Comm_Start,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Cycle Length",&Cycle_Length,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/RF Prescale",&RF_Prescale,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Switch RF Offset",&Switch_RF_Offset,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Switch Comm Offset",&Switch_Comm_Offset,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Interface Comm Stop",&Interface_Comm_Stop,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Trolley Comm Start",&Trolley_Comm_Start,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Trolley Comm Data Start",&Trolley_Comm_Data_Start,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Trolley Comm Stop",&Trolley_Comm_Stop,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Switch To RF",&Switch_To_RF,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Power ON",&Power_ON,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/RF Enable",&RF_Enable,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Switch To Comm",&Switch_To_Comm,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Interface Comm Start",&Interface_Comm_Start,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Cycle Length",&Cycle_Length,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/RF Prescale",&RF_Prescale,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Switch RF Offset",&Switch_RF_Offset,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Switch Comm Offset",&Switch_Comm_Offset,size_INT, 1,TID_INT);
 
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Barcode/LED Voltage",&BC_LED_Voltage,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Barcode/Sample Period",&BC_Sample_Period,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Barcode/Acq Delay",&BC_Acq_Delay,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Barcode/LED Voltage",&BC_LED_Voltage,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Barcode/Sample Period",&BC_Sample_Period,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Barcode/Acq Delay",&BC_Acq_Delay,size_INT, 1,TID_INT);
 
   db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Interface Buffer Load",&Buffer_Load,size_INT, 1,TID_INT);
 }

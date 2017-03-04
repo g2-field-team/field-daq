@@ -15,7 +15,8 @@ create BOOL "NMR Check Sum"
 create BOOL "Config Check Sum"
 create BOOL "Frame Check Sum"
 create FLOAT "Power Factor"
-create FLOAT "Temperature 1"
+create FLOAT "Temperature In"
+create FLOAT "Temperature Ext1"
 create FLOAT "Pressure Temperature"
 create FLOAT "Pressure"
 create FLOAT "Vmin 1"
@@ -70,7 +71,7 @@ set "Debug Level" 1
 mkdir "Continuous"
 cd "/Equipment/TrolleyInterface/Settings/Run Config/Continuous"
 create INT "Baseline Cycles"
-set "Baseline Cycles" 1
+set "Baseline Cycles" 5
 cd "/Equipment/TrolleyInterface/Settings/Run Config"
 mkdir "Idle"
 cd "/Equipment/TrolleyInterface/Settings/Run Config/Idle"
@@ -108,14 +109,14 @@ create INT "Switch RF Offset"
 create INT "Switch Comm Offset"
 
 set "Interface Comm Stop" 22 
-set "Trolley Comm Start" 5250
-set "Trolley Comm Data Start" 5350
-set "Trolley Comm Stop" 14150 
-set "Switch To RF" 14250
-set "Power ON" 13250
-set "RF Enable" 13750
-set "Switch To Comm" 29350
-set "Interface Comm Start" 29390
+set "Trolley Comm Start" 100
+set "Trolley Comm Data Start" 1200
+set "Trolley Comm Stop" 13150 
+set "Switch To RF" 13250
+set "Power ON" 12750
+set "RF Enable" 12250
+set "Switch To Comm" 28350
+set "Interface Comm Start" 28390
 set "Cycle Length" 29410
 set "RF Prescale" 62
 set "Switch RF Offset" 100
@@ -146,7 +147,7 @@ create INT "User Data"
 set "Probe ID" 0
 set "Probe Enable" 0
 set "Preamp Delay" 373 
-set "Preamp Period" 12327
+set "Preamp Period" 14000
 set "ADC Gate Delay" 0
 set "ADC Gate Offset" 0
 set "ADC Gate Period" 15000
@@ -186,6 +187,7 @@ set "Probe13/Probe ID" 13
 set "Probe14/Probe ID" 14
 set "Probe15/Probe ID" 15
 set "Probe16/Probe ID" 16
+set "Probe0/Probe Enable" 1
 
 cd "/Equipment/TrolleyInterface/Settings"
 mkdir "Barcode"
@@ -197,12 +199,7 @@ set "LED Voltage" 1024
 set "Sample Period" 2000
 set "Acq Delay" 16
 
-cd /
-cp "/Equipment/TrolleyInterface" "/Equipment/SimTrolleyInterface"
-cd "/Equipment/SimTrolleyInterface/Common"
-set "Frontend name" "Sim Trolley Interface"
-set "Frontend file name" "src/sim_trolley.cxx"
-set "Status" "Sim Trolley Interface@localhost"
+cd "/Equipment/TrolleyInterface/Settings"
+cp "/Equipment/TrolleyInterface/Settings/Cycle" "/Equipment/TrolleyInterface/Monitor/Cycle"
+cp "/Equipment/TrolleyInterface/Settings/Barcode" "/Equipment/TrolleyInterface/Monitor/Barcode"
 
-create STRING "/Equipment/SimTrolleyInterface/Settings/Data Source[1][256]"
-set "/Equipment/SimTrolleyInterface/Settings/Data Source" "/home/newg2/Applications/field-daq/resources/NMRDataTemp/data_NMR_61682000Hz_11.70dbm-2016-10-27_19-36-42.dat"
