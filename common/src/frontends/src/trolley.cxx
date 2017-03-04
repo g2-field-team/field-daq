@@ -227,7 +227,7 @@ INT frontend_init()
     }
 
     //Connect to Sg382
-/*    err = Sg382Connect("192.168.1.122");
+    err = Sg382Connect("192.168.1.122");
     if (err==0){
       //cout << "connection successful\n";
       cm_msg(MINFO,"init","Sg382 Interface connection successful");
@@ -237,17 +237,17 @@ INT frontend_init()
       cm_msg(MERROR,"init","Sg382 Interface connection failed. Error code: %d",err);
       //    return FE_ERR_HW;
     }
-*/
+
     //Set RF frequency and Amplitude
     double RF_Freq;
     double RF_Amp;
     INT Size_DOUBLE = sizeof(RF_Freq);
     db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Sg382/RF Frequency",&RF_Freq,&Size_DOUBLE,TID_DOUBLE, 0);
     db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Sg382/RF Amplitude",&RF_Amp,&Size_DOUBLE,TID_DOUBLE, 0);
-    //  SetFrequency(RF_Freq);
-    //  SetAmplitude(RF_Amp);
+    SetFrequency(RF_Freq);
+    SetAmplitude(RF_Amp);
     //Enable RF On sg382
-    //EnableRF();
+    EnableRF();
 
     //Disable Data flow
     DeviceWriteMask(reg_event_data_control,0x00000001,0x00000001);
@@ -352,19 +352,19 @@ INT frontend_exit()
     }
 
     //Disable RF On sg382
-    //DisableRF();
-    //Disconnect from Trolley interface
-    /*
-       err = Sg382Disconnect();
-       if (err==0){
-    //cout << "connection successful\n";
-    cm_msg(MINFO,"exit","Sg382 Interface disconnection successful");
+    DisableRF();
+    //Disconnect from Sg382
+
+    err = Sg382Disconnect();
+    if (err==0){
+      //cout << "connection successful\n";
+      cm_msg(MINFO,"exit","Sg382 Interface disconnection successful");
     }
     else {
-    //   cout << "connection failed \n";
-    cm_msg(MERROR,"exit","Sg382 Interface disconnection failed. Error code: %d",err);
+      //   cout << "connection failed \n";
+      cm_msg(MERROR,"exit","Sg382 Interface disconnection failed. Error code: %d",err);
     }
-    */
+
   }
   return SUCCESS;
 }
@@ -1450,7 +1450,7 @@ int LoadProbeSettings()
     while(1){
       //Make sure the order is correct!
       //To do : Make sure the loop end at the right position.
-      ScriptInput>>RegistryName>>NMR_Setting.NMR_Command;
+      ScriptInput>>RegistryName>>std::hex>>NMR_Setting.NMR_Command;
       if (RegistryName.compare("NMR_Command")!=0)return -1;
       if (ScriptInput.eof())break;
       ScriptInput>>RegistryName>>NMR_Setting.NMR_Preamp_Delay;
