@@ -248,6 +248,9 @@ INT frontend_init()
     SetAmplitude(RF_Amp);
     //Enable RF On sg382
     EnableRF();
+    
+    //Temp: diable V/I protection
+    DeviceWrite(reg_power_control,0x00010000);
 
     //Disable Data flow
     DeviceWriteMask(reg_event_data_control,0x00000001,0x00000001);
@@ -276,6 +279,9 @@ INT frontend_init()
     //Load Odb settings to interface, probe settings are loaded separately
     LoadGeneralSettingsToInterface();
     //To initialize, ask the trolley doing nothing
+    DeviceWrite(reg_command,0x0000);
+    DeviceWrite(reg_command,0x0121);
+    usleep(10000);
     DeviceWrite(reg_command,0x0000);
 
     //Set FrontendActive to True, then the read/control loop will keep active
@@ -326,6 +332,7 @@ INT frontend_exit()
   }else{
     //Send Trolley interface command to stop data taking
     DeviceWrite(reg_command,0x0000);
+    usleep(100000);//Wait for all commands are properly sent and executed
     DeviceWriteMask(reg_event_data_control,0x00000001,0x00000001);
 
     //Clear buffer
@@ -624,6 +631,7 @@ void ReadFromDevice(){
   //Monitor values from the data
   float PowerFactor;
   float Temperature1;
+  float TemperatureIn;
   float PressureTemperature;
   float Pressure;
   float Vmin1;
@@ -844,6 +852,7 @@ void ReadFromDevice(){
       memcpy(&(NMRCheckSum),&(FrameA[48]),sizeof(int));
       memcpy(&(ConfigCheckSum),&(FrameA[94]),sizeof(int));
       memcpy(&(FrameCheckSum),&(FrameA[96+NSamNMR+NSamBarcode+FrameA[13]*2+NFlashWords]),sizeof(int));
+
       for (short ii=0;ii<7;ii++){
 	PressureSensorCal[ii] = FrameA[23+ii];;
       }
@@ -868,7 +877,7 @@ void ReadFromDevice(){
       //Correction for 0x7FFF
       sum2+=0x7FFF;
       //////////////////////
-      for(int ii=64;ii<94;ii++){
+      for(int ii=64;ii<93;ii++){
 	sum3+=(unsigned int)FrameA[ii];
       }
       NMRCheckSumPassed = (sum1==NMRCheckSum);
@@ -887,7 +896,8 @@ void ReadFromDevice(){
       }else{
 	PowerFactor = 0;
       }
-      Temperature1 = TrlyMonitorDataUnit->TMonitorExt1;
+      TemperatureIn = TrlyMonitorDataUnit->TMonitorIn/128.0;
+      Temperature1 = TrlyMonitorDataUnit->TMonitorExt1/128.0;
       PressureTemperature = TrlyMonitorDataUnit->PMonitorTemp;
       Pressure = TrlyMonitorDataUnit->PMonitorVal;
       Vmin1 = TrlyMonitorDataUnit->V1Min;
@@ -904,7 +914,8 @@ void ReadFromDevice(){
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Config Check Sum",&ConfigCheckSumPassed,sizeof(ConfigCheckSumPassed), 1 ,TID_BOOL);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Frame Check Sum",&FrameCheckSumPassed,sizeof(FrameCheckSumPassed), 1 ,TID_BOOL);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Power Factor",&PowerFactor,sizeof(PowerFactor),1,TID_FLOAT);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Temperature 1",&Temperature1,sizeof(Temperature1),1,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Temperature In",&TemperatureIn,sizeof(TemperatureIn),1,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Temperature Ext1",&Temperature1,sizeof(Temperature1),1,TID_FLOAT);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Pressure Temperature",&PressureTemperature,sizeof(PressureTemperature),1,TID_FLOAT);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Pressure",&Pressure,sizeof(Pressure),1,TID_FLOAT);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Vmin 1",&Vmin1,sizeof(Vmin1),1,TID_FLOAT);
@@ -919,7 +930,7 @@ void ReadFromDevice(){
       if(!PowersupplyStatus[2] && (PowersupplyStatusOld[2]) || i==0)cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Power supply error 3. At iteration %d",i);
 //      if(!NMRCheckSumPassed && (NMRCheckSumPassedOld || i==0))cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: NMR check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,NMRCheckSum,NMRCheckSum-sum1);
 //      if(!FrameCheckSumPassed && (FrameCheckSumPassedOld || i==0))cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Frame check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,FrameCheckSum,FrameCheckSum-sum2);
- /*     if(!NMRCheckSumPassed )cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: NMR check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,NMRCheckSum,NMRCheckSum-sum1);
+      /*if(!NMRCheckSumPassed )cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: NMR check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,NMRCheckSum,NMRCheckSum-sum1);
       if(!ConfigCheckSumPassed )cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Config check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,ConfigCheckSum,ConfigCheckSum-sum3);
       if(!FrameCheckSumPassed )cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Frame check sum failed. At iteration %d. Sum expected = %d. Diff %d",i,FrameCheckSum,FrameCheckSum-sum2);
       */
@@ -966,9 +977,9 @@ void ControlDevice(){
   INT Trigger = 0;
   INT Executing = 0;
 
-  //Startup Mode: Sleep
-  CurrentMode = string("Sleep");
-  DeviceWrite(reg_command,0x0000);
+  //Startup Mode: Idle, and reading out barcode
+  CurrentMode = string("Idle");
+  DeviceWrite(reg_command,0x0021);
   //Clear FIFO
   DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000001);
   DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000000);
@@ -1314,23 +1325,23 @@ void UpdateGeneralOdbSettings()
   DeviceRead(reg_free_event_memory,(unsigned int *)(& Buffer_Load));
 
   //Load values back to odb
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Interface Comm Stop",&Interface_Comm_Stop,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Trolley Comm Start",&Trolley_Comm_Start,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Trolley Comm Data Start",&Trolley_Comm_Data_Start,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Trolley Comm Stop",&Trolley_Comm_Stop,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Switch To RF",&Switch_To_RF,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Power ON",&Power_ON,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/RF Enable",&RF_Enable,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Switch To Comm",&Switch_To_Comm,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Interface Comm Start",&Interface_Comm_Start,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Cycle Length",&Cycle_Length,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/RF Prescale",&RF_Prescale,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Switch RF Offset",&Switch_RF_Offset,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Cycle/Switch Comm Offset",&Switch_Comm_Offset,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Interface Comm Stop",&Interface_Comm_Stop,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Trolley Comm Start",&Trolley_Comm_Start,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Trolley Comm Data Start",&Trolley_Comm_Data_Start,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Trolley Comm Stop",&Trolley_Comm_Stop,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Switch To RF",&Switch_To_RF,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Power ON",&Power_ON,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/RF Enable",&RF_Enable,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Switch To Comm",&Switch_To_Comm,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Interface Comm Start",&Interface_Comm_Start,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Cycle Length",&Cycle_Length,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/RF Prescale",&RF_Prescale,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Switch RF Offset",&Switch_RF_Offset,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Switch Comm Offset",&Switch_Comm_Offset,size_INT, 1,TID_INT);
 
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Barcode/LED Voltage",&BC_LED_Voltage,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Barcode/Sample Period",&BC_Sample_Period,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Barcode/Acq Delay",&BC_Acq_Delay,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Barcode/LED Voltage",&BC_LED_Voltage,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Barcode/Sample Period",&BC_Sample_Period,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Barcode/Acq Delay",&BC_Acq_Delay,size_INT, 1,TID_INT);
 
   db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Interface Buffer Load",&Buffer_Load,size_INT, 1,TID_INT);
 }
