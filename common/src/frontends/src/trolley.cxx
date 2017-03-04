@@ -1454,14 +1454,15 @@ int LoadProbeSettings()
       DeviceLoadNMRSetting(NMR_Setting);
       ConfigCount++;
     }
-  }else if (Source.compare("Script")){
+  }else if (Source.compare("Script")==0){
     ifstream ScriptInput;
     ScriptInput.open(ScriptFileName.c_str(),ios::in);
+    cm_msg(MINFO,"LoadProbeSettings","Load Probe Script: %s",ScriptFileName.c_str());
     string RegistryName;
     while(1){
       //Make sure the order is correct!
       //To do : Make sure the loop end at the right position.
-      ScriptInput>>RegistryName>>std::hex>>NMR_Setting.NMR_Command;
+      ScriptInput>>RegistryName>>std::hex>>NMR_Setting.NMR_Command>>std::dec;
       if (RegistryName.compare("NMR_Command")!=0)return -1;
       if (ScriptInput.eof())break;
       ScriptInput>>RegistryName>>NMR_Setting.NMR_Preamp_Delay;
@@ -1488,6 +1489,10 @@ int LoadProbeSettings()
       ScriptInput>>RegistryName>>NMR_Setting.User_Defined_Data;
       if (RegistryName.compare("User_Defined_Data")!=0)return -1;
       if (ScriptInput.eof())break;
+      if (DebugLevel>0){
+	cm_msg(MINFO,"LoadProbeSettings","NMR_Command: %x",NMR_Setting.NMR_Command);
+	cm_msg(MINFO,"LoadProbeSettings","NMR_TX_Period: %d",NMR_Setting.NMR_TX_Period);
+      }
       //Write to FIFO
       DeviceLoadNMRSetting(NMR_Setting);
       ConfigCount++;

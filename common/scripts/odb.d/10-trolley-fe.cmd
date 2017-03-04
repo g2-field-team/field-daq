@@ -50,8 +50,8 @@ mkdir "Sg382"
 cd "/Equipment/TrolleyInterface/Settings/Sg382"
 create DOUBLE "RF Frequency"
 create DOUBLE "RF Amplitude"
-set "RF Frequency" 61.766
-set "RF Amplitude" 6.1
+set "RF Frequency" 61.666
+set "RF Amplitude" 13.1
 
 cd "/Equipment/TrolleyInterface/Settings"
 mkdir "Trolley Power"
