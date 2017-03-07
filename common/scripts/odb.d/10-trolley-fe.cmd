@@ -46,14 +46,6 @@ create STRING "Data Source[1][256]"
 set "Data Source" "/home/newg2/Applications/field-daq/resources/NMRDataTemp/data-2017-02-28_20-08-11.dat"
 
 cd "/Equipment/TrolleyInterface/Settings"
-mkdir "Sg382"
-cd "/Equipment/TrolleyInterface/Settings/Sg382"
-create DOUBLE "RF Frequency"
-create DOUBLE "RF Amplitude"
-set "RF Frequency" 61.666
-set "RF Amplitude" 13.8
-
-cd "/Equipment/TrolleyInterface/Settings"
 mkdir "Trolley Power"
 cd "/Equipment/TrolleyInterface/Settings/Trolley Power"
 create INT "Voltage"
