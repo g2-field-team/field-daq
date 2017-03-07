@@ -51,13 +51,13 @@ cd "/Equipment/TrolleyInterface/Settings/Sg382"
 create DOUBLE "RF Frequency"
 create DOUBLE "RF Amplitude"
 set "RF Frequency" 61.666
-set "RF Amplitude" 13.1
+set "RF Amplitude" 13.8
 
 cd "/Equipment/TrolleyInterface/Settings"
 mkdir "Trolley Power"
 cd "/Equipment/TrolleyInterface/Settings/Trolley Power"
 create INT "Voltage"
-set "Voltage" 156
+set "Voltage" 174
 
 cd "/Equipment/TrolleyInterface/Settings"
 mkdir "Run Config"
@@ -108,8 +108,8 @@ create INT "RF Prescale"
 create INT "Switch RF Offset"
 create INT "Switch Comm Offset"
 
-set "Interface Comm Stop" 22 
-set "Trolley Comm Start" 100
+set "Interface Comm Stop" 40
+set "Trolley Comm Start" 200
 set "Trolley Comm Data Start" 1200
 set "Trolley Comm Stop" 13150 
 set "Switch To RF" 13250
@@ -152,7 +152,7 @@ set "ADC Gate Delay" 0
 set "ADC Gate Offset" 0
 set "ADC Gate Period" 15000
 set "TX Delay" 300
-set "TX Period" 310
+set "TX Period" 450
 set "User Data" 8606
 cd "/Equipment/TrolleyInterface/Settings/Probe"
 cp "Probe0" "Probe1"
