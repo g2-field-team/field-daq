@@ -80,7 +80,7 @@ extern "C" {
   EQUIPMENT equipment[] =
     {
       {FRONTEND_NAME,  // equipment name
-       { EVENTID_FIXED_PROBES, 0x01,        // event ID, trigger mask
+       { EVENTID_FIXED_PROBES, 0x0,        // event ID, trigger mask
          "SYSTEM",      // event buffer (use to be SYSTEM)
          EQ_PERIODIC,   // equipment type
          0,             // not used
