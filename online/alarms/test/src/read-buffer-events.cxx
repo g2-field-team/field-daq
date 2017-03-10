@@ -2,6 +2,13 @@
 #include <unistd.h>
 #include "midas.h"
 
+void handle_event(HNDLE hbuf, HNDLE hreq, EVENT_HEADER *pheader, void *pevt);
+
+void handle_event(HNDLE hbuf, HNDLE hreq, EVENT_HEADER *pheader, void *pevt)
+{
+  printf("Recieved event #%i\n", pheader->serial_number);
+}
+
 int main(int argc, char *argv[])
 {
   printf("allocations\n");
@@ -11,7 +18,7 @@ int main(int argc, char *argv[])
   size = sizeof(data);
 
   // Connect to the running experiment
-  cm_connect_experiment("g2-field-test", "g2-field", "Test", NULL);
+  cm_connect_experiment("localhost:1175", "g2-field", "Test", NULL);
   printf("connected\n");
 
   rc = bm_open_buffer("SYSTEM", 0x4000000, &buf);
@@ -22,10 +29,11 @@ int main(int argc, char *argv[])
 
     usleep(5e5);
 
-    rc = bm_request_event(buf, 0x1, 0x0, GET_NONBLOCKING, &req_id, NULL);
+    rc = bm_request_event(buf, -1, -1, GET_NONBLOCKING, &req_id, handle_event);
     printf("bm_request_event rc, id = %i, %i\n", rc, req_id);
 
-    if (rc == BM_SUCCESS) {
+    if (false) {
+      //    if (rc == BM_SUCCESS) {
 
       size = sizeof(data);
       rc = bm_receive_event(buf, data, &size, BM_NO_WAIT);
