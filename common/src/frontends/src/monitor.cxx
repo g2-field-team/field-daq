@@ -4,8 +4,8 @@ Name:   monitor.cxx
 Author: Matthias W. Smith
 Email:  mwsmith2@uw.edu
 
-About:  A frontend that triggers alarms and ships all experimental flags
-        as a single MIDAS event for processing later down the pipeline.
+About:  A frontend that ships all experimental flags and alarms as
+        MIDAS events for processing later down the pipeline (DQM).
         
 \*****************************************************************************/
 
@@ -29,7 +29,8 @@ using std::string;
 
 // Define front-end and bank names
 #define FRONTEND_NAME "Monitor" // Prefer capitalize with spaces
-const char * const bank_name = "FLAG"; // 4 letters, try to make sensible
+const char * const flag_bank_name = "FLAG"; // 4 letters, try to make sensible
+const char * const alarm_bank_name = "ALRM";
 
 extern "C" {
   
@@ -63,7 +64,7 @@ extern "C" {
   INT resume_run(INT run_number, char *error);
 
   INT frontend_loop();
-  INT read_expt_flags(char *pevent, INT off);
+  INT read_expt_info(char *pevent, INT off);
   INT poll_event(INT source, INT count, BOOL test);
   INT interrupt_configure(INT cmd, INT source, PTYPE adr);
 
@@ -85,7 +86,7 @@ extern "C" {
          0,             // don't log history 
          "", "", "",
        },
-       read_expt_flags,      // readout routine 
+       read_expt_info,      // readout routine 
        NULL,
        NULL,
        NULL, 
@@ -96,11 +97,6 @@ extern "C" {
 
 } //extern C
 
-// Put necessary globals in an anonomous namespace here.
-namespace {
-boost::property_tree::ptree conf;
-boost::property_tree::ptree global_conf;
-} 
 
 //--- Frontend Init ---------------------------------------------------------//
 INT frontend_init() 
@@ -192,17 +188,15 @@ INT interrupt_configure(INT cmd, INT source, PTYPE adr)
 
 //--- Event readout -------------------------------------------------*/
 
-INT read_expt_flags(char *pevent, INT off)
+INT read_expt_info(char *pevent, INT off)
 {
   // Allocate a pointer to attached to MIDAS's internal buffer.
   BYTE *pdata;
   boost::property_tree::ptree pt;
+  boost::property_tree::ptree flags;
 
   // And initialize MIDAS output.
   bk_init32(pevent);
-
-  // Let MIDAS allocate the struct.
-  bk_create(pevent, bank_name, TID_BYTE, (void **)&pdata);
 
   // Load all flags to monitor (probably sequester out later).
   HNDLE hDB, hkey;
@@ -217,12 +211,40 @@ INT read_expt_flags(char *pevent, INT off)
   // Get the experiment database handle.
   cm_get_experiment_database(&hDB, NULL);
 
+
+  // Now load the Alarm flags.
+  bk_create(pevent, alarm_bank_name, TID_BYTE, (void **)&pdata);
+
+  snprintf(str, 256, "/Alarms/Alarms");
+  db_find_key(hDB, 0, str, &hkey);
+
+  if (hkey) {
+    db_copy_json_values(hDB, hkey, &json_buf, &size, &bytes_written, 1, 1, 1);
+
+  } else {
+
+    cm_msg(MERROR, frontend_name, "No /Alarms/Alarms subtree in ODB");
+    return FE_ERR_ODB;
+  }
+
+  // Copy to the data buffer.
+  memcpy(pdata, json_buf, size);
+  pdata += size;
+
+  // Clear buffer and variables
+  memset(&json_buf[0], 0, sizeof(json_buf));
+  bytes_written = 0;
+  size = 0;
+
+  // Now load the Monitor flags.
+  bk_create(pevent, flag_bank_name, TID_BYTE, (void **)&pdata);
+
   snprintf(str, 256, "/Shared/Monitor");
   db_find_key(hDB, 0, str, &hkey);
 
   if (hkey) {
     db_copy_json_values(hDB, hkey, &json_buf, &size, &bytes_written, 1, 0, 1);
-
+  
   } else {
 
     cm_msg(MERROR, frontend_name, "No flag monitor subtree in ODB");
@@ -235,9 +257,6 @@ INT read_expt_flags(char *pevent, INT off)
   ss.str("");
 
   // Map elements to a new ptree.
-  boost::property_tree::ptree flags;
-
-  // Take care of general case first.
   for (auto &flag: pt) {
     boost::property_tree::ptree temp;
 
@@ -254,6 +273,12 @@ INT read_expt_flags(char *pevent, INT off)
   
   memcpy(pdata, ss.str().c_str(), ss.str().size());
   pdata += ss.str().size();
+
+  // Clear memory and variables.
+  memset(&json_buf[0], 0, sizeof(json_buf));
+  ss.str("");
+  bytes_written = 0;
+  size = 0;
 
   // Need to increment pointer and close.
   bk_close(pevent, pdata);
