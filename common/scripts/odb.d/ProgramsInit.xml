@@ -136,4 +136,15 @@
     <key name="Alarm class" type="STRING" size="32"></key>
     <key name="First failed" type="DWORD">1484611427</key>
   </dir>
+  <dir name="Yokogawa">
+    <key name="Required" type="BOOL">y</key>
+    <key name="Watchdog timeout" type="INT">60000</key>
+    <key name="Check interval" type="DWORD">180000</key>
+    <key name="Start command" type="STRING" size="256">yokogawa</key>
+    <key name="Auto start" type="BOOL">n</key>
+    <key name="Auto stop" type="BOOL">n</key>
+    <key name="Auto restart" type="BOOL">n</key>
+    <key name="Alarm class" type="STRING" size="32"></key>
+    <key name="First failed" type="DWORD">1484608740</key>
+  </dir>
 </odb>
