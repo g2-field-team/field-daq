@@ -754,6 +754,8 @@ INT read_HeLevel_event(char *pevent, INT off)
   if (HeLevel == prevHe) {
     alarm++;
     cout<<"Alarm is at: "<<alarm<<endl;
+  } else {
+    alarm = 0;
   }
 
 
