@@ -12,25 +12,125 @@ function update()  {
     updateTimerId = setTimeout('update()', updatePeriod);
 }
 function load()   {
-  mjsonrpc_db_get_values(["/Equipment/CompressorChiller/Variables/sta1","/Equipment/CompressorChiller/Variables/CompressorErrors","/Equipment/CompressorChiller/Variables/sta3","/Equipment/CompressorChiller/Variables/Temp","/Equipment/CompressorChiller/Variables/Pres","/Equipment/CompressorChiller/Variables/Flow","/Equipment/HeLevel/Variables/HeLe"]).then(function(rpc) {
+  mjsonrpc_db_get_values(["/Equipment/CompressorChiller/Variables/sta1","/Equipment/CompressorChiller/Variables/Errs","/Equipment/CompressorChiller/Variables/sta3","/Equipment/CompressorChiller/Variables/Temp","/Equipment/CompressorChiller/Variables/Pres","/Equipment/CompressorChiller/Variables/Flow","/Equipment/HeLevel/Variables/HeLe","/Equipment/CompressorChiller/Variables/Hour","/Equipment/HeLevel/Variables/ShTe","/Equipment/MagnetCoils/Variables/CoiX","/Equipment/MagnetCoils/Variables/CoiY","/Equipment/MagnetCoils/Variables/CoiZ"]).then(function(rpc) {
       var CoS = String(rpc.result.data[0]);
-      document.getElementById("CoS").innerHTML = CoS;
-      var CoE = String(rpc.result.data[1]);
-      document.getElementById("CoE").innerHTML = CoE;
+      if(CoS == "0x0001") {var sta = "On";}
+      else if(CoS == "0x0000"){var sta = "Off";}
+      else {var sta = "Err";}
+      document.getElementById("CoS").innerHTML = sta;
+      document.getElementById("CoE").innerHTML = writeErrString(rpc.result.data[1]);
       var ChS = String(rpc.result.data[2]);
-      document.getElementById("ChS").innerHTML = ChS;
-      var ChT = String(rpc.result.data[3]);
+      if(ChS == "0x0001") {var sta = "On";}
+      else if(ChS == "0x0000"){var sta = "Off";}
+      else {var sta = "Err";}
+      document.getElementById("ChS").innerHTML = sta;
+      var ChT = String(Math.round(rpc.result.data[3]*10)/10);
       document.getElementById("ChT").innerHTML = ChT;
-      var ChP = String(rpc.result.data[4]);
+      var ChP = String(Math.round(rpc.result.data[4]*10)/10);
       document.getElementById("ChP").innerHTML = ChP;
-      var ChF = String(rpc.result.data[5]);
+      var ChF = String(Math.round(rpc.result.data[5]*10)/10);
       document.getElementById("ChF").innerHTML = ChF;
-      var HeL = String(rpc.result.data[6]);
+      var HeL = String(Math.round(rpc.result.data[6]*10)/10);
       document.getElementById("HeL").innerHTML = HeL;
+      var CoH = String(rpc.result.data[7]);
+      document.getElementById("CoH").innerHTML = CoH;
+      var ShT = String(rpc.result.data[8]);
+      document.getElementById("ShT").innerHTML = ShT;
+      var CoX = String(Math.round(rpc.result.data[9]*1000)/1000);
+      document.getElementById("CoX").innerHTML = CoX;
+      var CoY = String(Math.round(rpc.result.data[10]*1000)/1000);
+      document.getElementById("CoY").innerHTML = CoY;
+      var CoZ = String(Math.round(rpc.result.data[11]*1000)/1000);
+      document.getElementById("CoZ").innerHTML = CoZ;
       }).catch(function(error) {
-	mjsonrpc_error_alert(error);
+        mjsonrpc_error_alert(error);
 	});
 } 
+
+function writeErrString(errArray){
+  CompressorErrorMessage = "Errors: ";
+
+  if (errArray[0] == 1) {
+    CompressorErrorMessage += "SYSTEM ERROR, ";
+  }
+  if (errArray[1] == 1) {
+    CompressorErrorMessage += "Compressor fail, ";
+  }
+  if (errArray[2] == 1) {
+    CompressorErrorMessage += "Locked rotor, ";
+  }
+  if (errArray[3] == 1) {
+    CompressorErrorMessage += "OVERLOAD, ";
+  }
+  if (errArray[4] == 1) {
+    CompressorErrorMessage += "Phase/fuse ERROR, ";
+  }
+  if (errArray[5] == 1) {
+    CompressorErrorMessage += "Pressure alarm, ";
+  }
+  if (errArray[6] == 1) {
+    CompressorErrorMessage += "Helium temp. fail, ";
+  }
+  if (errArray[7] == 1) {
+    CompressorErrorMessage += "Oil circuit fail, ";
+  }
+  if (errArray[8] == 1) {
+    CompressorErrorMessage += "RAM ERROR, ";
+  }
+  if (errArray[9] == 1) {
+    CompressorErrorMessage += "ROM ERROR, ";
+  }
+  if (errArray[10] == 1) {
+    CompressorErrorMessage += "EEPROM ERROR, ";
+  }
+  if (errArray[11] == 1) {
+    CompressorErrorMessage += "DC Voltage error, ";
+  }
+  if (errArray[12] == 1) {
+    CompressorErrorMessage += "MAINS LEVEL !!!!, ";
+  }
+ 
+  if (CompressorErrorMessage == "Errors: "){
+    CompressorErrorMessage += "None"
+  } else {
+    CompressorErrorMessage = CompressorErrorMessage.substr(0,CompressorErrorMessage.length-2);
+  }
+
+  return CompressorErrorMessage;
+}
+
+function SetCurrents(x,y,z){
+  x = 1000*x;
+  y = 1000*y;
+  z = 1000*z;
+  updateval = 1;
+ 
+  mjsonrpc_db_get_values(["/Equipment/MagnetCoils/Settings/update"]).then(function(rpc) {
+    updateval = rpc.result.data[0]; 
+ 
+    if (x > 10000 || x < -10000 || y > 10000 || y < -10000 || z > 10000 || z < -10000){
+      alert("Please enter valid current values (-10A to 10A)");
+    } else if(updateval == 1){
+      alert("Please wait until last command completes");
+    } else {
+      mjsonrpc_db_paste(["/Equipment/MagnetCoils/Settings/update"],[1]).then(function(rpc){;}).catch(function(error) {
+        mjsonrpc_error_alert(error);
+      });
+      mjsonrpc_db_paste(["/Equipment/MagnetCoils/Settings/setX"],[x]).then(function(rpc){;}).catch(function(error) {
+        mjsonrpc_error_alert(error);
+      });
+      mjsonrpc_db_paste(["/Equipment/MagnetCoils/Settings/setY"],[y]).then(function(rpc){;}).catch(function(error) {
+        mjsonrpc_error_alert(error);
+      });
+      mjsonrpc_db_paste(["/Equipment/MagnetCoils/Settings/setZ"],[z]).then(function(rpc){;}).catch(function(error) {
+        mjsonrpc_error_alert(error);
+      });
+    }
+  }).catch(function(error) {
+    mjsonrpc_error_alert(error);
+  });
+
+}
 
 function CompressorOn(){
   if (document.getElementById("OnOff").checked) {

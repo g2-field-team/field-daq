@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Change to the directory of the script.
-# cd $(dirname $(readlink -f $0))
+cd $(dirname $(readlink -f $0))
 
 # Get ODB values for all important values 
 #Compressor
@@ -28,7 +28,14 @@ chil_flowv=`echo $chil_flow | awk '{print $2}'`
 HeLevel=`odbedit -c 'ls "/Equipment/HeLevel/Variables/HeLe"'`
 HeLevelv=`echo $HeLevel | awk '{print $2}'`
 
-./send_Msg.sh "Compressor Data\n====================================\n$comp_sta1\n$comp_hour\n\nChiller Data\n====================================\n$chil_sta3\n$chil_temp\n$chil_pres\n$chil_flow\n\nPort 2 Data\n====================================\n$HeLevel"
+Shield_temp=`odbedit -c 'ls "/Equipment/HeLevel/Variables/ShTe"'`
+Shield_tempv=`echo $Shield_temp | awk '{print $2}'`
+
+input="emaillist.txt"
+while IFS= read -r var
+do
+  echo -e "Compressor Data\n====================================\n$comp_sta1\n$comp_hour\n\nChiller Data\n====================================\n$chil_sta3\n$chil_temp\n$chil_pres\n$chil_flow\n\nPort 2 Data\n====================================\n$HeLevel\n$Shield_temp" | mail -s "Daily Digest" "$var"
+done <"$input"
 
 #Reset Alarm
 odbedit -c 'set "/Alarms/Alarms/Daily Digest/Triggered" 0'

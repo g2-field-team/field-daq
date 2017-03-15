@@ -10,12 +10,12 @@ set "Stop run" n
 set "Display BGColor" green
 set "Display FGColor" yellow
 set "Execute Command" "/home/newg2/Applications/field-daq/online/alarms/daily_digest.sh"
-set "Execute Interval" 86400
+set "Execute Interval" 3600
 
 cd "/Alarms/Alarms"
 cp "Demo periodic" "Daily Digest"
 cd "Daily Digest"
-set "Active" y
+set "Active" n
 set "Check interval" 86400
 set "Alarm Class" "DigestMsg"
 set "Alarm Message" "Sending Daily Digest."

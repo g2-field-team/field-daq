@@ -7,7 +7,7 @@ set "System message interval" 0
 set "Stop run" n
 set "Display BGColor" red
 set "Execute Command" "/home/newg2/Applications/field-daq/online/alarms/send_Msg.sh '%s'"
-set "Execute Interval" 0
+set "Execute Interval" 36000
 
 cd "/Alarms/Alarms"
 cp "Demo ODB" "Compressor Status"
@@ -50,7 +50,7 @@ cp "Demo ODB" "Helium Status"
 cd "Helium Status"
 set "Active" n
 set "Check interval" 60
-set "Condition" "/Equipment/HeLevel/Variables/HeLe > 101"
+set "Condition" "/Equipment/HeLevel/Settings/Alarm > 50"
 set "Alarm Class" "AlarmMsg"
 set "Alarm Message" "Helium level is off or not read properly."
 
