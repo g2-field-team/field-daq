@@ -114,6 +114,7 @@ int event_number = 0;
 bool write_root = false;
 bool save_full_waveforms = false;
 bool write_midas = true;
+bool simulation_mode = false;
 bool use_stepper = true;
 bool ino_stepper_type = false;
 
@@ -138,6 +139,7 @@ const char *const mbank_name = (char *)"FXPR";
 void trigger_loop();
 void set_json_tmpfiles();
 int load_device_classes();
+int simulate_fixed_probe_event();
 
 void set_json_tmpfiles()
 {
@@ -153,13 +155,13 @@ void set_json_tmpfiles()
   conf_file = std::string(tmp_file);
 
   // Copy the json, and set to the temp file.
-  pt = conf.get_child("devices.sis_3302");
-  boost::property_tree::write_json(conf_file, pt.get_child("sis_3302_0"));
+  pt = conf.get_child("devices.sis_3316");
+  boost::property_tree::write_json(conf_file, pt.get_child("sis_3316_0"));
   pt.clear();
-  pt.put("sis_3302_0", conf_file);
+  pt.put("sis_3316_0", conf_file);
 
-  conf.get_child("devices.sis_3302").erase("sis_3302_0");
-  conf.put_child("devices.sis_3302", pt);
+  conf.get_child("devices.sis_3316").erase("sis_3316_0");
+  conf.put_child("devices.sis_3316", pt);
 
   // Copy the trigger sequence file.
   snprintf(tmp_file, 128, "/tmp/g2-nmr-config_XXXXXX.json");
@@ -360,6 +362,7 @@ INT begin_of_run(INT run_number, char *error)
 
   // HW part
   event_rate_limit = conf.get<double>("event_rate_limit");
+  simulation_mode = conf.get<bool>("simulation_mode");
 
   event_number = 0;
   run_in_progress = true;
@@ -494,109 +497,118 @@ INT read_fixed_probe_event(char *pevent, INT off)
     triggered = true;
   }
 
-  if (triggered && !event_manager->HasEvent()) {
+  // Read data or fill a simulated event.
+  if (triggered && simulation_mode) {
+
+    simulate_fixed_probe_event();
+    triggered = false;
+
+  } else if (triggered && !event_manager->HasEvent()) {
+    
+    // No event yet.
     return 0;
 
   } else {
 
-    cm_msg(MDEBUG, "read_fixed_event", "got data");
-  }
+    cm_msg(MDEBUG, "read_fixed_event", "got real data event");
 
-  auto shim_data = event_manager->GetCurrentEvent();
+    auto shim_data = event_manager->GetCurrentEvent();
 
+    if ((shim_data.sys_clock[0] == 0) && 
+	(shim_data.sys_clock[nprobes-1] == 0)) {
 
-  if ((shim_data.sys_clock[0] == 0) && (shim_data.sys_clock[nprobes-1] == 0)) {
-    event_manager->PopCurrentEvent();
-    triggered = false;
-    return 0;
-  }
-
-  // Set the time vector.
-  if (tm.size() == 0) {
-
-    tm.resize(g2field::kNmrFidLengthRecord);
-    wf.resize(g2field::kNmrFidLengthRecord);
-
-    for (int n = 0; n < g2field::kNmrFidLengthRecord; ++n) {
-      tm[n] = 0.001 * n;
-    }
-  }
-
-  data_mutex.lock();
-
-  for (int idx = 0; idx < nprobes; ++idx) {
-
-    for (int n = 0; n < g2field::kNmrFidLengthRecord; ++n) {
-      wf[n] = shim_data.trace[idx][n*10 + 1]; // Offset avoid spikes in sis3302
-      data.trace[idx][n] = wf[n];
+      event_manager->PopCurrentEvent();
+      triggered = false;
+      return 0;
     }
 
-    fid::Fid myfid(wf, tm);
-
-    // Make sure we got an FID signal
-    if (myfid.isgood()) {
-
-      data.freq[idx] = myfid.CalcPhaseFreq();
-      data.ferr[idx] = myfid.freq_err();
-      data.snr[idx] = myfid.snr();
-      data.len[idx] = myfid.fid_time();
-
-    } else {
-
-      myfid.DiagnosticInfo();
-      data.freq[idx] = -1.0;
-      data.ferr[idx] = -1.0;
-      data.snr[idx] = -1.0;
-      data.len[idx] = -1.0;
+    // Set the time vector.
+    if (tm.size() == 0) {
+      
+      tm.resize(g2field::kNmrFidLengthRecord);
+      wf.resize(g2field::kNmrFidLengthRecord);
+      
+      for (int n = 0; n < g2field::kNmrFidLengthRecord; ++n) {
+	tm[n] = 0.001 * n;
+      }
     }
+
+    data_mutex.lock();
+    
+    for (int idx = 0; idx < nprobes; ++idx) {
+    
+      for (int n = 0; n < g2field::kNmrFidLengthRecord; ++n) {
+	wf[n] = shim_data.trace[idx][n*10 + 1]; // Offset avoids wfd spikes
+	data.trace[idx][n] = wf[n];
+      }
+
+      fid::Fid myfid(wf, tm);
+      
+      // Make sure we got an FID signal
+      if (myfid.isgood()) {
+	
+	data.freq[idx] = myfid.CalcPhaseFreq();
+	data.ferr[idx] = myfid.freq_err();
+	data.snr[idx] = myfid.snr();
+	data.len[idx] = myfid.fid_time();
+	
+      } else {
+	
+	myfid.DiagnosticInfo();
+	data.freq[idx] = -1.0;
+	data.ferr[idx] = -1.0;
+	data.snr[idx] = -1.0;
+	data.len[idx] = -1.0;
+      }
+    }
+
+    cm_msg(MINFO, frontend_name, "copying the data from event");
+    std::copy(shim_data.sys_clock.begin(),
+	      shim_data.sys_clock.begin() + nprobes,
+	      &data.sys_clock[0]);
+    
+    std::copy(shim_data.gps_clock.begin(),
+	      shim_data.gps_clock.begin() + nprobes,
+	      &data.gps_clock[0]);
+    
+    std::copy(shim_data.dev_clock.begin(),
+	      shim_data.dev_clock.begin() + nprobes,
+	      &data.dev_clock[0]);
+    
+    std::copy(shim_data.snr.begin(),
+	      shim_data.snr.begin() + nprobes,
+	      &data.snr[0]);
+    
+    std::copy(shim_data.len.begin(),
+	      shim_data.len.begin() + nprobes,
+	      &data.len[0]);
+    
+    std::copy(shim_data.freq.begin(),
+	      shim_data.freq.begin() + nprobes,
+	      &data.freq[0]);
+    
+    std::copy(shim_data.ferr.begin(),
+	      shim_data.ferr.begin() + nprobes,
+	      &data.ferr[0]);
+    
+    std::copy(shim_data.freq_zc.begin(),
+	      shim_data.freq_zc.begin() + nprobes,
+	      &data.freq_zc[0]);
+    
+    std::copy(shim_data.ferr_zc.begin(),
+	      shim_data.ferr_zc.begin() + nprobes,
+	      &data.ferr_zc[0]);
+    
+    std::copy(shim_data.method.begin(),
+	      shim_data.method.begin() + nprobes,
+	      &data.method[0]);
+    
+    std::copy(shim_data.health.begin(),
+	      shim_data.health.begin() + nprobes,
+	      &data.health[0]);
+    
+    data_mutex.unlock();
   }
-
-  cm_msg(MINFO, frontend_name, "copying the data from event");
-  std::copy(shim_data.sys_clock.begin(),
-            shim_data.sys_clock.begin() + nprobes,
-            &data.sys_clock[0]);
-
-  std::copy(shim_data.gps_clock.begin(),
-            shim_data.gps_clock.begin() + nprobes,
-            &data.gps_clock[0]);
-
-  std::copy(shim_data.dev_clock.begin(),
-            shim_data.dev_clock.begin() + nprobes,
-            &data.dev_clock[0]);
-
-  std::copy(shim_data.snr.begin(),
-            shim_data.snr.begin() + nprobes,
-            &data.snr[0]);
-
-  std::copy(shim_data.len.begin(),
-            shim_data.len.begin() + nprobes,
-            &data.len[0]);
-
-  std::copy(shim_data.freq.begin(),
-            shim_data.freq.begin() + nprobes,
-            &data.freq[0]);
-
-  std::copy(shim_data.ferr.begin(),
-            shim_data.ferr.begin() + nprobes,
-            &data.ferr[0]);
-
-  std::copy(shim_data.freq_zc.begin(),
-            shim_data.freq_zc.begin() + nprobes,
-            &data.freq_zc[0]);
-
-  std::copy(shim_data.ferr_zc.begin(),
-            shim_data.ferr_zc.begin() + nprobes,
-            &data.ferr_zc[0]);
-
-  std::copy(shim_data.method.begin(),
-            shim_data.method.begin() + nprobes,
-            &data.method[0]);
-
-  std::copy(shim_data.health.begin(),
-            shim_data.health.begin() + nprobes,
-            &data.health[0]);
-
-  data_mutex.unlock();
 
   if (write_root && run_in_progress) {
     cm_msg(MINFO, "read_fixed_event", "Filling TTree");
@@ -644,4 +656,69 @@ INT read_fixed_probe_event(char *pevent, INT off)
   triggered = false;
 
   return bk_size(pevent);
+}
+
+INT simulate_fixed_probe_event()
+{
+  // Allocate vectors for the FIDs
+  static std::vector<double> tm;
+  static std::vector<double> wf;
+  static fid::FidFactory ff;
+
+  cm_msg(MINFO, "read_fixed_event", "simulating data");
+
+  // Set the time vector.
+  if (tm.size() == 0) {
+
+    tm.resize(g2field::kNmrFidLengthRecord);
+    wf.resize(g2field::kNmrFidLengthRecord);
+
+    for (int n = 0; n < g2field::kNmrFidLengthRecord; ++n) {
+      tm[n] = 0.001 * n - 0.3;
+    }
+  }
+
+  data_mutex.lock();
+
+  for (int idx = 0; idx < nprobes; ++idx) {
+
+    ff.IdealFid(wf, tm);
+    fid::FastFid myfid(wf, tm);
+
+    std::copy(wf.begin(), wf.end(), &data.trace[idx][0]);
+
+    // Make sure we got an FID signal
+    if (myfid.isgood()) {
+
+      data.freq[idx] = ff.freq();
+      data.ferr[idx] = 0.0;
+
+      data.freq_zc[idx] = myfid.GetFreq();
+      data.ferr_zc[idx] = myfid.freq_err();
+
+      data.snr[idx] = myfid.snr();
+      data.len[idx] = myfid.fid_time();
+
+    } else {
+
+      myfid.DiagnosticInfo();
+      data.freq[idx] = -1.0;
+      data.ferr[idx] = -1.0;
+
+      data.freq_zc[idx] = -1.0;
+      data.ferr_zc[idx] = -1.0;
+
+      data.snr[idx] = -1.0;
+      data.len[idx] = -1.0;
+    }
+
+    data.sys_clock[idx] = hw::systime_us();
+    data.gps_clock[idx] = 0;
+    data.dev_clock[idx] = 0;
+  }
+
+  data_mutex.unlock();
+
+  // Pop the event now that we are done copying it.
+  cm_msg(MINFO, "read_fixed_event", "Finished simulating event");
 }
