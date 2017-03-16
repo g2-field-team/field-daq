@@ -738,7 +738,7 @@ void ReadFromDevice(){
       TrlyNMRDataUnit->probe_index = (0x1F & FrameA[11]);
       TrlyNMRDataUnit->length = FrameA[12];
       unsigned short NSamNMR = FrameA[12];
-   /*   if (NSamNMR>0){
+    /*  if (NSamNMR>0){
 	cm_msg(MINFO,"ReadFromDevice","Probe index %d",TrlyNMRDataUnit->probe_index);
 	cm_msg(MINFO,"ReadFromDevice","NMR Samples %d",NSamNMR);
 	cm_msg(MINFO,"ReadFromDevice","User Data %d",FrameA[92]);
@@ -894,18 +894,21 @@ void ReadFromDevice(){
 
       //Check if the front-end is active
       if (TrlyMonitorDataUnit->RFPower1!=0){
-	PowerFactor = TrlyMonitorDataUnit->RFPower2 / TrlyMonitorDataUnit->RFPower1;
+	PowerFactor = double(TrlyMonitorDataUnit->RFPower2) / double(TrlyMonitorDataUnit->RFPower1);
       }else{
 	PowerFactor = 0;
       }
+     // cm_msg(MERROR,"ReadFromDevice","RF1 = %d",FrameA[60]);
+     // cm_msg(MERROR,"ReadFromDevice","RF2 = %d",FrameA[62]);
+
       TemperatureIn = TrlyMonitorDataUnit->TMonitorIn/128.0;
       Temperature1 = TrlyMonitorDataUnit->TMonitorExt1/128.0;
       PressureTemperature = TrlyMonitorDataUnit->PMonitorTemp;
       Pressure = TrlyMonitorDataUnit->PMonitorVal;
-      Vmin1 = TrlyMonitorDataUnit->V1Min;
-      Vmax1 = TrlyMonitorDataUnit->V1Max;
-      Vmin2 = TrlyMonitorDataUnit->V2Min;
-      Vmax2 = TrlyMonitorDataUnit->V2Max;
+      Vmin1 = TrlyMonitorDataUnit->V1Min/65536.0*10;
+      Vmax1 = TrlyMonitorDataUnit->V1Max/65536.0*10;
+      Vmin2 = TrlyMonitorDataUnit->V2Min/65536.0*5;
+      Vmax2 = TrlyMonitorDataUnit->V2Max/65536.0*5;
 
       //Update odb error monitors and sending messages
       mlock.lock();

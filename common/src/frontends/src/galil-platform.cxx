@@ -207,7 +207,12 @@ INT frontend_init()
   INT DirectName_size = sizeof(DirectName);
   db_get_value(hDB,0,"/Equipment/GalilPlatform/Settings/Script Directory",DirectName,&DirectName_size,TID_STRING,0);
   string FullScriptName = string(DirectName)+string(ScriptName)+string(".dmc");
-  cm_msg(MINFO,"begin_of_run","Galil Script to load: %s",FullScriptName.c_str());
+  cm_msg(MINFO,"init","Galil Script to load: %s",FullScriptName.c_str());
+
+  //Flip the AllStop bit and then motions are allowed
+  GCmd(g, "CB 2");
+  sleep(1);
+  GCmd(g, "SB 2");
 
   GProgramDownload(g,"",0); //to erase prevoius programs
   //dump the buffer
