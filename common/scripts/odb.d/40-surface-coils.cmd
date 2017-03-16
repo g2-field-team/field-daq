@@ -10,191 +10,77 @@ cd
 mkdir "/Settings/Hardware/Surface Coils/crate_template"
 cd "/Settings/Hardware/Surface Coils/crate_template"
 
-mkdir "/Driver Board 1"
-cd "/Driver Board 1"
-mkdir "/Channel 1"
-cd "/Channel 1"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 2"
-cd "/Channel 2"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 3"
-cd "/Channel 3"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 4"
-cd "/Channel 4"
-create INT "Surface Coil Number"
+mkdir "Driver Board 1"
+cd "Driver Board 1"
+create STRING "Channel 1"
+create STRING "Channel 2"
+create STRING "Channel 3"
+create STRING "Channel 4"
 
 cd ..
-cd ..
-
-mkdir "/Driver Board 2"
-cd "/Driver Board 2"
-mkdir "/Channel 1"
-cd "/Channel 1"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 2"
-cd "/Channel 2"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 3"
-cd "/Channel 3"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 4"
-cd "/Channel 4"
-create INT "Surface Coil Number"
+mkdir "Driver Board 2"
+cd "Driver Board 2"
+create STRING "Channel 1"
+create STRING "Channel 2"
+create STRING "Channel 3"
+create STRING "Channel 4"
 
 cd ..
-cd ..
-
-mkdir "/Driver Board 3"
-cd "/Driver Board 3"
-mkdir "/Channel 1"
-cd "/Channel 1"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 2"
-cd "/Channel 2"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 3"
-cd "/Channel 3"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 4"
-cd "/Channel 4"
-create INT "Surface Coil Number"
+mkdir "Driver Board 3"
+cd "Driver Board 3"
+create STRING "Channel 1"
+create STRING "Channel 2"
+create STRING "Channel 3"
+create STRING "Channel 4"
 
 cd ..
-cd ..
-
-mkdir "/Driver Board 4"
-cd "/Driver Board 4"
-mkdir "/Channel 1"
-cd "/Channel 1"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 2"
-cd "/Channel 2"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 3"
-cd "/Channel 3"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 4"
-cd "/Channel 4"
-create INT "Surface Coil Number"
+mkdir "Driver Board 4"
+cd "Driver Board 4"
+create STRING "Channel 1"
+create STRING "Channel 2"
+create STRING "Channel 3"
+create STRING "Channel 4"
 
 cd ..
-cd ..
-
-mkdir "/Driver Board 5"
-cd "/Driver Board 5"
-mkdir "/Channel 1"
-cd "/Channel 1"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 2"
-cd "/Channel 2"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 3"
-cd "/Channel 3"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 4"
-cd "/Channel 4"
-create INT "Surface Coil Number"
+mkdir "Driver Board 5"
+cd "Driver Board 5"
+create STRING "Channel 1"
+create STRING "Channel 2"
+create STRING "Channel 3"
+create STRING "Channel 4"
 
 cd ..
-cd ..
-
-mkdir "/Driver Board 6"
-cd "/Driver Board 6"
-mkdir "/Channel 1"
-cd "/Channel 1"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 2"
-cd "/Channel 2"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 3"
-cd "/Channel 3"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 4"
-cd "/Channel 4"
-create INT "Surface Coil Number"
+mkdir "Driver Board 6"
+cd "Driver Board 6"
+create STRING "Channel 1"
+create STRING "Channel 2"
+create STRING "Channel 3"
+create STRING "Channel 4"
 
 cd ..
-cd ..
-
-mkdir "/Driver Board 7"
-cd "/Driver Board 7"
-mkdir "/Channel 1"
-cd "/Channel 1"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 2"
-cd "/Channel 2"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 3"
-cd "/Channel 3"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 4"
-cd "/Channel 4"
-create INT "Surface Coil Number"
+mkdir "Driver Board 7"
+cd "Driver Board 7"
+create STRING "Channel 1"
+create STRING "Channel 2"
+create STRING "Channel 3"
+create STRING "Channel 4"
 
 cd ..
-cd ..
-
-mkdir "/Driver Board 8"
-cd "/Driver Board 8"
-mkdir "/Channel 1"
-cd "/Channel 1"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 2"
-cd "/Channel 2"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 3"
-cd "/Channel 3"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 4"
-cd "/Channel 4"
-create INT "Surface Coil Number"
+mkdir "Driver Board 8"
+cd "Driver Board 8"
+create STRING "Channel 1"
+create STRING "Channel 2"
+create STRING "Channel 3"
+create STRING "Channel 4"
 
 cd ..
-cd ..
+mkdir "Driver Board 9"
+cd "Driver Board 9"
+create STRING "Channel 1"
+create STRING "Channel 2"
+create STRING "Channel 3"
+create STRING "Channel 4"
 
-mkdir "/Driver Board 9"
-cd "/Driver Board 9"
-mkdir "/Channel 1"
-cd "/Channel 1"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 2"
-cd "/Channel 2"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 3"
-cd "/Channel 3"
-create INT "Surface Coil Number"
-cd ..
-mkdir "/Channel 4"
-cd "/Channel 4"
-create INT "Surface Coil Number"
 
 cd
 cd "/Settings/Hardware/Surface Coils"
