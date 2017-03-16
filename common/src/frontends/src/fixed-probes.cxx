@@ -140,6 +140,7 @@ void trigger_loop();
 void set_json_tmpfiles();
 int load_device_classes();
 int simulate_fixed_probe_event();
+void update_feedback_params();
 
 void set_json_tmpfiles()
 {
@@ -608,6 +609,10 @@ INT read_fixed_probe_event(char *pevent, INT off)
 	      &data.health[0]);
     
     data_mutex.unlock();
+
+    // Pop the event now that we are done copying it.
+    cm_msg(MINFO, "read_fixed_event", "Copied event, popping from queue");
+    event_manager->PopCurrentEvent();
   }
 
   if (write_root && run_in_progress) {
@@ -649,8 +654,8 @@ INT read_fixed_probe_event(char *pevent, INT off)
   }
 
   // Pop the event now that we are done copying it.
-  cm_msg(MINFO, "read_fixed_event", "Finished with event, popping from queue");
-  event_manager->PopCurrentEvent();
+  cm_msg(MINFO, "read_fixed_event", "Updating PS Feedback variables");
+  update_feedback_params();
 
   // Let the front-end know we are ready for another trigger.
   triggered = false;
@@ -721,4 +726,79 @@ INT simulate_fixed_probe_event()
 
   // Pop the event now that we are done copying it.
   cm_msg(MINFO, "read_fixed_event", "Finished simulating event");
+}
+
+void update_feedback_params()
+{
+  // Necessary ODB parameters
+  HNDLE hDB, hkey;
+  char str[256], stub[256];
+  int size;
+  BOOL flag;
+  double freq[nprobes] = {0};
+  double ferr[nprobes] = {0};
+  double uniform_mean_freq = 0.0;
+  double weighted_mean_freq = 0.0;
+  
+  cm_get_experiment_database(&hDB, NULL);
+
+  // Check to see if the feedback subtree exists.
+  snprintf(stub, sizeof(stub), "/Shared/Variables/PS Feedback");
+  db_find_key(hDB, 0, stub, &hkey);
+
+  // Create all the keys if not.
+  if (!hkey) {
+
+    snprintf(str, sizeof(str), "%s/uniform_mean_nmr_freq", stub);
+    db_create_key(hDB, 0, str, TID_DOUBLE);
+
+    snprintf(str, sizeof(str), "%s/weighted_mean_nmr_freq", stub);
+    db_create_key(hDB, 0, str, TID_DOUBLE);
+
+    snprintf(str, sizeof(str), "%s/nmr_freq_array", stub);
+    db_create_key(hDB, 0, str, TID_DOUBLE);
+
+    db_set_value(hDB, 0, str, &freq, nprobes, 
+		 sizeof(freq), TID_DOUBLE);
+
+    snprintf(str, sizeof(str), "%s/nmr_ferr_array", stub);
+    db_create_key(hDB, 0, str, TID_DOUBLE);
+
+    db_set_value(hDB, 0, str, &ferr, nprobes,
+		 sizeof(ferr), TID_DOUBLE);
+  }
+
+  double w_sum = 0.0;
+  for (int i = 0; i < nprobes; ++i) {
+    freq[i] = data.freq[i];
+    ferr[i] = data.ferr[i];
+
+    uniform_mean_freq += freq[i];
+    weighted_mean_freq += freq[i] / (ferr[i] + 0.001);
+
+    w_sum += 1.0 / (ferr[i] + 0.001);
+  }
+
+  uniform_mean_freq /= nprobes;
+  weighted_mean_freq /= w_sum;
+
+  snprintf(str, sizeof(str), "%s/weighted_mean_nmr_freq", stub);
+  db_set_value(hDB, 0, str, 
+	       &weighted_mean_freq, 
+	       sizeof(weighted_mean_freq), 
+	       1, TID_DOUBLE);
+
+  snprintf(str, sizeof(str), "%s/uniform_mean_nmr_freq", stub);
+  db_set_value(hDB, 0, str, 
+	       &uniform_mean_freq, 
+	       sizeof(uniform_mean_freq), 
+	       1, TID_DOUBLE);
+
+  snprintf(str, sizeof(str), "%s/nmr_freq_array", stub);
+  db_set_value(hDB, 0, str, &freq, sizeof(freq), 
+	       nprobes, TID_DOUBLE);
+
+  snprintf(str, sizeof(str), "%s/nmr_ferr_array", stub);
+  db_set_value(hDB, 0, str, &ferr, sizeof(ferr), 
+	       nprobes, TID_DOUBLE);
 }
