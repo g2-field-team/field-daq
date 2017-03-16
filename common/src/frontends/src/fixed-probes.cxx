@@ -22,6 +22,7 @@ About:  Implements a MIDAS frontend that is aware of the
 #include <array>
 #include <cmath>
 #include <ctime>
+#include <random>
 using std::string;
 
 //--- other includes --------------------------------------------------------//
@@ -669,7 +670,9 @@ INT simulate_fixed_probe_event()
   static std::vector<double> tm;
   static std::vector<double> wf;
   static fid::FidFactory ff;
-
+  static std::default_random_engine gen(hw::systime_us()); 
+  static std::normal_distribution<double> norm(0.0, 0.1);
+  
   cm_msg(MINFO, "read_fixed_event", "simulating data");
 
   // Set the time vector.
@@ -687,6 +690,7 @@ INT simulate_fixed_probe_event()
 
   for (int idx = 0; idx < nprobes; ++idx) {
 
+    ff.SetFidFreq(47.0 + norm(gen));
     ff.IdealFid(wf, tm);
     fid::FastFid myfid(wf, tm);
 
