@@ -22,3 +22,7 @@ create DOUBLE "Tensions[2]"
 
 cd /
 cp "/Equipment/Galil" "/Equipment/SimGalil"
+cd "/Equipment/SimGalil/Common"
+set "Frontend name" "Sim Galil Motion Control"
+set "Frontend file name" "src/sim_galil.cxx"
+set "Status" "Sim Galil Motion Control@localhost"
