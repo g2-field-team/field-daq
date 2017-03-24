@@ -280,7 +280,7 @@ INT frontend_init()
     //Load Odb settings to interface, probe settings are loaded separately
     LoadGeneralSettingsToInterface();
     //To initialize, ask the trolley doing nothing
-    DeviceWrite(reg_command,0x0000);
+    DeviceWrite(reg_command,0x0021);
     DeviceWrite(reg_command,0x0121);
     usleep(10000);
     DeviceWrite(reg_command,0x0000);
@@ -738,7 +738,7 @@ void ReadFromDevice(){
       TrlyNMRDataUnit->probe_index = (0x1F & FrameA[11]);
       TrlyNMRDataUnit->length = FrameA[12];
       unsigned short NSamNMR = FrameA[12];
-    /*  if (NSamNMR>0){
+     /* if (NSamNMR>0){
 	cm_msg(MINFO,"ReadFromDevice","Probe index %d",TrlyNMRDataUnit->probe_index);
 	cm_msg(MINFO,"ReadFromDevice","NMR Samples %d",NSamNMR);
 	cm_msg(MINFO,"ReadFromDevice","User Data %d",FrameA[92]);
@@ -1420,7 +1420,7 @@ int LoadProbeSettings()
   //Create a NMR_Config struct
   NMR_Config NMR_Setting;
   if (Source.compare("Odb")==0){
-    for (int i=0;i<17;i++){
+    for (int i=1;i<=17;i++){
       char key[500];
       sprintf(key,"/Equipment/TrolleyInterface/Settings/Probe/Probe%d/Probe ID",i);
       db_get_value(hDB,0,key,&ProbeID,&size_INT,TID_INT, 0);
