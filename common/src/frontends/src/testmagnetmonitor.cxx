@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <string.h>
+#include <math.h>
 
 #include <termios.h>
 #include <fcntl.h>
@@ -542,7 +543,7 @@ INT read_CompressorChiller_event(char *pevent, INT off)
    cout << "Received: "<<received<<endl;
    double temperature = strtod(buf3,NULL);
    float temp = float(temperature);
-
+  
    // Get Chiller Status
    string status3 = "0";
    tcflush( fSerialPort3_ptr, TCIOFLUSH );
@@ -606,6 +607,11 @@ INT read_CompressorChiller_event(char *pevent, INT off)
 	db_set_value(hDBcontrol,0,"/Equipment/CompressorChiller/Settings/chil_ctrl",&chil_ctrl,chil_ctrl_size,1,TID_INT);
       }
    }
+
+   int running = 0;
+   int running_size = sizeof(running);
+   db_set_value(hDBcontrol,0,"/Alarms/Alarms/FE Monitor/Triggered",&running,running_size,1,TID_INT);
+
 
    /* init bank structure */
    bk_init(pevent);
@@ -751,7 +757,7 @@ INT read_HeLevel_event(char *pevent, INT off)
     cout << "He level is OK!"<<endl;
   }
 
-  if (HeLevel == prevHe) {
+  if (10 * HeLevel == round(10 * prevHe)) {
     alarm++;
     cout<<"Alarm is at: "<<alarm<<endl;
   } else {
