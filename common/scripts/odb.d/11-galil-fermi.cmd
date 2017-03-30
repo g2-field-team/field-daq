@@ -1,16 +1,16 @@
-mkdir "/Equipment/Galil-Fermi/Settings"
-mkdir "/Equipment/Galil-Fermi/Monitors"
-mkdir "/Equipment/Galil-Fermi/Settings/Auto Control"
-mkdir "/Equipment/Galil-Fermi/Settings/Manual Control"
-mkdir "/Equipment/Galil-Fermi/Settings/Emergency"
+mkdir "/Equipment/GalilFermi/Settings"
+mkdir "/Equipment/GalilFermi/Monitors"
+mkdir "/Equipment/GalilFermi/Settings/Auto Control"
+mkdir "/Equipment/GalilFermi/Settings/Manual Control"
+mkdir "/Equipment/GalilFermi/Settings/Emergency"
 
-cd "/Equipment/Galil-Fermi/Settings/Emergency"
+cd "/Equipment/GalilFermi/Settings/Emergency"
 create INT Abort
 create INT Reset
 set Abort 0
 set Reset 0
 
-cd "/Equipment/Galil-Fermi/Settings"
+cd "/Equipment/GalilFermi/Settings"
 create STRING "Cmd Script[1][256]"
 set "Cmd Script" "FermiScript"
 create STRING "Script Directory[1][256]"
@@ -22,7 +22,7 @@ set "Root Dir" "/home/newg2/Applications/field-daq/resources/Root/"
 create BOOL "Simulation Mode"
 set "Simulation Mode" false
 
-cd "/Equipment/Galil-Fermi/Monitors"
+cd "/Equipment/GalilFermi/Monitors"
 create BOOL "Monitor Thread Active"
 create BOOL "Control Thread Active"
 create INT "Positions[6]"
@@ -35,14 +35,14 @@ create INT "Auto Motion Finished"
 create INT "Buffer Load"
 set "Auto Motion Finished" 1
 
-mkdir "/Equipment/Galil-Fermi/Monitors/Trolley"
-cd "/Equipment/Galil-Fermi/Monitors/Trolley"
+mkdir "/Equipment/GalilFermi/Monitors/Trolley"
+cd "/Equipment/GalilFermi/Monitors/Trolley"
 create DOUBLE "Position"
 create DOUBLE "Velocity"
 create DOUBLE "Tensions[2]"
 
 
-cd "/Equipment/Galil-Fermi/Settings/Manual Control"
+cd "/Equipment/GalilFermi/Settings/Manual Control"
 create INT "Cmd"
 create INT "Garage Abs Pos"
 create INT "Garage Rel Pos"
@@ -51,7 +51,7 @@ create INT "Trolley Rel Pos"
 create INT "Plunging Probe Abs Pos[3]"
 create INT "Plunging Probe Rel Pos[3]"
 
-cd "/Equipment/Galil-Fermi/Settings/Auto Control"
+cd "/Equipment/GalilFermi/Settings/Auto Control"
 create INT "Trigger"
 create STRING "Mode[1][256]"
 create INT "Garage Rel Pos"

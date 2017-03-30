@@ -125,7 +125,6 @@ typedef struct GalilDataStruct{
   INT PositionArray[6];
   INT VelocityArray[6];
   INT OutputVArray[6];
-  INT GoalDistArray[6];
   INT LimFArray[6];
   INT LimRArray[6];
   INT AnalogArray[6];
@@ -135,7 +134,6 @@ typedef struct GalilDataStructD{
   double PositionArray[6];
   double VelocityArray[6];
   double OutputVArray[6];
-  double GoalDistArray[6];
   double LimFArray[6];
   double LimRArray[6];
   double AnalogArray[6];
@@ -771,7 +769,7 @@ void GalilMonitor(const GCon &g){
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Positions",&GalilDataUnit.PositionArray,sizeof(GalilDataUnit.PositionArray), 6 ,TID_INT); 
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Velocities",&GalilDataUnit.VelocityArray,sizeof(GalilDataUnit.VelocityArray), 6 ,TID_INT); 
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Control Voltages",&GalilDataUnit.OutputVArray,sizeof(GalilDataUnit.OutputVArray), 6 ,TID_INT); 
-    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Analogs",&GalilDataUnit.GoalDistArray,sizeof(GalilDataUnit.AnalogArray), 6 ,TID_INT);
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Analogs",&GalilDataUnit.AnalogArray,sizeof(GalilDataUnit.AnalogArray), 6 ,TID_INT);
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Limit Switches Forward",&GalilDataUnit.LimFArray,sizeof(GalilDataUnit.LimFArray), 6 ,TID_INT);
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Limit Switches Reverse",&GalilDataUnit.LimRArray,sizeof(GalilDataUnit.LimRArray), 6 ,TID_INT);
 /*
