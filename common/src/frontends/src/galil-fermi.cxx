@@ -128,6 +128,7 @@ typedef struct GalilDataStruct{
   INT LimFArray[6];
   INT LimRArray[6];
   INT AnalogArray[6];
+  BOOL StatusArray[6];
 }GalilDataStruct;
 
 typedef struct GalilDataStructD{
@@ -137,6 +138,7 @@ typedef struct GalilDataStructD{
   double LimFArray[6];
   double LimRArray[6];
   double AnalogArray[6];
+  double StatusArray[6];
 }GalilDataStructD;
 
 INT PlatformStepSize[3];
@@ -169,6 +171,7 @@ void GalilControl(const GCon &g);
 
 bool MonitorActive;
 bool ControlActive;
+bool RunActive;
 int ReadGroupSize = 50;
 
 GCon g = 0; //var used to refer to a unique connection. A valid connection is nonzero.
@@ -216,7 +219,9 @@ INT frontend_init()
   else {
  //   cout << "connection failed \n";
     cm_msg(MERROR,"init","Galil connection failed");
+    return -1;
   }
+  GTimeout(g,5000);//adjust timeout
 
   //Load script
   char ScriptName[500];
@@ -233,19 +238,17 @@ INT frontend_init()
   sleep(1);
   GCmd(g, "SB 2");
 
-  GProgramDownload(g,"",0); //to erase prevoius programs
-  //dump the buffer
-  int rc = GALIL_EXAMPLE_OK; //return code
-  char buffer[5000000];
-  rc = GMessage(g, buffer, sizeof(buffer));
+  b=GProgramDownload(g,"",0); //to erase prevoius programs
   b=GProgramDownloadFile(g,FullScriptName.c_str(),0);
-  GCmd(g, "XQ #MNLP,0");
+  cm_msg(MINFO,"init","Galil Program Download return code: %d",b);
+  b=GCmd(g, "XQ #MNLP,0");
+  cm_msg(MINFO,"init","Galil XQ return code: %d",b);
   MonitorActive=true;
   ControlActive=true;
+  RunActive = false;
   //Start threads
   monitor_thread = thread(GalilMonitor,g);
   control_thread = thread(GalilControl,g);
-//  GTimeout(g,2000);//adjust timeout
   //-------------end code to communicate with Galil------------------
   PreventManualCtrl = false;
 
@@ -257,7 +260,7 @@ INT frontend_init()
 INT frontend_exit()
 {
   mlock.lock();
-  GCmd(g,"AB");
+  GCmd(g,"AB 1");
   mlock.unlock();
   cm_msg(MINFO,"end_of_run","Motion aborted.");
 
@@ -269,6 +272,7 @@ INT frontend_exit()
   mlock.lock();
   MonitorActive=false;
   ControlActive=false;
+  RunActive = false;
   mlock.unlock();
 //  cm_msg(MINFO,"end_of_run","Trying to join threads.");
   monitor_thread.join();
@@ -314,6 +318,8 @@ INT begin_of_run(INT run_number, char *error)
     pt_norm->Branch(galil_plunging_probe_bank_name, &GalilPlungingProbeDataCurrent, g2field::galil_plunging_probe_str);
   }
 
+  //Turn the Run Active Flag to true
+  RunActive = true;
 
   /*
   INT StepSize_size = sizeof(StepSize);
@@ -338,7 +344,7 @@ INT begin_of_run(INT run_number, char *error)
   BOOL temp_bool = BOOL(ReadyToMove);
   db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/ReadyToMove",&temp_bool,sizeof(temp_bool), 1 ,TID_BOOL);
 */
-  PreventManualCtrl = true;
+  //PreventManualCtrl = true;
 /*
   //Init alarm-watched odb value
   INT Finished=0;
@@ -453,16 +459,15 @@ INT read_event(char *pevent, INT off){
   
   //Write data to banks
   bk_create(pevent, galil_trolley_bank_name, TID_WORD, (void **)&pdataTrolley);
-  bk_create(pevent, galil_plunging_probe_bank_name, TID_WORD, (void **)&pdataPP);
 
-  mlockdata.lock();
   for (int i=0;i<GALILREADGROUPSIZE;i++){
+    mlockdata.lock();
     GalilTrolleyDataCurrent.TimeStamp = GalilDataBuffer[i].TimeStamp;
     for (int j=0;j<2;j++){
       GalilTrolleyDataCurrent.Tensions[j] = GalilDataBuffer[i].AnalogArray[j];
     }
     for (int j=0;j<2;j++){
-      GalilTrolleyDataCurrent.Tensions[j] = GalilDataBuffer[i].AnalogArray[j+2];
+      GalilTrolleyDataCurrent.Temperatures[j] = GalilDataBuffer[i].AnalogArray[j+2];
     }
     for (int j=0;j<3;j++){
       GalilTrolleyDataCurrent.Positions[j] = GalilDataBuffer[i].PositionArray[j];
@@ -478,22 +483,39 @@ INT read_event(char *pevent, INT off){
     }
     memcpy(pdataTrolley, &GalilTrolleyDataCurrent, sizeof(g2field::galil_trolley_t));
     pdataTrolley += sizeof(g2field::galil_trolley_t)/sizeof(WORD);
-    memcpy(pdataPP, &GalilPlungingProbeDataCurrent, sizeof(g2field::galil_plunging_probe_t));
-    pdataPP += sizeof(g2field::galil_plunging_probe_t)/sizeof(WORD);
+    mlockdata.unlock();
 
     //Write to ROOT file
     if (write_root) {
       pt_norm->Fill();
-      pt_norm->AutoSave("SaveSelf,FlushBaskets");
-      pf->Flush();
     }
 
   } 
+  bk_close(pevent,pdataTrolley);
+
+  bk_create(pevent, galil_plunging_probe_bank_name, TID_WORD, (void **)&pdataPP);
+  for (int i=0;i<GALILREADGROUPSIZE;i++){
+    mlockdata.lock();
+    GalilPlungingProbeDataCurrent.TimeStamp = GalilDataBuffer[i].TimeStamp;
+    for (int j=0;j<3;j++){
+      GalilPlungingProbeDataCurrent.Positions[j] = GalilDataBuffer[i].PositionArray[j];
+      GalilPlungingProbeDataCurrent.Velocities[j] = GalilDataBuffer[i].VelocityArray[j];
+      GalilPlungingProbeDataCurrent.OutputVs[j] = GalilDataBuffer[i].OutputVArray[j];
+    }
+    memcpy(pdataPP, &GalilPlungingProbeDataCurrent, sizeof(g2field::galil_plunging_probe_t));
+    pdataPP += sizeof(g2field::galil_plunging_probe_t)/sizeof(WORD);
+    mlockdata.unlock();
+  } 
+  mlockdata.lock();
   GalilDataBuffer.erase(GalilDataBuffer.begin(),GalilDataBuffer.begin()+GALILREADGROUPSIZE);
   mlockdata.unlock();
-  bk_close(pevent,pdataTrolley);
   bk_close(pevent,pdataPP);
 
+  //Write to ROOT file
+  if (write_root) {
+    pt_norm->AutoSave("SaveSelf,FlushBaskets");
+    pf->Flush();
+  }
   /*
      ReadyToMove = false;
      BOOL temp_bool = BOOL(ReadyToMove);
@@ -619,7 +641,7 @@ void GalilMonitor(const GCon &g){
   char buffer[50000];
   hkeyclient=0;
   string Header;
-  int  rc = GALIL_EXAMPLE_OK; //return code
+  GReturn rc = G_NO_ERROR;
   /* residule string */
   string ResidualString = string("");
   INT command = 0;
@@ -633,6 +655,14 @@ void GalilMonitor(const GCon &g){
   int i=0;
   int jj=0;
   double Time,Time0;
+  //Data trigger mask
+  //bit0:position
+  //bit1:velocity
+  //bit2:contolve voltage
+  //bit3 analog
+  //When all bits are 1, push to data buffer
+  short DataTriggerMask = 0;
+
   while (1){
     bool localMonitorActive;
     mlock.lock();
@@ -643,6 +673,10 @@ void GalilMonitor(const GCon &g){
     mlock.lock();
     rc = GMessage(g, buffer, sizeof(buffer));
     mlock.unlock();
+    if (rc!=G_NO_ERROR){
+      cm_msg(MINFO,"GalilMonitor","Galil Message return code: %d",rc);
+      continue;
+    }
 //    ftime(&currenttime);
 //    double time = (currenttime.time-starttime.time)*1000 + (currenttime.millitm - starttime.millitm);
     //cout<<buffer<<endl;
@@ -661,13 +695,6 @@ void GalilMonitor(const GCon &g){
 
     jj=0;
 
-    //Data trigger mask
-    //bit0:position
-    //bit1:velocity
-    //bit2:contolve voltage
-    //bit3 analog
-    //When all bits are 1, push to data buffer
-    short DataTriggerMask = 0;
     int iGalil = 0;
 
     while (foundnewline!=string::npos){
@@ -739,9 +766,21 @@ void GalilMonitor(const GCon &g){
         for (int j=0;j<6;j++){
           GalilDataUnit.LimRArray[j] = INT(GalilDataUnitD.LimRArray[j]);
 	}
+      }else if(Header.compare("MOTORSTATUS")==0){
+        iss >> Time;
+        for (int j=0; j<6; j++){
+          iss >> GalilDataUnitD.StatusArray[j];
+        }
+        for (int j=0;j<6;j++){
+	  if (GalilDataUnitD.StatusArray[j]>0.0){
+	    GalilDataUnit.StatusArray[j] = FALSE;
+	  }else{
+	    GalilDataUnit.StatusArray[j] = TRUE;
+	  }
+	}
       }else if(Header.compare("ERROR")==0){
 	mlock.lock();
-	GCmd(g,"AB");
+	GCmd(g,"AB 1");
 	mlock.unlock();
 	cm_msg(MINFO,"Galil Message",BufString.substr(0,foundnewline-1).c_str());
       }else{
@@ -750,10 +789,18 @@ void GalilMonitor(const GCon &g){
 
       //Check DataTriggerMask, pack data
       if (DataTriggerMask == 0xF){
+	bool localRunActive;
+	mlock.lock();
+	localRunActive = RunActive;
+	mlock.unlock();
 	mlockdata.lock();
-	GalilDataBuffer.push_back(GalilDataUnit);
+	if (localRunActive){
+	  GalilDataBuffer.push_back(GalilDataUnit);
+	}
 	mlockdata.unlock();
 	DataTriggerMask = 0;
+	
+//	cm_msg(MINFO,"Galil Message","Time = %d",GalilDataUnit.TimeStamp);
 	iGalil++;
       }
 
@@ -765,18 +812,28 @@ void GalilMonitor(const GCon &g){
       ResidualString = BufString;
     }
 
+    INT BufferLoad;
+    mlockdata.lock();
+    BufferLoad = GalilDataBuffer.size();
+    mlockdata.unlock();
+
     //Update odb for monitoring
+    mlock.lock();
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Positions",&GalilDataUnit.PositionArray,sizeof(GalilDataUnit.PositionArray), 6 ,TID_INT); 
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Velocities",&GalilDataUnit.VelocityArray,sizeof(GalilDataUnit.VelocityArray), 6 ,TID_INT); 
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Control Voltages",&GalilDataUnit.OutputVArray,sizeof(GalilDataUnit.OutputVArray), 6 ,TID_INT); 
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Analogs",&GalilDataUnit.AnalogArray,sizeof(GalilDataUnit.AnalogArray), 6 ,TID_INT);
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Limit Switches Forward",&GalilDataUnit.LimFArray,sizeof(GalilDataUnit.LimFArray), 6 ,TID_INT);
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Limit Switches Reverse",&GalilDataUnit.LimRArray,sizeof(GalilDataUnit.LimRArray), 6 ,TID_INT);
-/*
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Status",&GalilDataUnit.StatusArray,sizeof(GalilDataUnit.StatusArray), 6 ,TID_BOOL);
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Buffer Load",&BufferLoad,sizeof(BufferLoad), 1 ,TID_INT);
+    mlock.unlock();
+
     //Check emergencies
+    //This thread is not blocking
     INT emergency_size = sizeof(emergency);
     //Abort
-    db_get_value(hDB,0,"/Equipment/GalilFermi/Emergency/Abort",&emergency,&emergency_size,TID_INT,0);
+    db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Emergency/Abort",&emergency,&emergency_size,TID_INT,0);
     if (emergency == 1){
       mlock.lock();
       GCmd(g,"AB 1");
@@ -786,75 +843,22 @@ void GalilMonitor(const GCon &g){
       cm_msg(MINFO,"Emergency","Motion Aborted.");
     }
     emergency=0;
-    db_set_value(hDB,0,"/Equipment/GalilFermi/Emergency/Abort",&emergency,sizeof(emergency), 1 ,TID_INT); 
-    //Reset
-    db_get_value(hDB,0,"/Equipment/GalilFermi/Emergency/Reset",&emergency,&emergency_size,TID_INT,0);
-    if (emergency == 1){
-      mlock.lock();
-      GCmd(g,"SHA");
-      GCmd(g,"SHB");
-      GCmd(g,"SHC");
-      GCmd(g,"SHD");
-      mlock.unlock();
-    }
-    emergency=0;
-    db_set_value(hDB,0,"/Equipment/GalilFermi/Emergency/Reset",&emergency,sizeof(emergency), 1 ,TID_INT); 
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Emergency/Abort",&emergency,sizeof(emergency), 1 ,TID_INT); 
 
-    //Check commandand execute;
-    INT command_size = sizeof(command);
-    db_get_value(hDB,0,"/Equipment/GalilFermi/ManualControl/Cmd",&command,&command_size,TID_INT,0);
-    char CmdBuffer[500];
-    if (command == 1){
-      INT AbsPos[4];
-      INT P_size = sizeof(AbsPos);
-      db_get_value(hDB,0,"/Equipment/GalilFermi/ManualControl/AbsPos",AbsPos,&P_size,TID_INT,0);
-      sprintf(CmdBuffer,"PA %d,%d,%d,%d",AbsPos[0],AbsPos[1],AbsPos[2],AbsPos[3]);
-      if (!PreventManualCtrl){
-	mlock.lock();
-	GCmd(g,CmdBuffer);
-	GCmd(g,"BG");
-	mlock.unlock();
-      }else{
-	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
-      }
-      command=0;
-      db_set_value(hDB,0,"/Equipment/GalilFermi/ManualControl/Cmd",&command,sizeof(command), 1 ,TID_INT); 
-    }else if (command == 2){
-      INT RelPos[4];
-      INT P_size = sizeof(RelPos);
-      db_get_value(hDB,0,"/Equipment/GalilFermi/ManualControl/RelPos",RelPos,&P_size,TID_INT,0);
-      sprintf(CmdBuffer,"PR %d,%d,%d,%d",RelPos[0],RelPos[1],RelPos[2],RelPos[3]);
-      if (!PreventManualCtrl){
-	mlock.lock();
-	GCmd(g,CmdBuffer);
-	GCmd(g,"BG");
-	mlock.unlock();
-      }else{
-	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
-      }
-      command=0;
-      db_set_value(hDB,0,"/Equipment/GalilFermi/ManualControl/Cmd",&command,sizeof(command), 1 ,TID_INT); 
-    }else if (command == 3){
-      if (!PreventManualCtrl){
-	mlock.lock();
-	GCmd(g,"DP 0,0,0,0");
-	mlock.unlock();
-      }else{
-	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
-      }
-      command=0;
-      db_set_value(hDB,0,"/Equipment/GalilFermi/ManualControl/Cmd",&command,sizeof(command), 1 ,TID_INT); 
-    }*/
     i++;
   }
   MonitorThreadActive = 0;
+  mlock.lock();
   db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Monitor Thread Active",&MonitorThreadActive,sizeof(MonitorThreadActive), 1 ,TID_BOOL); 
+  mlock.unlock();
 }
 
 //GalilControl
 void GalilControl(const GCon &g){
   int ControlThreadActive = 1;
+  mlock.lock();
   db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Control Thread Active",&ControlThreadActive,sizeof(ControlThreadActive), 1 ,TID_BOOL); 
+  mlock.unlock();
   char buffer[50000];
 
   hkeyclient=0;
@@ -865,6 +869,14 @@ void GalilControl(const GCon &g){
   int position =0;
 //  timeb starttime,currenttime;
 //  ftime(&starttime);
+
+  //Variables passed to Galil system
+  int destiny = 0;
+  int velocity = 100;
+  double tlow = 0.4;
+  double thigh = 0.8;
+  double ofst1 = 0.0;
+  double ofst2 = 0.0;
  
   //Control loop
   int i=0;
@@ -874,82 +886,185 @@ void GalilControl(const GCon &g){
     localControlActive = ControlActive;
     mlock.unlock();
     if (!localControlActive)break;
-
-    //Check emergencies
-    INT emergency_size = sizeof(emergency);
-    //Abort
-    db_get_value(hDB,0,"/Equipment/GalilFermi/Emergency/Abort",&emergency,&emergency_size,TID_INT,0);
-    if (emergency == 1){
-      mlock.lock();
-      GCmd(g,"AB 1");
-/*      INT Finished=2;
-      db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Finished",&Finished,sizeof(Finished), 1 ,TID_INT);*/
-      mlock.unlock();
-      cm_msg(MINFO,"Emergency","Motion Aborted.");
-    }
-    emergency=0;
-    db_set_value(hDB,0,"/Equipment/GalilFermi/Emergency/Abort",&emergency,sizeof(emergency), 1 ,TID_INT); 
-    //Reset
-    db_get_value(hDB,0,"/Equipment/GalilFermi/Emergency/Reset",&emergency,&emergency_size,TID_INT,0);
-    if (emergency == 1){
-      mlock.lock();
-      GCmd(g,"SHA");
-      GCmd(g,"SHB");
-      GCmd(g,"SHC");
-      GCmd(g,"SHD");
-      mlock.unlock();
-    }
-    emergency=0;
-    db_set_value(hDB,0,"/Equipment/GalilFermi/Emergency/Reset",&emergency,sizeof(emergency), 1 ,TID_INT); 
-
     //Check commandand execute;
     INT command_size = sizeof(command);
-    db_get_value(hDB,0,"/Equipment/GalilFermi/ManualControl/Cmd",&command,&command_size,TID_INT,0);
+    mlock.lock();
+    db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,&command_size,TID_INT,0);
+    mlock.unlock();
     char CmdBuffer[500];
+
+    //For trolley commands, load galil variables first
+    if (command == 1 || command == 2 || command == 3 || command == 4){
+      INT Vel;
+      INT TLow;
+      INT THigh;
+      INT TOffset1;
+      INT TOffset2;
+      INT Size_Int = sizeof(Vel);
+      mlock.lock();
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Velocity",&Vel,&Size_Int,TID_INT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Range Low",&TLow,&Size_Int,TID_INT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Range High",&THigh,&Size_Int,TID_INT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Offset 1",&TOffset1,&Size_Int,TID_INT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Offset 2",&TOffset2,&Size_Int,TID_INT,0);
+      mlock.unlock();
+      velocity = Vel;
+      tlow = static_cast<double>(TLow)/1000.0;
+      thigh = static_cast<double>(THigh)/1000.0;
+      ofst1 = static_cast<double>(TOffset1)/1000.0;
+      ofst2 = static_cast<double>(TOffset2)/1000.0;
+      if (!PreventManualCtrl){
+	mlock.lock();
+	sprintf(CmdBuffer,"velocity=%d",velocity);
+	GCmd(g,CmdBuffer);
+	sprintf(CmdBuffer,"tlow=%f",tlow);
+	GCmd(g,CmdBuffer);
+	sprintf(CmdBuffer,"thigh=%f",thigh);
+	GCmd(g,CmdBuffer);
+	sprintf(CmdBuffer,"ofst1=%f",ofst1);
+	GCmd(g,CmdBuffer);
+	sprintf(CmdBuffer,"ofst2=%f",ofst2);
+	GCmd(g,CmdBuffer);
+	mlock.unlock();
+      }else{
+	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
+      }
+    }
     if (command == 1){
-      INT AbsPos[4];
-      INT P_size = sizeof(AbsPos);
-      db_get_value(hDB,0,"/Equipment/GalilFermi/ManualControl/AbsPos",AbsPos,&P_size,TID_INT,0);
-      sprintf(CmdBuffer,"PA %d,%d,%d,%d",AbsPos[0],AbsPos[1],AbsPos[2],AbsPos[3]);
+      INT AbsPos;
+      INT Size_Int = sizeof(AbsPos);
+      INT CurrentPos[6];
+      INT Size_Current_Pos = sizeof(CurrentPos);
+      mlock.lock();
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Abs Pos",&AbsPos,&Size_Int,TID_INT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Positions",CurrentPos,&Size_Current_Pos,TID_INT,0);
+      mlock.unlock();
       if (!PreventManualCtrl){
 	mlock.lock();
-	GCmd(g,CmdBuffer);
-	GCmd(g,"BG");
+	GCmd(g,"SHA");
+	GCmd(g,"SHB");
+	if (AbsPos>CurrentPos[0]){
+	  destiny = AbsPos;
+	  sprintf(CmdBuffer,"destiny=%d",destiny);
+	  GCmd(g,CmdBuffer);
+	  GCmd(g,"tlcomplete=0");
+	  GCmd(g,"XQ #FDMTN,1");
+	}else{
+	  destiny = -AbsPos;
+	  sprintf(CmdBuffer,"destiny=%d",destiny);
+	  GCmd(g,CmdBuffer);
+	  GCmd(g,"tlcomplete=0");
+	  GCmd(g,"XQ #BKMTN,1");
+	}
 	mlock.unlock();
       }else{
 	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
       }
+      //Block before the motion is done
+      while(1){
+	int trolley_complete = 0;
+	mlock.lock();
+	GCmdI(g,"tlfinish=?",&trolley_complete);
+	mlock.unlock();
+	if (trolley_complete==1){
+	  break;
+	}
+	sleep(1);
+      }
+
       command=0;
-      db_set_value(hDB,0,"/Equipment/GalilFermi/ManualControl/Cmd",&command,sizeof(command), 1 ,TID_INT); 
+      mlock.lock();
+      db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
+      mlock.unlock();
     }else if (command == 2){
-      INT RelPos[4];
-      INT P_size = sizeof(RelPos);
-      db_get_value(hDB,0,"/Equipment/GalilFermi/ManualControl/RelPos",RelPos,&P_size,TID_INT,0);
-      sprintf(CmdBuffer,"PR %d,%d,%d,%d",RelPos[0],RelPos[1],RelPos[2],RelPos[3]);
+      INT RelPos;
+      INT Size_Int = sizeof(RelPos);
+      INT CurrentPos[6];
+      INT Size_Current_Pos = sizeof(CurrentPos);
+      mlock.lock();
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Rel Pos",&RelPos,&Size_Int,TID_INT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Positions",CurrentPos,&Size_Current_Pos,TID_INT,0);
+      mlock.unlock();
+
       if (!PreventManualCtrl){
 	mlock.lock();
-	GCmd(g,CmdBuffer);
-	GCmd(g,"BG");
+	//GCmd(g,"SHA");
+	//GCmd(g,"SHB");
+	if (RelPos >= 0){
+	  destiny = CurrentPos[0]+RelPos;
+	  sprintf(CmdBuffer,"destiny=%d",destiny);
+	  GCmd(g,CmdBuffer);
+	  GCmd(g,"tlcomplete=0");
+	  GCmd(g,"XQ #FDMTN,1");
+	}else{
+	  destiny = CurrentPos[1]-RelPos;
+	  sprintf(CmdBuffer,"destiny=%d",destiny);
+	  GCmd(g,CmdBuffer);
+	  GCmd(g,"tlcomplete=0");
+	  GCmd(g,"XQ #BKMTN,1");
+	}
 	mlock.unlock();
       }else{
 	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
       }
+      //Block before the motion is done
+      while(1){
+	int trolley_complete = 0;
+	mlock.lock();
+	GCmdI(g,"tlfinish=?",&trolley_complete);
+	mlock.unlock();
+	if (trolley_complete==1){
+	  break;
+	}
+	sleep(1);
+      }
+
       command=0;
-      db_set_value(hDB,0,"/Equipment/GalilFermi/ManualControl/Cmd",&command,sizeof(command), 1 ,TID_INT); 
+      mlock.lock();
+      db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT);
+      mlock.unlock();
     }else if (command == 3){
       if (!PreventManualCtrl){
 	mlock.lock();
-	GCmd(g,"DP 0,0,0,0");
+	GCmd(g,"DP 0,0");
 	mlock.unlock();
       }else{
 	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
       }
       command=0;
-      db_set_value(hDB,0,"/Equipment/GalilFermi/ManualControl/Cmd",&command,sizeof(command), 1 ,TID_INT); 
+      mlock.lock();
+      db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
+      mlock.unlock();
+    }else if (command == 4){
+      BOOL TrolleySwitch;
+      BOOL GarageSwitch;
+      INT Size_BOOL = sizeof(TrolleySwitch);
+      mlock.lock();
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Switch",&TrolleySwitch,&Size_BOOL,TID_BOOL,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Garage Switch",&GarageSwitch,&Size_BOOL,TID_BOOL,0);
+      if (TrolleySwitch){
+	GCmd(g, "SHA");
+	GCmd(g, "SHB");
+      }else{
+	GCmd(g, "MOA");
+	GCmd(g, "MOB");
+      }
+      if (GarageSwitch){
+	GCmd(g, "SHC");
+      }else{
+	GCmd(g, "MOC");
+      }
+      mlock.unlock();
+      command=0;
+      mlock.lock();
+      db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
+      mlock.unlock();
     }
     i++;
     usleep(10000);
   }
   ControlThreadActive = 0;
-  db_set_value(hDB,0,"/Equipment/GalilFermi/Controls/Control Thread Active",&ControlThreadActive,sizeof(ControlThreadActive), 1 ,TID_BOOL); 
+  mlock.lock();
+  db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Control Thread Active",&ControlThreadActive,sizeof(ControlThreadActive), 1 ,TID_BOOL); 
+  mlock.unlock();
 }
