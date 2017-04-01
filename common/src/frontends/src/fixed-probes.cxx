@@ -123,7 +123,7 @@ bool use_stepper = true;
 bool ino_stepper_type = false;
 
 TFile *pf;
-TTree *pt_shim;
+TTree *pt;
 TTree *pt_full;
 
 std::atomic<bool> run_in_progress;
@@ -250,7 +250,7 @@ INT frontend_init()
 
   run_in_progress = false;
 
-  cm_msg(MINFO, "init", "Shim Fixed initialization complete");
+  cm_msg(MINFO, "init", "Fixed Probe initialization complete");
   return SUCCESS;
 }
 
@@ -262,7 +262,7 @@ INT frontend_exit()
   event_manager->EndOfRun();
   delete event_manager;
 
-  cm_msg(MINFO, "exit", "Shim Fixed teardown complete");
+  cm_msg(MINFO, "exit", "Fixed Probe teardown complete");
   return SUCCESS;
 }
 
@@ -326,16 +326,16 @@ INT begin_of_run(INT run_number, char *error)
   if (write_root) {
   
     pf = new TFile(filename.c_str(), "recreate");
-    pt_shim = new TTree("t_fxpr", "Shim Fixed Probe Data");
-    pt_shim->SetAutoSave(5);
-    pt_shim->SetAutoFlush(20);
+    pt = new TTree("t_fxpr", "Fixed Probe Data");
+    pt->SetAutoSave(5);
+    pt->SetAutoFlush(20);
 
-    std::string br_name("shim_fixed");
+    std::string br_name("fixed");
 
-    pt_shim->Branch(br_name.c_str(), &data.sys_clock[0], g2field::fixed_str);
+    pt->Branch(br_name.c_str(), &data.sys_clock[0], g2field::fixed_str);
 
     if (write_full_waveform) {
-      std::string br_name("full_shim_fixed");
+      std::string br_name("full_fixed");
       pt_full->SetAutoSave(5);
       pt_full->SetAutoFlush(20);
 
@@ -363,7 +363,7 @@ INT end_of_run(INT run_number, char *error)
   // Make sure we write the ROOT data.
   if (run_in_progress && write_root) {
 
-    pt_shim->Write();
+    pt->Write();
 
     if (write_full_waveform) {
       pt_full->Write();
@@ -497,10 +497,10 @@ INT read_fixed_probe_event(char *pevent, INT off)
 
     cm_msg(MDEBUG, "read_fixed_event", "got real data event");
 
-    auto shim_data = event_manager->GetCurrentEvent();
+    auto fp_data = event_manager->GetCurrentEvent();
 
-    if ((shim_data.sys_clock[0] == 0) && 
-	(shim_data.sys_clock[nprobes-1] == 0)) {
+    if ((fp_data.sys_clock[0] == 0) && 
+	(fp_data.sys_clock[nprobes-1] == 0)) {
 
       event_manager->PopCurrentEvent();
       triggered = false;
@@ -523,7 +523,7 @@ INT read_fixed_probe_event(char *pevent, INT off)
     for (int idx = 0; idx < nprobes; ++idx) {
     
       for (int n = 0; n < g2field::kNmrFidLengthRecord; ++n) {
-	wf[n] = shim_data.trace[idx][n*10 + 1]; // Offset avoids wfd spikes
+	wf[n] = fp_data.trace[idx][n*10 + 1]; // Offset avoids wfd spikes
 	data.trace[idx][n] = wf[n];
       }
 
@@ -548,48 +548,48 @@ INT read_fixed_probe_event(char *pevent, INT off)
     }
 
     cm_msg(MINFO, frontend_name, "copying the data from event");
-    std::copy(shim_data.sys_clock.begin(),
-	      shim_data.sys_clock.begin() + nprobes,
+    std::copy(fp_data.sys_clock.begin(),
+	      fp_data.sys_clock.begin() + nprobes,
 	      &data.sys_clock[0]);
     
-    std::copy(shim_data.gps_clock.begin(),
-	      shim_data.gps_clock.begin() + nprobes,
+    std::copy(fp_data.gps_clock.begin(),
+	      fp_data.gps_clock.begin() + nprobes,
 	      &data.gps_clock[0]);
     
-    std::copy(shim_data.dev_clock.begin(),
-	      shim_data.dev_clock.begin() + nprobes,
+    std::copy(fp_data.dev_clock.begin(),
+	      fp_data.dev_clock.begin() + nprobes,
 	      &data.dev_clock[0]);
     
-    std::copy(shim_data.snr.begin(),
-	      shim_data.snr.begin() + nprobes,
+    std::copy(fp_data.snr.begin(),
+	      fp_data.snr.begin() + nprobes,
 	      &data.snr[0]);
     
-    std::copy(shim_data.len.begin(),
-	      shim_data.len.begin() + nprobes,
+    std::copy(fp_data.len.begin(),
+	      fp_data.len.begin() + nprobes,
 	      &data.len[0]);
     
-    std::copy(shim_data.freq.begin(),
-	      shim_data.freq.begin() + nprobes,
+    std::copy(fp_data.freq.begin(),
+	      fp_data.freq.begin() + nprobes,
 	      &data.freq[0]);
     
-    std::copy(shim_data.ferr.begin(),
-	      shim_data.ferr.begin() + nprobes,
+    std::copy(fp_data.ferr.begin(),
+	      fp_data.ferr.begin() + nprobes,
 	      &data.ferr[0]);
     
-    std::copy(shim_data.freq_zc.begin(),
-	      shim_data.freq_zc.begin() + nprobes,
+    std::copy(fp_data.freq_zc.begin(),
+	      fp_data.freq_zc.begin() + nprobes,
 	      &data.freq_zc[0]);
     
-    std::copy(shim_data.ferr_zc.begin(),
-	      shim_data.ferr_zc.begin() + nprobes,
+    std::copy(fp_data.ferr_zc.begin(),
+	      fp_data.ferr_zc.begin() + nprobes,
 	      &data.ferr_zc[0]);
     
-    std::copy(shim_data.method.begin(),
-	      shim_data.method.begin() + nprobes,
+    std::copy(fp_data.method.begin(),
+	      fp_data.method.begin() + nprobes,
 	      &data.method[0]);
     
-    std::copy(shim_data.health.begin(),
-	      shim_data.health.begin() + nprobes,
+    std::copy(fp_data.health.begin(),
+	      fp_data.health.begin() + nprobes,
 	      &data.health[0]);
     
     data_mutex.unlock();
@@ -602,7 +602,7 @@ INT read_fixed_probe_event(char *pevent, INT off)
   if (write_root && run_in_progress) {
     cm_msg(MINFO, "read_fixed_event", "Filling TTree");
     // Now that we have a copy of the latest event, fill the tree.
-    pt_shim->Fill();
+    pt->Fill();
 
     if (write_full_waveform) {
       if (num_events % full_waveform_subsampling == 0) pt_full->Fill();
@@ -613,7 +613,7 @@ INT read_fixed_probe_event(char *pevent, INT off)
     if (num_events % 10 == 1) {
 
       cm_msg(MINFO, frontend_name, "flushing TTree.");
-      pt_shim->AutoSave("SaveSelf,FlushBaskets");
+      pt->AutoSave("SaveSelf,FlushBaskets");
 
       if (write_full_waveform) {
         pt_full->AutoSave("SaveSelf,FlushBaskets");
@@ -628,7 +628,7 @@ INT read_fixed_probe_event(char *pevent, INT off)
 
   if (write_midas) {
 
-    // Copy the shimming trolley data.
+    // Copy the fixed probe data.
     bk_create(pevent, mbank_name, TID_DWORD, &pdata);
 
     memcpy(pdata, &data, sizeof(data));
