@@ -124,8 +124,8 @@ set "Script Dir" "/home/newg2/Applications/field-daq/online/TrolleyProbeScripts/
 create STRING "Script[1][256]"
 set "Script" "Test"
 
-mkdir "Probe0"
-cd "Probe0"
+mkdir "Probe1"
+cd "Probe1"
 create INT "Probe ID"
 create INT "Probe Enable"
 create INT "Preamp Delay" 
@@ -136,7 +136,7 @@ create INT "ADC Gate Period"
 create INT "TX Delay"
 create INT "TX Period"
 create INT "User Data"
-set "Probe ID" 0
+set "Probe ID" 1
 set "Probe Enable" 0
 set "Preamp Delay" 373 
 set "Preamp Period" 14000
@@ -147,23 +147,22 @@ set "TX Delay" 300
 set "TX Period" 450
 set "User Data" 8606
 cd "/Equipment/TrolleyInterface/Settings/Probe"
-cp "Probe0" "Probe1"
-cp "Probe0" "Probe2"
-cp "Probe0" "Probe3"
-cp "Probe0" "Probe4"
-cp "Probe0" "Probe5"
-cp "Probe0" "Probe6"
-cp "Probe0" "Probe7"
-cp "Probe0" "Probe8"
-cp "Probe0" "Probe9"
-cp "Probe0" "Probe10"
-cp "Probe0" "Probe11"
-cp "Probe0" "Probe12"
-cp "Probe0" "Probe13"
-cp "Probe0" "Probe14"
-cp "Probe0" "Probe15"
-cp "Probe0" "Probe16"
-set "Probe1/Probe ID" 1
+cp "Probe1" "Probe2"
+cp "Probe1" "Probe3"
+cp "Probe1" "Probe4"
+cp "Probe1" "Probe5"
+cp "Probe1" "Probe6"
+cp "Probe1" "Probe7"
+cp "Probe1" "Probe8"
+cp "Probe1" "Probe9"
+cp "Probe1" "Probe10"
+cp "Probe1" "Probe11"
+cp "Probe1" "Probe12"
+cp "Probe1" "Probe13"
+cp "Probe1" "Probe14"
+cp "Probe1" "Probe15"
+cp "Probe1" "Probe16"
+cp "Probe1" "Probe17"
 set "Probe2/Probe ID" 2
 set "Probe3/Probe ID" 3
 set "Probe4/Probe ID" 4
@@ -179,7 +178,8 @@ set "Probe13/Probe ID" 13
 set "Probe14/Probe ID" 14
 set "Probe15/Probe ID" 15
 set "Probe16/Probe ID" 16
-set "Probe0/Probe Enable" 1
+set "Probe17/Probe ID" 17
+set "Probe1/Probe Enable" 1
 
 cd "/Equipment/TrolleyInterface/Settings"
 mkdir "Barcode"

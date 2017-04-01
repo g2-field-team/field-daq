@@ -26,3 +26,26 @@ set event_rate_limit 10
 
 create BOOL simulation_mode
 set simulation_mode false
+
+mkdir output
+cd output
+
+create BOOL write_midas
+set write_midas y
+
+create BOOL write_root
+set write_root y
+
+create STRING root_path
+set root_path "/home/newg2/Applications/field-daq/resources/root"
+
+create STRING root_file
+set root_file "fixed_probe_run_%05i.root"
+
+create BOOL write_full_waveforms
+set write_full_waveforms false
+
+create INT full_waveform_subsampling
+set full_waveform_subsampling 100
+
+

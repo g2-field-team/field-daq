@@ -1,6 +1,6 @@
 /*****************************************************************************\
 
-Name:   fixed_probes.cxx
+Name:   fixed-probes.cxx
 Author: Matthias W. Smith
 Email:  mwsmith2@uw.edu
 
@@ -112,9 +112,12 @@ int num_steps = 50; // num_steps was 50
 int num_shots = 1;
 int trigger_count = 0;
 int event_number = 0;
-bool write_root = false;
-bool save_full_waveforms = false;
+
 bool write_midas = true;
+bool write_root = false;
+bool write_full_waveform = false;
+int full_waveform_subsampling = 1;
+
 bool simulation_mode = false;
 bool use_stepper = true;
 bool ino_stepper_type = false;
@@ -294,54 +297,34 @@ INT begin_of_run(INT run_number, char *error)
 
   // Get the run info out of the ODB.
   db_find_key(hDB, 0, "/Runinfo", &hkey);
-  if (db_open_record(hDB, hkey, &runinfo, sizeof(runinfo), MODE_READ,
+  if (db_open_record(hDB, hkey, &runinfo, 
+		     sizeof(runinfo), MODE_READ,
 		     NULL, NULL) != DB_SUCCESS) {
     cm_msg(MERROR, "begin_of_run", "Can't open \"/Runinfo\" in ODB");
     return CM_DB_ERROR;
   }
 
-  // Get the data directory from the ODB.
-  snprintf(str, sizeof(str), "/Logger/Data dir");
-  db_find_key(hDB, 0, str, &hkey);
-
-  if (hkey) {
-    size = sizeof(str);
-    db_get_data(hDB, hkey, str, &size, TID_STRING);
-    datadir = std::string(str);
-  }
-
-  // Set the filename
-  snprintf(str, sizeof(str), "root/fixed_run_%05d.root", runinfo.run_number);
+  // Get the filename for ROOT output.
+  snprintf(str, sizeof(str), 
+	   conf.get<std::string>("output.root_file").c_str(), 
+	   runinfo.run_number);
 
   // Join the directory and filename using boost filesystem.
-  filename = (boost::filesystem::path(datadir) / boost::filesystem::path(str)).string();
-
-  // Get the parameter for root output.
-  db_find_key(hDB, 0, "/Experiment/Run Parameters/Root Output", &hkey);
-
-  if (hkey) {
-    size = sizeof(flag);
-    db_get_data(hDB, hkey, &flag, &size, TID_BOOL);
-
-    write_root = flag;
-    write_root = true;
+  {
+    std::string d1 = conf.get<std::string>("output.root_path");
+    std::string d2 = conf.get<std::string>("output.root_path");
+    auto p = boost::filesystem::path(d1) / boost::filesystem::path(d2);
+    filename = p.string();
   }
 
-  // Check if we want to save full waveforms.
+  // Get the parameters for root output.
+  write_root = conf.get<bool>("output.write_root", false);
+  write_full_waveform = conf.get<bool>("output.write_full_waveform");
+  full_waveform_subsampling = conf.get<bool>("output.write_full_waveform");
+
+  // Set up the ROOT data output.
   if (write_root) {
-
-    db_find_key(hDB, 0, "/Experiment/Run Parameters/Save Full Waveforms", &hkey);
-
-    if (hkey) {
-      size = sizeof(flag);
-      db_get_data(hDB, hkey, &flag, &size, TID_BOOL);
-
-      save_full_waveforms = flag;
-    }
-  }
-
-  if (write_root) {
-    // Set up the ROOT data output.
+  
     pf = new TFile(filename.c_str(), "recreate");
     pt_shim = new TTree("t_fxpr", "Shim Fixed Probe Data");
     pt_shim->SetAutoSave(5);
@@ -351,7 +334,7 @@ INT begin_of_run(INT run_number, char *error)
 
     pt_shim->Branch(br_name.c_str(), &data.sys_clock[0], g2field::fixed_str);
 
-    if (save_full_waveforms) {
+    if (write_full_waveform) {
       std::string br_name("full_shim_fixed");
       pt_full->SetAutoSave(5);
       pt_full->SetAutoFlush(20);
@@ -382,7 +365,7 @@ INT end_of_run(INT run_number, char *error)
 
     pt_shim->Write();
 
-    if (save_full_waveforms) {
+    if (write_full_waveform) {
       pt_full->Write();
     }
 
@@ -621,8 +604,8 @@ INT read_fixed_probe_event(char *pevent, INT off)
     // Now that we have a copy of the latest event, fill the tree.
     pt_shim->Fill();
 
-    if (save_full_waveforms) {
-      pt_full->Fill();
+    if (write_full_waveform) {
+      if (num_events % full_waveform_subsampling == 0) pt_full->Fill();
     }
 
     num_events++;
@@ -632,7 +615,7 @@ INT read_fixed_probe_event(char *pevent, INT off)
       cm_msg(MINFO, frontend_name, "flushing TTree.");
       pt_shim->AutoSave("SaveSelf,FlushBaskets");
 
-      if (save_full_waveforms) {
+      if (write_full_waveform) {
         pt_full->AutoSave("SaveSelf,FlushBaskets");
       }
 
