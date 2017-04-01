@@ -105,22 +105,22 @@ RUNINFO runinfo;
 
 // Anonymous namespace for my "globals"
 namespace {
+
+// Configuration variables
 bool write_midas = true;
 bool write_root = false;
 bool write_full_waveform = false;
 int full_waveform_subsampling = 1;
-
 bool simulation_mode = false;
-
-TFile *pf;
-TTree *pt;
-TTree *pt_full;
-
-std::atomic<bool> run_in_progress;
-std::mutex data_mutex;
 
 boost::property_tree::ptree conf;
 std::string nmr_sequence_conf_file;
+std::atomic<bool> run_in_progress;
+
+// Data variables
+TFile *pf;
+TTree *pt;
+TTree *pt_full;
 
 g2field::fixed_t data;
 g2field::online_fixed_t full_data;
@@ -135,6 +135,7 @@ void set_json_tmpfiles();
 int load_device_classes();
 int simulate_fixed_probe_event();
 void update_feedback_params();
+void systems_check();
 
 void set_json_tmpfiles()
 {
@@ -142,7 +143,6 @@ void set_json_tmpfiles()
   char tmp_file[256];
   std::string conf_file;
   boost::property_tree::ptree pt;
-  boost::property_tree::ptree pt_child;
 
   // Copy the wfd config file.
   snprintf(tmp_file, 128, "/tmp/g2-nmr-config_XXXXXX.json");
@@ -198,12 +198,8 @@ void set_json_tmpfiles()
   boost::property_tree::write_json(nmr_sequence_conf_file, conf);
 }
 
-int load_device_classes()
+INT load_device_classes()
 {
-  // Allocations
-  char str[256];
-  std::string conf_file;
-
   // Set up the event mananger.
   if (event_manager == nullptr) {
     event_manager = new g2field::FixedProbeSequencer(nmr_sequence_conf_file, 
@@ -221,10 +217,15 @@ int load_device_classes()
 //--- Frontend Init ----------------------------------------------------------//
 INT frontend_init()
 {
+  // Perform the initial hardware check.
+  systems_check();
+
+  // Load settings and save to temp files.
   INT rc = load_settings(frontend_name, conf);
 
   if (rc != SUCCESS) {
-    // Error already logged in load_settings.
+    std::string al_msg("Fixed Probe System: failed to load settings from ODB");
+    al_trigger_class("Error", al_msg.c_str(), false);
     return rc;
   }
 
@@ -232,7 +233,8 @@ INT frontend_init()
 
   rc = load_device_classes();
   if (rc != SUCCESS) {
-    // Error already logged in load_device_classes.
+    std::string al_msg("Fixed Probe System: failed to load device classes.");
+    al_trigger_class("Error", al_msg.c_str(), false);
     return rc;
   }
 
@@ -257,9 +259,22 @@ INT frontend_exit()
 //--- Begin of Run --------------------------------------------------//
 INT begin_of_run(INT run_number, char *error)
 {
-  INT rc = load_settings(frontend_name, conf);
+   // ODB parameters
+  HNDLE hDB, hkey;
+  char str[256];
+  INT size, rc;
+  BOOL flag;
+
+  // Set up the data.
+  std::string datadir;
+  std::string filename;
+  
+  // Load settings and save to temp files.
+  rc = load_settings(frontend_name, conf);
 
   if (rc != SUCCESS) {
+    std::string al_msg("Fixed Probe System: failed to load settings from ODB");
+    al_trigger_class("Error", al_msg.c_str(), false);
     return rc;
   }
 
@@ -267,18 +282,10 @@ INT begin_of_run(INT run_number, char *error)
 
   rc = load_device_classes();
   if (rc != SUCCESS) {
+    std::string al_msg("Fixed Probe System: failed to load device classes.");
+    al_trigger_class("Error", al_msg.c_str(), false);
     return rc;
   }
-
-   // ODB parameters
-  HNDLE hDB, hkey;
-  char str[256];
-  int size;
-  BOOL flag;
-
-  // Set up the data.
-  std::string datadir;
-  std::string filename;
 
   // Grab the database handle.
   cm_get_experiment_database(&hDB, NULL);
@@ -337,6 +344,7 @@ INT begin_of_run(INT run_number, char *error)
   simulation_mode = conf.get<bool>("simulation_mode");
 
   run_in_progress = true;
+
   cm_msg(MLOG, "begin_of_run", "Completed successfully");
 
   return SUCCESS;
@@ -399,10 +407,8 @@ INT frontend_loop()
 
 //--- Trigger event routines ----------------------------------------*/
 
-INT poll_event(INT source, INT count, BOOL test) {
-
-  static bool triggered = false;
-
+INT poll_event(INT source, INT count, BOOL test) 
+{
   // fake calibration
   if (test) {
     for (int i = 0; i < count; i++) {
@@ -411,20 +417,6 @@ INT poll_event(INT source, INT count, BOOL test) {
     return 0;
   }
 
-  // if (!triggered) {
-  //   event_manager->IssueTrigger();
-  //   triggered = true;
-  // }
-
-  // if (triggered && event_manager->HasEvent()) {
-
-  //   triggered = false;
-  //   return 1;
-
-  // } else {
-
-  //   return 0;
-  // }
   return 0;
 }
 
@@ -449,21 +441,19 @@ INT interrupt_configure(INT cmd, INT source, PTYPE adr)
 
 INT read_fixed_probe_event(char *pevent, INT off)
 {
+  // Allocations
   static bool triggered = false;
   static unsigned long long num_events;
-  static unsigned long long events_written;
-
-  // Allocate vectors for the FIDs
   static std::vector<double> tm;
   static std::vector<double> wf;
 
-  int count = 0;
   char bk_name[10];
   DWORD *pdata;
 
+  // Trigger the digitizers if not triggered.
   if (!triggered) {
     event_manager->IssueTrigger();
-    cm_msg(MDEBUG, "read_fixed_event", "issued trigger");
+    cm_msg(MDEBUG, "read_fixed_probe_event", "issued trigger");
     triggered = true;
   }
 
@@ -503,8 +493,6 @@ INT read_fixed_probe_event(char *pevent, INT off)
       }
     }
 
-    data_mutex.lock();
-    
     for (int idx = 0; idx < nprobes; ++idx) {
     
       for (int n = 0; n < g2field::kNmrFidLengthRecord; ++n) {
@@ -577,8 +565,6 @@ INT read_fixed_probe_event(char *pevent, INT off)
 	      fp_data.health.begin() + nprobes,
 	      &data.health[0]);
     
-    data_mutex.unlock();
-
     // Pop the event now that we are done copying it.
     cm_msg(MINFO, "read_fixed_event", "Copied event, popping from queue");
     event_manager->PopCurrentEvent();
@@ -654,8 +640,6 @@ INT simulate_fixed_probe_event()
     }
   }
 
-  data_mutex.lock();
-
   for (int idx = 0; idx < nprobes; ++idx) {
 
     ff.SetFidFreq(47.0 + norm(gen));
@@ -693,8 +677,6 @@ INT simulate_fixed_probe_event()
     data.gps_clock[idx] = 0;
     data.dev_clock[idx] = 0;
   }
-
-  data_mutex.unlock();
 
   // Pop the event now that we are done copying it.
   cm_msg(MINFO, "read_fixed_event", "Finished simulating event");
@@ -773,4 +755,30 @@ void update_feedback_params()
   snprintf(str, sizeof(str), "%s/nmr_ferr_array", stub);
   db_set_value(hDB, 0, str, &ferr, sizeof(ferr), 
 	       nprobes, TID_DOUBLE);
+}
+
+
+void systems_check() 
+{
+  std::string al_msg;
+  int vme_dev, rc; 
+  ushort state;
+  
+  // Make sure the VME device file exists.
+  vme_dev = open(hw::vme_path.c_str(), O_RDWR | O_NONBLOCK, 0);
+  
+  if (vme_dev < 0) {
+    al_msg.assign("Fixed Probe System: VME driver not found");
+    al_trigger_class("Failure", al_msg.c_str(), false);
+    return;
+  }
+
+  // Make sure we can talk to the VME crate.
+  rc = vme_A16D16_read(vme_dev, 0x0, &state);
+
+  if (rc) {
+    al_msg.assign("Fixed Probe System: communication with VME failed");
+    al_trigger_class("Failure", al_msg.c_str(), false);
+    return;
+  }    
 }
