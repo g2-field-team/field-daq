@@ -105,22 +105,12 @@ RUNINFO runinfo;
 
 // Anonymous namespace for my "globals"
 namespace {
-double step_size = 0.4;  //  23.375 mm per 1 step size // So pretty close to 1 inch per 1 step_size (note: this calibration occurred using a chord of about 3 meters, so the string was not moving along the azimuth. So there is a missing cos(theta) -- where theta is small -- that needs to be included
-
-double event_rate_limit = 10.0;
-int num_steps = 50; // num_steps was 50
-int num_shots = 1;
-int trigger_count = 0;
-int event_number = 0;
-
 bool write_midas = true;
 bool write_root = false;
 bool write_full_waveform = false;
 int full_waveform_subsampling = 1;
 
 bool simulation_mode = false;
-bool use_stepper = true;
-bool ino_stepper_type = false;
 
 TFile *pf;
 TTree *pt;
@@ -224,8 +214,6 @@ int load_device_classes()
     event_manager = new g2field::FixedProbeSequencer(nmr_sequence_conf_file, 
 						     nprobes);
   }
-
-  event_rate_limit = conf.get<double>("event_rate_limit");
 
   return SUCCESS;
 }
@@ -346,12 +334,9 @@ INT begin_of_run(INT run_number, char *error)
   }
 
   // HW part
-  event_rate_limit = conf.get<double>("event_rate_limit");
   simulation_mode = conf.get<bool>("simulation_mode");
 
-  event_number = 0;
   run_in_progress = true;
-
   cm_msg(MLOG, "begin_of_run", "Completed successfully");
 
   return SUCCESS;
