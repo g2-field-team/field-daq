@@ -41,7 +41,6 @@ class FixedProbeSequencer: public hw::EventManagerBase {
 public:
 
   //ctor
-  FixedProbeSequencer(int num_probes);
   FixedProbeSequencer(std::string conf_file, int num_probes);
 
   //dtor
@@ -100,6 +99,7 @@ private:
   std::atomic<bool> got_software_trg_;
   std::atomic<bool> got_start_trg_;
   std::atomic<bool> got_round_data_;
+  std::atomic<bool> generate_software_triggers_;
   std::atomic<bool> builder_has_finished_;
   std::atomic<bool> sequence_in_progress_;
   std::atomic<bool> mux_round_configured_;

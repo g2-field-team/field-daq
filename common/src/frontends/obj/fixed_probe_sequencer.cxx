@@ -2,14 +2,6 @@
 
 namespace g2field {
 
-FixedProbeSequencer::FixedProbeSequencer(int num_probes) : EventManagerBase()
-{
-  conf_file_ = std::string("config/fe_vme_shimming.json");
-  num_probes_ = num_probes;
-
-  Init();
-}
-
 FixedProbeSequencer::FixedProbeSequencer(std::string conf_file, int num_probes) :
   EventManagerBase()
 {
@@ -62,6 +54,9 @@ int FixedProbeSequencer::BeginOfRun()
   analyze_fids_online_ = conf.get<bool>("analyze_fids_online", false);
   use_fast_fids_class_ = conf.get<bool>("use_fast_fids_class", false);
 
+  generate_software_triggers_ 
+    = conf.get<bool>("generate_software_triggers", false);
+
   if (fid_conf_file_ != std::string("")) {
 
     if ((fid_conf_file_[0] != '/') && (fid_conf_file_[0] != '\\')) {
@@ -91,38 +86,22 @@ int FixedProbeSequencer::BeginOfRun()
 				      NMR_FID_LENGTH_ONLINE));
   }
 
-  // for (auto &v : conf.get_child("devices.sis_3316")) {
+  for (auto &v : conf.get_child("devices.sis_3316")) {
 
-  //   std::string name(v.first);
-  //   std::string dev_conf_file = std::string(v.second.data());
+    std::string name(v.first);
+    std::string dev_conf_file = std::string(v.second.data());
 
-  //   if (dev_conf_file[0] != '/') {
-  //     dev_conf_file = hw::conf_dir + std::string(v.second.data());
-  //   }
+    if (dev_conf_file[0] != '/') {
+      dev_conf_file = hw::conf_dir + std::string(v.second.data());
+    }
 
-  //   sis_idx_map_[name] = sis_idx++;
+    sis_idx_map_[name] = sis_idx++;
 
-  //   LogDebug("loading hw: %s, %s", name.c_str(), dev_conf_file.c_str());
-  //   workers_.PushBack(new hw::Sis3316(name, 
-  // 				      dev_conf_file, 
-  // 				      NMR_FID_LENGTH_ONLINE));
-  // }
-
-  sis_idx = 0;
-  // for (auto &v : conf.get_child("devices.sis_3350")) {
-
-  //   std::string name(v.first);
-  //   std::string dev_conf_file = std::string(v.second.data());
-
-  //   if (dev_conf_file[0] != '/') {
-  //     dev_conf_file = hw::conf_dir + std::string(v.second.data());
-  //   }
-
-  //   sis_idx_map_[name] = sis_idx++;
-
-  //   LogDebug("loading hw: %s, %s", name.c_str(), dev_conf_file.c_str());
-  //   workers_.PushBack(new hw::Sis3350(name, dev_conf_file));
-  // }
+    LogDebug("loading hw: %s, %s", name.c_str(), dev_conf_file.c_str());
+    workers_.PushBack(new hw::Sis3316(name, 
+   				      dev_conf_file, 
+   				      NMR_FID_LENGTH_ONLINE));
+  }
 
   // Set up the NMR pulser trigger.
   char bid = conf.get<char>("devices.nmr_pulser.dio_board_id");
@@ -380,12 +359,17 @@ void FixedProbeSequencer::TriggerLoop()
 
       	  LogDebug("TriggerLoop: muxes are configured for this round");
           usleep(mux_switch_time_);
-      	  nmr_pulser_trg_->FireTriggers(nmr_trg_mask_);
 
-    	   LogDebug("TriggerLoop: muxes configure, triggers fired");
-	       mux_round_configured_ = true;
+	  if (generate_software_triggers_) {
+	    workers_.GenerateTriggers();
+	  } else {
+	    nmr_pulser_trg_->FireTriggers(nmr_trg_mask_);
+	  }
 
-         while (!got_round_data_ && go_time_) {
+	  LogDebug("TriggerLoop: muxes configure, triggers fired");
+	  mux_round_configured_ = true;
+	  
+	  while (!got_round_data_ && go_time_) {
 	    std::this_thread::yield();
 	    usleep(hw::short_sleep);
 	  }
