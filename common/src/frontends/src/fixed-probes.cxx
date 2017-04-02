@@ -482,13 +482,13 @@ INT read_fixed_probe_event(char *pevent, INT off)
     triggered = false;
 
   } else if (triggered && !event_manager->HasEvent()) {
-    cm_msg(MINFO, "read_fixed_probe_event", "no data yet");
     // No event yet.
+    cm_msg(MDEBUG, "read_fixed_probe_event", "no data yet");
     return 0;
 
   } else {
 
-    cm_msg(MINFO, "read_fixed_event", "got real data event");
+    cm_msg(MDEBUG, "read_fixed_probe_event", "got real data event");
 
     auto fp_data = event_manager->GetCurrentEvent();
 
@@ -517,8 +517,6 @@ INT read_fixed_probe_event(char *pevent, INT off)
 	wf[n] = fp_data.trace[idx][n*10 + 1]; // Offset avoids wfd spikes
 	data.trace[idx][n] = wf[n];
       }
-
-      cm_msg(MINFO, "read_fixed_probe_event", "analyzing FID");
 
       fid::FastFid myfid(wf, tm);
       
