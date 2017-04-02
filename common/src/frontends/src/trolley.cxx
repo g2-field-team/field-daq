@@ -280,7 +280,7 @@ INT frontend_init()
     //Load Odb settings to interface, probe settings are loaded separately
     LoadGeneralSettingsToInterface();
     //To initialize, ask the trolley doing nothing
-    DeviceWrite(reg_command,0x0000);
+    DeviceWrite(reg_command,0x0021);
     DeviceWrite(reg_command,0x0121);
     usleep(10000);
     DeviceWrite(reg_command,0x0000);
@@ -738,7 +738,7 @@ void ReadFromDevice(){
       TrlyNMRDataUnit->probe_index = (0x1F & FrameA[11]);
       TrlyNMRDataUnit->length = FrameA[12];
       unsigned short NSamNMR = FrameA[12];
-    /*  if (NSamNMR>0){
+     /* if (NSamNMR>0){
 	cm_msg(MINFO,"ReadFromDevice","Probe index %d",TrlyNMRDataUnit->probe_index);
 	cm_msg(MINFO,"ReadFromDevice","NMR Samples %d",NSamNMR);
 	cm_msg(MINFO,"ReadFromDevice","User Data %d",FrameA[92]);
@@ -985,6 +985,9 @@ void ControlDevice(){
   //Startup Mode: Idle, and reading out barcode
   CurrentMode = string("Idle");
   DeviceWrite(reg_command,0x0021);
+  DeviceWrite(reg_command,0x0121);
+  usleep(10000);
+  DeviceWrite(reg_command,0x0021);
   //Clear FIFO
   DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000001);
   DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000000);
@@ -1078,6 +1081,9 @@ void ControlDevice(){
       //Send trolley command based on Mode
       if (CurrentMode.compare("Continuous")==0){ 
 	DeviceWrite(reg_command,0x0021);
+	DeviceWrite(reg_command,0x0121);
+	usleep(10000);
+	DeviceWrite(reg_command,0x0021);
 	if (Cmd==1){
 	  //Set FIFO to circular, if cmd==1
 	  DeviceWriteMask(reg_nmr_control,0x00000002, 0x00000000);
@@ -1095,6 +1101,9 @@ void ControlDevice(){
 	DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000001);
 	DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000000);
 	DeviceWrite(reg_command,0x0021);
+	DeviceWrite(reg_command,0x0121);
+	usleep(10000);
+	DeviceWrite(reg_command,0x0021);
 	RepeatCount = Repeat;
 	Executing = 0;
       }else if (CurrentMode.compare("Sleep")==0){
@@ -1103,7 +1112,12 @@ void ControlDevice(){
 	DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000001);
 	DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000000);
       }else if (CurrentMode.compare("Idle")==0){
-	if(ReadBarcode)DeviceWrite(reg_command,0x0021);
+	      if(ReadBarcode){
+		      DeviceWrite(reg_command,0x0021);
+		      DeviceWrite(reg_command,0x0121);
+		      usleep(10000);
+		      DeviceWrite(reg_command,0x0021);
+	      }
 	else DeviceWrite(reg_command,0x0000);
 	//Clear FIFO
 	DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000001);
@@ -1420,7 +1434,7 @@ int LoadProbeSettings()
   //Create a NMR_Config struct
   NMR_Config NMR_Setting;
   if (Source.compare("Odb")==0){
-    for (int i=0;i<17;i++){
+    for (int i=1;i<=17;i++){
       char key[500];
       sprintf(key,"/Equipment/TrolleyInterface/Settings/Probe/Probe%d/Probe ID",i);
       db_get_value(hDB,0,key,&ProbeID,&size_INT,TID_INT, 0);
