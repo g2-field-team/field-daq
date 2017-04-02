@@ -1,0 +1,197 @@
+#TH1
+SHA
+SHB
+JS #FDMTN(100,5000,0.4,0.8)
+'WT 2000
+'JS #BKMTN(200,0,0.4,0.8)
+AB 1
+EN
+
+#TEST
+MG "MESSAGE ", destiny,tlfinish
+MG "MESSAGE ", velocity,tlow,thigh,ofst1,ofst2
+tlfinish=1;
+EN
+
+#MNLP
+MG "POSITION" ,TIME,_TPA,_TPB,_TPC,_TPD,_TPE,_TPF
+MG "VELOCITY" ,TIME,_TVA,_TVB,_TVC,_TVD,_TVE,_TVF
+MG "CONTROLVOLTAGE",TIME,_TTA,_TTB,_TTC,_TTD,_TTE,_TTF
+MG "ANALOG",TIME,@AN[1],@AN[2],@AN[3],@AN[4],@AN[5],@AN[6]
+MG "LIMITSWITCHF", TIME,_LFA,_LFB,_LFC,_LFD,_LFE,_LFF
+MG "LIMITSWITCHR", TIME,_LRA,_LRB,_LRC,_LRD,_LRE,_LRF
+MG "MOTORSTATUS", TIME,_MOA,_MOB,_MOC,_MOD,_MOE,_MOF
+' Tension monitor
+ofst1=0.0
+ofst2=0.0
+tlimit=1.0
+IF ((@AN[1]-ofst1 > tlimit) | (@AN[2]-ofst2 > tlimit))
+  MG "ERROR TENSION IS TOO MUCH "
+  AB 1
+  KPA=0
+  KPB=0
+  KPC=0
+ENDIF
+JP #MNLP
+EN
+
+#FDMTN
+MG "MESSAGE FORWARD MOTION INITIALIZING"
+tension=0
+'INITIALIZE TENSION
+IF ((@AN[1]-ofst1 > tlow) & (@AN[1]-ofst1 < thigh))
+  MG "MESSAGE TENSION IS ALREADY INITIALIZED", @AN[1],@AN[2]
+  JP #NEXT1
+ENDIF
+IF (@AN[1]-ofst1<tlow)
+  KPB=0
+  KPA=300
+  JGA=80
+  SHA
+  BGA
+#LOOP1
+  IF (@AN[1]-ofst1 > tlow)
+    MG "MESSAGE TENSION INITIALIZED", @AN[1],@AN[2]
+    STA
+    KPA=0
+    JP #NEXT1
+  ENDIF
+  JP #LOOP1
+ENDIF
+IF (@AN[1]-ofst1>thigh)
+  KPA=0
+  KPB=300
+  JGB=-80
+  SHB
+  BGB
+#LOOP2
+  IF (@AN[1]-ofst1 < thigh)
+    MG "MESSAGE TENSION INITIALIZED", MG @AN[1],@AN[2]
+    STB
+    KPB=0
+    JP #NEXT1
+  ENDIF
+  JP #LOOP2
+ENDIF
+#NEXT1
+tension=@AN[1]-ofst1
+MG "MESSAGE TENSION is", tension
+'START TENSION FEEDBACK
+KPA=300
+KPB=300
+JGA=velocity
+JGB=-velocity
+SHA
+SHB
+BGA
+BGB
+MG "MESSAGE FORWARD MOTION STARTED"
+#LOOP3
+IF (@AN[1]-ofst1-tension<0)
+  IF (@AN[2]-ofst2>=0)
+    JGB=-velocity*0.8
+  ELSE
+    JGB=0
+  ENDIF
+ELSE
+  IF (@AN[2]-ofst2>=0)
+    speed=-(@AN[1]-ofst1-tension)*100-velocity
+    JGB=speed
+  ELSE
+    JGB=0
+  ENDIF
+ENDIF
+IF (_TPA>destiny)
+  MG "MESSAGE REACHED DESTINATION",_TPA,_TPB
+  STA
+  STB
+  KPA=0
+  KPB=0
+  tlfinish=1;
+  JP #ENDFD
+ENDIF
+JP #LOOP3
+#ENDFD
+MG "MESSAGE FORWARD MOTION COMPLETED"
+EN
+
+
+#BKMTN
+MG "MESSAGE BACKWARD MOTION INITIALIZING"
+tension=0
+'INITIALIZE TENSION
+IF ((@AN[2]-ofst2 > tlow) & (@AN[2]-ofst2 < thigh))
+  MG "MESSAGE TENSION IS ALREADY INITIALIZED", @AN[1],@AN[2]
+  JP #NEXTB1
+ENDIF
+IF (@AN[2]-ofst2<tlow)
+  KPA=0
+  KPB=300
+  JGB=80
+  SHB
+  BGB
+#LOOPB1
+  IF (@AN[2]-ofst2 > tlow)
+  MG "MESSAGE TENSION INITIALIZED", @AN[1],@AN[2]
+    STB
+    KPB=0
+    JP #NEXTB1
+  ENDIF
+  JP #LOOPB1
+ENDIF
+IF (@AN[2]-ofst2>thigh)
+  KPB=0
+  KPA=300
+  JGA=-80
+  SHA
+  BGA
+#LOOPB2
+  IF (@AN[2]-ofst2 < thigh)
+    MG "MESSAGE TENSION INITIALIZED", @AN[1],@AN[2]
+    STA
+    KPA=0
+    JP #NEXTB1
+  ENDIF
+  JP #LOOPB2
+ENDIF
+#NEXTB1
+tension=@AN[2]-ofst2
+MG "MESSAGE TENSION is", tension
+'START TENSION FEEDBACK
+KPA=300
+KPB=300
+JGA=-velocity
+JGB=velocity
+SHA
+SHB
+BGA
+BGB
+MG "MESSAGE BACKWARD MOTION STARTED"
+#LOOPB3
+IF (@AN[2]-ofst2-tension<0)
+  IF (@AN[1]-ofst1>=0)
+    JGA=-velocity*0.8
+  ELSE
+    JGA=0
+  ENDIF
+ELSE
+  IF (@AN[1]-ofst1>=0)
+    speed=-(@AN[2]-ofst2-tension)*100-velocity
+    JGA=speed
+  ELSE
+    JGA=0
+  ENDIF
+ENDIF
+IF (_TPB>destiny)
+  MG "MESSAGE REACHED DESTINATION",_TPA,_TPB
+  STB
+  STA
+  KPB=0
+  KPA=0
+  tlfinish=1;
+  JP #ENDBK
+ENDIF
+JP #LOOPB3
+#ENDBK
+MG "MESSAGE BACKWARD MOTION COMPLETED"
+EN
