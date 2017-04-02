@@ -158,6 +158,20 @@ void set_json_tmpfiles()
   conf.get_child("devices.sis_3316").erase("sis_3316_0");
   conf.put_child("devices.sis_3316", pt);
 
+  // Create a temp file for the sis_3302.
+  snprintf(tmp_file, 128, "/tmp/g2-nmr-config_XXXXXX.json");
+  mkstemps(tmp_file, 5);
+  conf_file = std::string(tmp_file);
+
+  // Copy the json, and set to the temp file.
+  pt = conf.get_child("devices.sis_3302");
+  boost::property_tree::write_json(conf_file, pt.get_child("sis_3302_0"));
+  pt.clear();
+  pt.put("sis_3302_0", conf_file);
+
+  conf.get_child("devices.sis_3302").erase("sis_3302_0");
+  conf.put_child("devices.sis_3302", pt);
+
   // Copy the trigger sequence file.
   snprintf(tmp_file, 128, "/tmp/g2-nmr-config_XXXXXX.json");
   mkstemps(tmp_file, 5);
@@ -206,10 +220,13 @@ INT load_device_classes()
 						     nprobes);
   } else {
 
+    event_manager->EndOfRun();
     delete event_manager;
     event_manager = new g2field::FixedProbeSequencer(nmr_sequence_conf_file, 
 						     nprobes);
   }
+
+  event_manager->BeginOfRun();
 
   return SUCCESS;
 }
@@ -259,6 +276,7 @@ INT frontend_exit()
 //--- Begin of Run --------------------------------------------------//
 INT begin_of_run(INT run_number, char *error)
 {
+  cm_msg(MINFO, "fixed-probes", "begin of run");
    // ODB parameters
   HNDLE hDB, hkey;
   char str[256];
@@ -290,6 +308,7 @@ INT begin_of_run(INT run_number, char *error)
   // Grab the database handle.
   cm_get_experiment_database(&hDB, NULL);
 
+  cm_msg(MINFO, "fixed-probes", "loading config");
   // Get the run info out of the ODB.
   db_find_key(hDB, 0, "/Runinfo", &hkey);
   if (db_open_record(hDB, hkey, &runinfo, 
@@ -306,9 +325,8 @@ INT begin_of_run(INT run_number, char *error)
 
   // Join the directory and filename using boost filesystem.
   {
-    std::string d1 = conf.get<std::string>("output.root_path");
-    std::string d2 = conf.get<std::string>("output.root_path");
-    auto p = boost::filesystem::path(d1) / boost::filesystem::path(d2);
+    std::string dir = conf.get<std::string>("output.root_path");
+    auto p = boost::filesystem::path(dir) / boost::filesystem::path(str);
     filename = p.string();
   }
 
@@ -317,6 +335,7 @@ INT begin_of_run(INT run_number, char *error)
   write_full_waveform = conf.get<bool>("output.write_full_waveform");
   full_waveform_subsampling = conf.get<bool>("output.write_full_waveform");
 
+  cm_msg(MINFO, "fixed-probes", "loading root file");
   // Set up the ROOT data output.
   if (write_root) {
   
@@ -342,7 +361,6 @@ INT begin_of_run(INT run_number, char *error)
 
   // HW part
   simulation_mode = conf.get<bool>("simulation_mode");
-
   run_in_progress = true;
 
   cm_msg(MLOG, "begin_of_run", "Completed successfully");
@@ -464,13 +482,13 @@ INT read_fixed_probe_event(char *pevent, INT off)
     triggered = false;
 
   } else if (triggered && !event_manager->HasEvent()) {
-    
+    cm_msg(MINFO, "read_fixed_probe_event", "no data yet");
     // No event yet.
     return 0;
 
   } else {
 
-    cm_msg(MDEBUG, "read_fixed_event", "got real data event");
+    cm_msg(MINFO, "read_fixed_event", "got real data event");
 
     auto fp_data = event_manager->GetCurrentEvent();
 
@@ -500,12 +518,15 @@ INT read_fixed_probe_event(char *pevent, INT off)
 	data.trace[idx][n] = wf[n];
       }
 
-      fid::Fid myfid(wf, tm);
+      cm_msg(MINFO, "read_fixed_probe_event", "analyzing FID");
+
+      fid::FastFid myfid(wf, tm);
       
       // Make sure we got an FID signal
       if (myfid.isgood()) {
 	
-	data.freq[idx] = myfid.CalcPhaseFreq();
+	//data.freq[idx] = myfid.CalcPhaseFreq();
+	data.freq[idx] = myfid.CalcFreq();
 	data.ferr[idx] = myfid.freq_err();
 	data.snr[idx] = myfid.snr();
 	data.len[idx] = myfid.fid_time();
@@ -775,10 +796,17 @@ void systems_check()
 
   // Make sure we can talk to the VME crate.
   rc = vme_A16D16_read(vme_dev, 0x0, &state);
+  close(vme_dev);
 
   if (rc) {
     al_msg.assign("Fixed Probe System: communication with VME failed");
     al_trigger_class("Failure", al_msg.c_str(), false);
     return;
   }    
+
+  // Verify that Meinberg software is installed.
+  if (system("which mbgfasttstamp")) {
+    al_msg.assign("Fixed Probe System: Meinberg software not found");
+    al_trigger_class("Failure", al_msg.c_str(), false);
+  }
 }
