@@ -94,6 +94,7 @@ private:
 
   const std::string name_ = "FixedProbeSequencer";
 
+  int min_event_time_;
   int max_event_time_;
   int num_probes_;
   std::atomic<bool> got_software_trg_;

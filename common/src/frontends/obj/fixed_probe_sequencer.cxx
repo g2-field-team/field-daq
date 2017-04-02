@@ -32,6 +32,8 @@ int FixedProbeSequencer::Init()
   mux_round_configured_ = false;
   analyze_fids_online_ = false;
   use_fast_fids_class_ = false;
+  got_software_trg_ = false;
+  got_start_trg_ = false;
 
   nmr_pulser_trg_ = nullptr;
 
@@ -54,8 +56,8 @@ int FixedProbeSequencer::BeginOfRun()
   analyze_fids_online_ = conf.get<bool>("analyze_fids_online", false);
   use_fast_fids_class_ = conf.get<bool>("use_fast_fids_class", false);
 
-  generate_software_triggers_ 
-    = conf.get<bool>("generate_software_triggers", false);
+  generate_software_triggers_ = 
+    conf.get<bool>("generate_software_triggers", false);
 
   if (fid_conf_file_ != std::string("")) {
 
@@ -69,23 +71,24 @@ int FixedProbeSequencer::BeginOfRun()
   }
 
   int sis_idx = 0;
-  for (auto &v : conf.get_child("devices.sis_3302")) {
+  // for (auto &v : conf.get_child("devices.sis_3302")) {
 
-    std::string name(v.first);
-    std::string dev_conf_file = std::string(v.second.data());
+  //   std::string name(v.first);
+  //   std::string dev_conf_file = std::string(v.second.data());
 
-    if (dev_conf_file[0] != '/') {
-      dev_conf_file = hw::conf_dir + std::string(v.second.data());
-    }
+  //   if (dev_conf_file[0] != '/') {
+  //     dev_conf_file = hw::conf_dir + std::string(v.second.data());
+  //   }
 
-    sis_idx_map_[name] = sis_idx++;
+  //   sis_idx_map_[name] = sis_idx++;
 
-    LogDebug("loading hw: %s, %s", name.c_str(), dev_conf_file.c_str());
-    workers_.PushBack(new hw::Sis3302(name, 
-				      dev_conf_file, 
-				      NMR_FID_LENGTH_ONLINE));
-  }
+  //   LogDebug("loading hw: %s, %s", name.c_str(), dev_conf_file.c_str());
+  //   workers_.PushBack(new hw::Sis3302(name, 
+  // 				      dev_conf_file, 
+  // 				      NMR_FID_LENGTH_ONLINE));
+  // }
 
+  sis_idx = 0;
   for (auto &v : conf.get_child("devices.sis_3316")) {
 
     std::string name(v.first);
@@ -130,7 +133,8 @@ int FixedProbeSequencer::BeginOfRun()
       break;
   }
 
-  max_event_time_ = conf.get<int>("max_event_time", 1000);
+  min_event_time_ = conf.get<int>("min_event_time", 1000);
+  max_event_time_ = conf.get<int>("max_event_time", 10000);
   mux_switch_time_ = conf.get<int>("mux_switch_time", 10000);
 
   trg_seq_file_ = conf.get<std::string>("trg_seq_file");
@@ -288,7 +292,21 @@ void FixedProbeSequencer::RunLoop()
         LogDebug("RunLoop: got potential event");
 
         // Wait to be sure the others have events too.
-        usleep(max_event_time_);
+	int count = 0;
+
+	while (count++ * 500 < min_event_time_) {
+	  usleep(500);
+	}
+	
+	LogDebug("RunLoop: slept minimum");
+
+	while (!workers_.AllWorkersHaveEvent() &&
+	       (count++ * 500 < max_event_time_)) {
+	  usleep(500);
+	  LogDebug("RunLoop: sleep check");
+	}
+	
+	LogDebug("RunLoop: slept max");
 
         if (!workers_.AllWorkersHaveEvent()) {
 
@@ -305,6 +323,8 @@ void FixedProbeSequencer::RunLoop()
 
         hw::event_data_t bundle;
         workers_.GetEventData(bundle);
+
+	LogDebug("RunLoop: copying data bundle");
 
         queue_mutex_.lock();
         if (data_queue_.size() <= kMaxQueueSize) {
@@ -360,10 +380,12 @@ void FixedProbeSequencer::TriggerLoop()
       	  LogDebug("TriggerLoop: muxes are configured for this round");
           usleep(mux_switch_time_);
 
+	  LogDebug("Generated DIO triggers");
+	  nmr_pulser_trg_->FireTriggers(nmr_trg_mask_);
+
 	  if (generate_software_triggers_) {
-	    workers_.GenerateTriggers();
-	  } else {
-	    nmr_pulser_trg_->FireTriggers(nmr_trg_mask_);
+	    LogDebug("Generated SW triggers");
+	    workers_.SoftwareTriggers();
 	  }
 
 	  LogDebug("TriggerLoop: muxes configure, triggers fired");
@@ -373,19 +395,19 @@ void FixedProbeSequencer::TriggerLoop()
 	    std::this_thread::yield();
 	    usleep(hw::short_sleep);
 	  }
-
+	  
 	} // on to the next round
 
 	sequence_in_progress_ = false;
 	got_start_trg_ = false;
 
-  LogDebug("TriggerLoop: waiting for builder to finish");
+	LogDebug("TriggerLoop: waiting for builder to finish");
 	while (!builder_has_finished_ && go_time_) {
 	  std::this_thread::yield();
 	  usleep(hw::short_sleep);
 	};
 
-  LogDebug("TriggerLoop: builder finished packing event");
+	LogDebug("TriggerLoop: builder finished packing event");
 
       } // done with trigger sequence
 
@@ -488,7 +510,7 @@ void FixedProbeSequencer::BuilderLoop()
               // Get the timestamp
               bundle.sys_clock[idx] = hw::systime_us();
 
-              if (analyze_fids_online_ || (idx == 0)) {
+              if (analyze_fids_online_) {
 
                 LogDebug("BuilderLoop: analyzing FID %i", idx);
 
@@ -587,7 +609,7 @@ void FixedProbeSequencer::BuilderLoop()
         queue_mutex_.lock();
         run_queue_.push(bundle);
 
-        LogDebug("BuilderLoop: Size of run_queue_ = ", run_queue_.size());
+        LogDebug("BuilderLoop: Size of run_queue_ = %i", run_queue_.size());
 
         has_event_ = true;
         seq_index = 0;
