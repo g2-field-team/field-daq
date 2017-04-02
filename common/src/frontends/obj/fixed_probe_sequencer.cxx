@@ -14,11 +14,11 @@ FixedProbeSequencer::FixedProbeSequencer(std::string conf_file, int num_probes) 
 FixedProbeSequencer::~FixedProbeSequencer()
 {
   for (auto &val : mux_boards_) {
-    delete val;
+     delete val;
   }
 
-  if (nmr_pulser_trg_ != nullptr) {
-    delete nmr_pulser_trg_;
+  for (auto &val : dio_triggers_) {
+     delete val;
   }
 }
 
@@ -34,8 +34,6 @@ int FixedProbeSequencer::Init()
   use_fast_fids_class_ = false;
   got_software_trg_ = false;
   got_start_trg_ = false;
-
-  nmr_pulser_trg_ = nullptr;
 
   // Change the logfile if there is one in the config.
   boost::property_tree::ptree conf;
@@ -105,31 +103,40 @@ int FixedProbeSequencer::BeginOfRun()
    				      NMR_FID_LENGTH_ONLINE));
   }
 
-  // Set up the NMR pulser trigger.
-  char bid = conf.get<char>("devices.nmr_pulser.dio_board_id");
-  int port = conf.get<int>("devices.nmr_pulser.dio_port_num");
-  nmr_trg_mask_ = conf.get<int>("devices.nmr_pulser.dio_trg_mask");
 
-  switch (bid) {
-    case 'a':
-      LogDebug("setting NMR pulser trigger on dio board A, port %i", port);
-      nmr_pulser_trg_ = new hw::DioTriggerBoard(0x0, hw::BOARD_A, port);
-      break;
 
-    case 'b':
-      LogDebug("setting NMR pulser trigger on dio board B, port %i", port);
-      nmr_pulser_trg_ = new hw::DioTriggerBoard(0x0, hw::BOARD_B, port);
-      break;
+  // Set up the NMR pulser triggers
+  dio_triggers_.resize(0);
 
-    case 'c':
-      LogDebug("setting NMR pulser trigger on dio board C, port %i", port);
-      nmr_pulser_trg_ = new hw::DioTriggerBoard(0x0, hw::BOARD_C, port);
-      break;
+  for (auto &v : conf.get_child("devices.dio_triggers")) {
+    
+    char bid = v.second.get<char>("dio_board_id");
+    int port = v.second.get<int>("dio_port_num");
+    int trg_mask = v.second.get<int>("dio_trg_mask");
 
-    default:
-      LogDebug("setting NMR pulser trigger on dio board D, port %i", port);
-      nmr_pulser_trg_ = new hw::DioTriggerBoard(0x0, hw::BOARD_D, port);
-      break;
+    switch (bid) {
+      case 'a':
+	LogDebug("setting NMR pulser trigger on dio board A, port %i", port);
+	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_A, port));
+	break;
+	
+      case 'b':
+	LogDebug("setting NMR pulser trigger on dio board B, port %i", port);
+	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_B, port));
+	break;
+      
+      case 'c':
+	LogDebug("setting NMR pulser trigger on dio board C, port %i", port);
+	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_C, port));
+	break;
+
+      default:
+	LogDebug("setting NMR pulser trigger on dio board D, port %i", port);
+	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_D, port));
+	break;
+    }
+
+    (*dio_triggers_.end())->SetTriggerMask(trg_mask);
   }
 
   min_event_time_ = conf.get<int>("min_event_time", 1000);
@@ -380,7 +387,10 @@ void FixedProbeSequencer::TriggerLoop()
           usleep(mux_switch_time_);
 
 	  LogDebug("Generated DIO triggers");
-	  nmr_pulser_trg_->FireTriggers(nmr_trg_mask_);
+
+	  for (auto &trg : dio_triggers_) {
+	    trg->FireTriggers();
+	  }
 
 	  if (generate_software_triggers_) {
 	    LogDebug("Generated SW triggers");

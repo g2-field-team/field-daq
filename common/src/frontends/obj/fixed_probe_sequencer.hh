@@ -112,7 +112,7 @@ private:
 
   int nmr_trg_mask_;
   int mux_switch_time_;
-  hw::DioTriggerBoard *nmr_pulser_trg_;
+  std::vector<hw::DioTriggerBoard *> dio_triggers_;
   std::vector<hw::DioMuxController *> mux_boards_;
   std::map<std::string, int> mux_idx_map_;
   std::map<std::string, int> sis_idx_map_;
