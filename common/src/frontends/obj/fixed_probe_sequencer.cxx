@@ -136,7 +136,8 @@ int FixedProbeSequencer::BeginOfRun()
 	break;
     }
 
-    (*dio_triggers_.end())->SetTriggerMask(trg_mask);
+    // Set the trigger mask.
+    (*(dio_triggers_.end() - 1))->SetTriggerMask(trg_mask);
   }
 
   min_event_time_ = conf.get<int>("min_event_time", 1000);
