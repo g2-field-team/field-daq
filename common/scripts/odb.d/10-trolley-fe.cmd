@@ -137,7 +137,7 @@ create INT "TX Delay"
 create INT "TX Period"
 create INT "User Data"
 set "Probe ID" 1
-set "Probe Enable" 0
+set "Probe Enable" 1
 set "Preamp Delay" 373 
 set "Preamp Period" 14000
 set "ADC Gate Delay" 0

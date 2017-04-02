@@ -985,6 +985,9 @@ void ControlDevice(){
   //Startup Mode: Idle, and reading out barcode
   CurrentMode = string("Idle");
   DeviceWrite(reg_command,0x0021);
+  DeviceWrite(reg_command,0x0121);
+  usleep(10000);
+  DeviceWrite(reg_command,0x0021);
   //Clear FIFO
   DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000001);
   DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000000);
@@ -1078,6 +1081,9 @@ void ControlDevice(){
       //Send trolley command based on Mode
       if (CurrentMode.compare("Continuous")==0){ 
 	DeviceWrite(reg_command,0x0021);
+	DeviceWrite(reg_command,0x0121);
+	usleep(10000);
+	DeviceWrite(reg_command,0x0021);
 	if (Cmd==1){
 	  //Set FIFO to circular, if cmd==1
 	  DeviceWriteMask(reg_nmr_control,0x00000002, 0x00000000);
@@ -1095,6 +1101,9 @@ void ControlDevice(){
 	DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000001);
 	DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000000);
 	DeviceWrite(reg_command,0x0021);
+	DeviceWrite(reg_command,0x0121);
+	usleep(10000);
+	DeviceWrite(reg_command,0x0021);
 	RepeatCount = Repeat;
 	Executing = 0;
       }else if (CurrentMode.compare("Sleep")==0){
@@ -1103,7 +1112,12 @@ void ControlDevice(){
 	DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000001);
 	DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000000);
       }else if (CurrentMode.compare("Idle")==0){
-	if(ReadBarcode)DeviceWrite(reg_command,0x0021);
+	      if(ReadBarcode){
+		      DeviceWrite(reg_command,0x0021);
+		      DeviceWrite(reg_command,0x0121);
+		      usleep(10000);
+		      DeviceWrite(reg_command,0x0021);
+	      }
 	else DeviceWrite(reg_command,0x0000);
 	//Clear FIFO
 	DeviceWriteMask(reg_nmr_control,0x00000001, 0x00000001);
