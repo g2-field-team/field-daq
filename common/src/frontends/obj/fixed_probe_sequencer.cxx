@@ -71,24 +71,23 @@ int FixedProbeSequencer::BeginOfRun()
   }
 
   int sis_idx = 0;
-  // for (auto &v : conf.get_child("devices.sis_3302")) {
+  for (auto &v : conf.get_child("devices.sis_3302")) {
 
-  //   std::string name(v.first);
-  //   std::string dev_conf_file = std::string(v.second.data());
+    std::string name(v.first);
+    std::string dev_conf_file = std::string(v.second.data());
 
-  //   if (dev_conf_file[0] != '/') {
-  //     dev_conf_file = hw::conf_dir + std::string(v.second.data());
-  //   }
+    if (dev_conf_file[0] != '/') {
+      dev_conf_file = hw::conf_dir + std::string(v.second.data());
+    }
 
-  //   sis_idx_map_[name] = sis_idx++;
+    sis_idx_map_[name] = sis_idx++;
 
-  //   LogDebug("loading hw: %s, %s", name.c_str(), dev_conf_file.c_str());
-  //   workers_.PushBack(new hw::Sis3302(name, 
-  // 				      dev_conf_file, 
-  // 				      NMR_FID_LENGTH_ONLINE));
-  // }
+    LogDebug("loading hw: %s, %s", name.c_str(), dev_conf_file.c_str());
+    workers_.PushBack(new hw::Sis3302(name, 
+  				      dev_conf_file, 
+  				      NMR_FID_LENGTH_ONLINE));
+  }
 
-  sis_idx = 0;
   for (auto &v : conf.get_child("devices.sis_3316")) {
 
     std::string name(v.first);
