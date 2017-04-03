@@ -34,6 +34,7 @@ using std::string;
 #include "g2field/common.hh"
 #include <zmq.hpp>
 #include <json.hpp>
+#include <boost/property_tree/json_parser.hpp>
 
 //--- project includes -----------------------------------------------------//
 #include "frontend_utils.hh"
@@ -133,6 +134,9 @@ namespace{
   Double_t bot_set_values[nCoils];
   Double_t top_set_values[nCoils];
 
+  Double_t bot_offsets[nCoils];
+  Double_t top_offsets[nCoils];
+
   Double_t bot_currents[nCoils];
   Double_t top_currents[nCoils];
 
@@ -192,21 +196,30 @@ INT frontend_init()
       }
     }
   }
-
-  //bind to server
-  cm_msg(MINFO, "init", "Binding to publish socket");
-  publisher.bind("tcp://127.0.0.1:5550");                                     
-
-  //bind subscriber to receive data being pushed by beaglebones            
-  cm_msg(MINFO, "init", "Binding to subscribe socket");
-  subscriber.bind("tcp://127.0.0.1:5551");
  
-  //Subscribe to all incoming data                                             
-  subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);        
-  
+  //Get the offset values
+  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Offset Values/Bottom Offset Values", &hkey);
+ 
+   if(hkey == NULL){
+    cm_msg(MERROR, "begin_of_run", "unable to find Bottom Offset Values key");
+  }
+
+  int bot_off_size = sizeof(bot_offsets);
+  db_get_data(hDB, hkey, &bot_offsets, &bot_off_size, TID_DOUBLE); 
+
+  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Offset Values/Top Offset Values", &hkey);
+
+   if(hkey == NULL){
+    cm_msg(MERROR, "begin_of_run", "unable to find Top Offset Values key");
+  }
+
+  int top_off_size = sizeof(top_offsets);
+  db_get_data(hDB, hkey, &top_offsets, &top_off_size, TID_DOUBLE);
+
+
   run_in_progress = false;
   
-  cm_msg(MINFO, "init","Sim Surface Coils initialization complete");
+  cm_msg(MINFO, "init","Surface Coils initialization complete");
   return SUCCESS;
 
 }
@@ -214,13 +227,9 @@ INT frontend_init()
 //--- Frontend Exit ---------------------------------------------------------//
 INT frontend_exit()
 {
-  //Disconnect the sockets.
-  publisher.disconnect("tcp://127.0.0.1:5550");
-  subscriber.disconnect("tcp://127.0.0.1:5551");
-
   run_in_progress = false;
 
-  cm_msg(MINFO, "exit", "Sim Surface Coils teardown complete");
+  cm_msg(MINFO, "exit", "Surface Coils teardown complete");
   return SUCCESS;
 }
 
@@ -238,7 +247,7 @@ INT begin_of_run(INT run_number, char *error)
   cm_get_experiment_database(&hDB, NULL);
 
   //Get bottom set currents                                                                  
-  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Bottom Set Currents", &hkey);
+  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Bottom Set Currents", &hkey);
 
   if(hkey == NULL){
     cm_msg(MERROR, "begin_of_run", "unable to find Bottom Set Currents key");
@@ -254,7 +263,7 @@ INT begin_of_run(INT run_number, char *error)
   db_get_data(hDB, hkey, &bot_set_values, &bot_size, TID_DOUBLE);
 
   //Top                                                                                      
-  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Top Set Currents", &hkey);
+  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Top Set Currents", &hkey);
 
   if(hkey == NULL){
     cm_msg(MERROR, "begin_of_run", "unable to find Top Set Currents key");
@@ -264,8 +273,10 @@ INT begin_of_run(INT run_number, char *error)
 
   db_get_data(hDB, hkey, &top_set_values, &top_size, TID_DOUBLE);
 
+  std::cout << "TESTTESTTEST" << std::endl;
+  for(int i=0;i<10;i++) std::cout << bot_set_values[i] << " " << top_set_values[i] << std::endl;
   //Get the allowable difference                                                            
-  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Allowed Difference", &hkey);
+  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Allowed Difference", &hkey);
 
   setPoint = 0;
   int setpt_size = sizeof(setPoint);
@@ -282,31 +293,59 @@ INT begin_of_run(INT run_number, char *error)
     if(i==100) coilNum = std::to_string(i);
     string topString = "T-"+coilNum;
     string botString = "B-"+coilNum;
-    request[coil_map[botString]] = bot_set_values[i-1];
-    request[coil_map[topString]] = top_set_values[i-1];
+    request[coil_map[botString]] = bot_set_values[i-1]-bot_offsets[i-1];
+    request[coil_map[topString]] = top_set_values[i-1]-top_offsets[i-1];
   }
   
+  //bind to server
+  cm_msg(MINFO, "init", "Binding to server");
+  publisher.bind("tcp://127.0.0.1:5550");
+  usleep(200);
+
   //send data to driver boards                                                 
   for(int i=0;i<5;i++){
+    //bind to server                           
+    //cm_msg(MINFO, "init", "Binding to server");
+    //publisher.bind("tcp://127.0.0.1:5550");      
     std::string buffer = request.dump();
     zmq::message_t message (buffer.size());
     std::copy(buffer.begin(), buffer.end(), (char *)message.data());
   
     bool st = false; //status of publishing
 
-    do{
+    while(!st){
+     try{
+      st = publisher.send(message, ZMQ_DONTWAIT);
+      usleep(200);
+      std::cout << "Sent a message" << std::endl;	
+     } catch(zmq::error_t &err){
+	if(err.num() != EINTR) throw;	
+       }	
+    }
+
+    /*do{
       try{
 	st = publisher.send(message, ZMQ_DONTWAIT);
 	usleep(200);
 	std::cout << "Sent a message" << std::endl;
       } catch(const zmq::error_t e1) {std::cout << "Problem publishing" << std::endl;};
-    } while(!st);
+    } while(!st); */
     
     usleep(500000);
+    //publisher.disconnect("tcp://127.0.0.1:5550");
   }//end for loop
 
-  cm_msg(MINFO, "begin_of_run", "Current values sent to beaglebones");        
+  cm_msg(MINFO, "begin_of_run", "Current values sent to beaglebones");            
  
+  //Now bind subscriber to receive data being pushed by beaglebones         
+  std::cout << "Binding to subscribe socket" << std::endl;
+  subscriber.bind("tcp://127.0.0.1:5551");    
+  cm_msg(MINFO, "info", "Bound to subscribe socket");
+  std::cout << "Bound" << std::endl;
+                                     
+  //Subscribe to all incoming data                                             
+  subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);        
+
   //set up the data
   std::string datadir;
   std::string filename;
@@ -350,7 +389,7 @@ INT begin_of_run(INT run_number, char *error)
   if (write_root) {
     // Set up the ROOT data output.                                            
     pf = new TFile(filename.c_str(), "recreate");
-    pt_norm = new TTree("t_scc", "Sim Surface Coil Data");
+    pt_norm = new TTree("t_scc", "Surface Coil Data");
     pt_norm->SetAutoSave(5);
     pt_norm->SetAutoFlush(20);
 
@@ -371,7 +410,11 @@ INT begin_of_run(INT run_number, char *error)
 //--- End of Run -------------------------------------------------------------//
 INT end_of_run(INT run_number, char *error)
 {
-  // Make sure we write the ROOT data.                                        
+  //Disconnect the sockets. Necessary so that next run starts properly
+  publisher.disconnect("tcp://127.0.0.1:5550");
+  subscriber.disconnect("tcp://127.0.0.1:5551");
+  
+  // Make sure we write the ROOT data.                                                    
   if (run_in_progress && write_root) {
 
     pt_norm->Write();
@@ -452,9 +495,18 @@ INT interrupt_configure(INT cmd, INT source, PTYPE adr)
 //--- Event Readout ----------------------------------------------------------//
 INT read_surface_coils(char *pevent, INT c)
 {
-  // std::cout << "Made it into readout routine" << std::endl;
+  std::cout << "Made it into readout routine" << std::endl;
   static unsigned long long num_events;
   static unsigned long long events_written;
+
+ // std::cout << "Binding to subscribe socket" << std::endl;
+ // subscriber.bind("tcp://127.0.0.1:5551");    
+ // cm_msg(MINFO, "info", "Bound to subscribe socket");
+ // std::cout << "Bound" << std::endl;
+                                     
+  //Subscribe to all incoming data                                             
+  //subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
+
 
   HNDLE hDB, hkey;
   char bk_name[10]; //bank name
@@ -475,28 +527,47 @@ INT read_surface_coils(char *pevent, INT c)
   }
 
   //Receive values from beaglebones
-  zmq::pollitem_t poller;
-  poller.socket = (void *)subscriber; //Attaches pointer of socket to poller
-  poller.events = ZMQ_POLLIN;
+  //zmq::pollitem_t poller;
+  //poller.socket = (void *)subscriber; //Attaches pointer of socket to poller
+  //poller.events = ZMQ_POLLIN;
   std::vector<json> dataVector;
   bool st = false; //status of request/reply
+  zmq::message_t bbVals;
 
-  if(zmq::poll(&poller, 1, 1) == 0){return 0;} //if no data, exit loop
+  while (!st) {
+   try {
+    st = subscriber.recv(&bbVals);
+   } catch (zmq::error_t& err) {
+    if (err.num() != EINTR) {
+      throw;
+    }
+   }	
+  }
 
-  while(zmq::poll(&poller, 1, 1) > 0){ //if we have data, process it
+  string s(static_cast<char*>(bbVals.data()));
+  s.resize(bbVals.size());
+  std::cout << s << std::endl;
+  json reply_data = json::parse(s);
+  dataVector.push_back(reply_data);
+
+  //if(zmq::poll(&poller, 1, 1) == 0){return 0;} //if no data, exit loop
+
+  /*while(zmq::poll(&poller, 1, 1) > 0){ //if we have data, process it
     zmq::message_t bbVals(4096);
     do{
       try{
 	st = subscriber.recv(&bbVals, ZMQ_DONTWAIT | ZMQ_NOBLOCK);
 	usleep(200);
       } catch(const zmq::error_t e) {};
-   } while(!st);
+   } while((!st) && (zmq_errno() == EINTR));
    string s(static_cast<char*>(bbVals.data()));
    s.resize(bbVals.size());
    std::cout << s << std::endl;
    json reply_data = json::parse(s);
    dataVector.push_back(reply_data);
-  }
+  }*/
+
+	
   cm_msg(MINFO, "read_surface_coils", "Received reply from beaglebones");
  
   //Process the data in the vector. Loops through all json objects. 
@@ -506,7 +577,7 @@ INT read_surface_coils(char *pevent, INT c)
     for(json::iterator it = reply_data.begin(); it != reply_data.end(); ++it){
 
       //loop through all entries in json object
-      //First need to turn hw_id into sc_id. 
+      //First need to turn hw_id into sc_id 
       //Get element index (get ###-1 from A-### where A = T or B)
       //Figure out if it is top or bottom
       string coil_id = rev_coil_map[it.key()];
@@ -535,6 +606,8 @@ INT read_surface_coils(char *pevent, INT c)
     data.top_coil_currents[idx] = top_currents[idx];
     data.bot_coil_temps[idx] = bot_temps[idx];
     data.top_coil_temps[idx] = top_temps[idx];
+    data.bot_coil_temps[idx] = 27.0;
+    data.top_coil_temps[idx] = 27.0;
   }
 
   //write root output
@@ -559,8 +632,53 @@ INT read_surface_coils(char *pevent, INT c)
   pdata += sizeof(data) / sizeof(DWORD);
 
   bk_close(pevent, pdata);
- 
+  /*
+  //Check values vs set points. Set a flag if something drifts out of range
+  if(event_number % 10 == 0){
+    //json reset_request;
+    
+    for(int i=0;i<nCoils;i++){ //Check all the values. Fill json with problem channels
+
+      string coilNum;
+      if(i >= 0 && i <= 8) coilNum = "00" + std::to_string(i+1);
+      if(i > 8 && i <= 98) coilNum = "0" + std::to_string(i+1);
+      if(i==99) coilNum = std::to_string(i+1);
+      string topString = "T-"+coilNum;
+      string botString = "B-"+coilNum;
+
+      if(abs(bot_currents[i]- bot_set_values[i]) > setPoint){
+	cm_msg(MINFO, "read_surface_coils", "Problem  with %s, out of range", botString.c_str());
+	//reset_request[coil_map[botString]] = bot_set_values[i];
+      }
+      if(abs(top_currents[i]- top_set_values[i]) > setPoint){
+	cm_msg(MINFO, "read_surface_coils", "Problem  with %s, out of range", topString.c_str());
+        //reset_request[coil_map[topString]] = top_set_values[i];
+      }
+
+    }
+    }*/
+    /*
+    //Publish json of problem channels
+    for(int i=0;i<5;i++){
+      std::string buffer = reset_request.dump();
+      zmq::message_t message (buffer.size());
+      std::copy(buffer.begin(), buffer.end(), (char *)message.data());
+
+      bool st = false; //status of publishing                                   
+
+      do{
+	try{
+	  st = publisher.send(message, ZMQ_DONTWAIT);
+	  usleep(200);
+	} catch(const zmq::error_t e1) {std::cout << "Problem publishing" << std::endl;};
+      } while(!st);
+
+    }
+  }
+  */
   event_number++;
+
+  //subscriber.disconnect("tcp://127.0.0.1:5551");
 
   cm_msg(MINFO, "read_surface_coils", "Finished generating event");
   return bk_size(pevent);
