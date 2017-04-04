@@ -59,6 +59,9 @@ create INT "Tension Range High"
 create INT "Tension Offset 1"
 create INT "Tension Offset 2"
 create BOOL "Trolley Switch"
+create INT "Trolley Def Pos1"
+create INT "Trolley Def Pos2"
+create INT "Garage Def Pos"
 set "Garage Switch" false
 set "Trolley Switch" false
 set "Trolley Velocity" 100
@@ -66,6 +69,9 @@ set "Tension Range Low" 400
 set "Tension Range High" 800
 set "Tension Offset 1" 0
 set "Tension Offset 2" 0
+set "Trolley Def Pos1" 0
+set "Trolley Def Pos2" 0
+set "Garage Def Pos" 0
 cd "/Equipment/GalilFermi/Settings/Manual Control/Plunging Probe"
 create INT "Plunging Probe Abs Pos[3]"
 create INT "Plunging Probe Rel Pos[3]"

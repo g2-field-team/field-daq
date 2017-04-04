@@ -931,44 +931,30 @@ void GalilControl(const GCon &g){
       }
     }
     if (command == 1){
-/*      INT AbsPos;
-      INT Size_Int = sizeof(AbsPos);
-      INT CurrentPos[6];
-      INT Size_Current_Pos = sizeof(CurrentPos);
+      INT RelPos1;
+      INT RelPos2;
+      INT Size_Int = sizeof(RelPos1);
       mlock.lock();
-      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Abs Pos",&AbsPos,&Size_Int,TID_INT,0);
-      db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Positions",CurrentPos,&Size_Current_Pos,TID_INT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley1 Rel Pos",&RelPos1,&Size_Int,TID_INT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley2 Rel Pos",&RelPos2,&Size_Int,TID_INT,0);
       mlock.unlock();
+      sprintf(CmdBuffer,"PR %d,%d",RelPos1,RelPos2);
       if (!PreventManualCtrl){
 	mlock.lock();
-	GCmd(g,"SHA");
-	GCmd(g,"SHB");
-	if (AbsPos>CurrentPos[0]){
-	  destiny = AbsPos;
-	  sprintf(CmdBuffer,"destiny=%d",destiny);
-	  GCmd(g,CmdBuffer);
-	  GCmd(g,"tlcomplete=0");
-	  GCmd(g,"XQ #FDMTN,1");
-	}else{
-	  destiny = -AbsPos;
-	  sprintf(CmdBuffer,"destiny=%d",destiny);
-	  GCmd(g,CmdBuffer);
-	  GCmd(g,"tlcomplete=0");
-	  GCmd(g,"XQ #BKMTN,1");
-	}
+	GCmd(g,CmdBuffer);
+	GCmd(g,"BG");
 	mlock.unlock();
       }else{
 	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
-      }*/
+      }
+
       //Block before the motion is done
+      INT CurrentVelocities[6];
+      INT CurrentVelocities_size = sizeof(CurrentVelocities);
+
       while(1){
-	int trolley_complete = 0;
-	mlock.lock();
-	GCmdI(g,"tlfinish=?",&trolley_complete);
-	mlock.unlock();
-	if (trolley_complete==1){
-	  break;
-	}
+	db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Velocities",CurrentVelocities,&CurrentVelocities_size,TID_INT,0);
+	if (CurrentVelocities[0]==0 && CurrentVelocities[1]==0)break;
 	sleep(1);
       }
 
@@ -1024,9 +1010,21 @@ void GalilControl(const GCon &g){
       db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT);
       mlock.unlock();
     }else if (command == 3){
+      INT DefTrolleyPos1;
+      INT DefTrolleyPos2;
+      INT DefGaragePos;
+      INT Size_Int = sizeof(DefTrolleyPos1);
+
+      mlock.lock();
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Def Pos1",&DefTrolleyPos1,&Size_Int,TID_INT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Def Pos2",&DefTrolleyPos2,&Size_Int,TID_INT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Garage Def Pos",&DefGaragePos,&Size_Int,TID_INT,0);
+      mlock.unlock();
+      sprintf(CmdBuffer,"DP %d,%d,%d",DefTrolleyPos1,DefTrolleyPos2,DefGaragePos);
+
       if (!PreventManualCtrl){
 	mlock.lock();
-	GCmd(g,"DP 0,0");
+	GCmd(g,CmdBuffer);
 	mlock.unlock();
       }else{
 	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
