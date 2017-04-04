@@ -172,16 +172,18 @@ void set_json_tmpfiles()
   conf.get_child("devices.sis_3302").erase("sis_3302_0");
   conf.put_child("devices.sis_3302", pt);
 
+  // Now handle the config subtree.
+  pt = conf.get_child("config");
+
   // Copy the trigger sequence file.
   snprintf(tmp_file, 128, "/tmp/g2-nmr-config_XXXXXX.json");
   mkstemps(tmp_file, 5);
   conf_file = std::string(tmp_file);
 
   // Copy the json, and set to the temp file.
-  pt = conf.get_child("config.mux_sequence");
-  conf.erase("config.mux_sequence");
-  conf.put<std::string>("config.mux_sequence", conf_file);
-  boost::property_tree::write_json(conf_file, pt);
+  boost::property_tree::write_json(conf_file, pt.get_child("mux_sequence"));
+  pt.erase("mux_sequence");
+  pt.put<std::string>("mux_sequence", conf_file);
 
   // Now the mux configuration
   snprintf(tmp_file, 128, "/tmp/g2-nmr-config_XXXXXX.json");
@@ -189,10 +191,9 @@ void set_json_tmpfiles()
   conf_file = std::string(tmp_file);
 
   // Copy the json, and set to the temp file.
-  pt = conf.get_child("config.mux_connections");
-  conf.erase("config.mux_connections");
-  conf.put<std::string>("config.mux_connections",  conf_file);
-  boost::property_tree::write_json(conf_file, pt);
+  boost::property_tree::write_json(conf_file, pt.get_child("mux_connections"));
+  pt.erase("mux_connections");
+  pt.put<std::string>("mux_connections",  conf_file);
 
   // And the fid params.
   snprintf(tmp_file, 128, "/tmp/g2-nmr-config_XXXXXX.json");
@@ -200,10 +201,12 @@ void set_json_tmpfiles()
   conf_file = std::string(tmp_file);
 
   // Copy the json, and set to the temp file.
-  pt = conf.get_child("config.fid_analysis");
-  conf.erase("config.fid_analysis");
-  conf.put<std::string>("config.fid_analysis", conf_file);
-  boost::property_tree::write_json(conf_file, pt);
+  boost::property_tree::write_json(conf_file, pt.get_child("fid_analysis"));
+  pt.erase("fid_analysis");
+  pt.put<std::string>("fid_analysis", conf_file);
+
+  conf.erase("config");
+  conf.put_child("config", pt);
 
   // Now save the config to a temp file and feed it to the Event Manager.
   snprintf(tmp_file, 128, "/tmp/g2-nmr-config_XXXXXX.json");

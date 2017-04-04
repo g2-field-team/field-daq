@@ -144,16 +144,18 @@ int FixedProbeSequencer::BeginOfRun()
   max_event_time_ = conf.get<int>("max_event_time", 10000);
   mux_switch_time_ = conf.get<int>("mux_switch_time", 10000);
 
-  mux_sequence_ = conf.get<std::string>("mux_sequence");
+  mux_sequence_ = conf.get<std::string>("config.mux_sequence");
 
   if (mux_sequence_[0] != '/') {
-    mux_sequence_ = hw::conf_dir + conf.get<std::string>("mux_sequence");
+    mux_sequence_ = hw::conf_dir + 
+      conf.get<std::string>("config.mux_sequence");
   }
 
-  mux_connections_ = conf.get<std::string>("mux_connections");
+  mux_connections_ = conf.get<std::string>("config.mux_connections");
 
   if (mux_connections_[0] != '/') {
-    mux_connections_ = hw::conf_dir + conf.get<std::string>("mux_connections");
+    mux_connections_ = hw::conf_dir + 
+      conf.get<std::string>("config.mux_connections");
   }
 
   // Load trigger sequence
@@ -171,15 +173,14 @@ int FixedProbeSequencer::BeginOfRun()
       }
 
       // Map the multiplexer configuration.
-      std::pair<std::string, int> trg(mux.first, std::stoi(chan.first));
+      int ch = std::stoi(chan.first.substr(3)); // skip 'ch_'
+      std::pair<std::string, int> trg(mux.first, ch);
       trg_seq_[count++].push_back(trg);
 
       // Map the data type and array index.
-      for (auto &data : chan.second) {
-	int idx = std::stoi(data.second.data());
-	std::pair<std::string, int> loc(data.first, idx);
-	data_out_[trg] = loc;
-      }
+      int idx = std::stoi(chan.second.data());
+      std::pair<std::string, int> loc(chan.first, idx);
+      data_out_[trg] = loc;
     }
   }
 
