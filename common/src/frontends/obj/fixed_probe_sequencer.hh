@@ -106,9 +106,9 @@ private:
   std::atomic<bool> mux_round_configured_;
   std::atomic<bool> analyze_fids_online_;
   std::atomic<bool> use_fast_fids_class_;
-  std::string trg_seq_file_;
-  std::string mux_conf_file_;
-  std::string fid_conf_file_;
+  std::string mux_sequence_;
+  std::string mux_connections_;
+  std::string fid_analysis_;
 
   int nmr_trg_mask_;
   int mux_switch_time_;

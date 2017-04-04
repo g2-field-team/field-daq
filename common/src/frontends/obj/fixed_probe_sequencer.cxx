@@ -50,21 +50,21 @@ int FixedProbeSequencer::BeginOfRun()
 
   // First set the config-dir if there is one.
   hw::conf_dir = conf.get<std::string>("config_dir", hw::conf_dir);
-  fid_conf_file_ = conf.get<std::string>("fid_conf_file", "");
+  fid_analysis_ = conf.get<std::string>("config.fid_analysis", "");
   analyze_fids_online_ = conf.get<bool>("analyze_fids_online", false);
   use_fast_fids_class_ = conf.get<bool>("use_fast_fids_class", false);
 
   generate_software_triggers_ = 
     conf.get<bool>("generate_software_triggers", false);
 
-  if (fid_conf_file_ != std::string("")) {
+  if (fid_analysis_ != std::string("")) {
 
-    if ((fid_conf_file_[0] != '/') && (fid_conf_file_[0] != '\\')) {
-      fid::load_params(hw::conf_dir + fid_conf_file_);
+    if ((fid_analysis_[0] != '/') && (fid_analysis_[0] != '\\')) {
+      fid::load_params(hw::conf_dir + fid_analysis_);
 
     } else {
 
-      fid::load_params(fid_conf_file_);
+      fid::load_params(fid_analysis_);
     }
   }
 
@@ -144,21 +144,21 @@ int FixedProbeSequencer::BeginOfRun()
   max_event_time_ = conf.get<int>("max_event_time", 10000);
   mux_switch_time_ = conf.get<int>("mux_switch_time", 10000);
 
-  trg_seq_file_ = conf.get<std::string>("trg_seq_file");
+  mux_sequence_ = conf.get<std::string>("mux_sequence");
 
-  if (trg_seq_file_[0] != '/') {
-    trg_seq_file_ = hw::conf_dir + conf.get<std::string>("trg_seq_file");
+  if (mux_sequence_[0] != '/') {
+    mux_sequence_ = hw::conf_dir + conf.get<std::string>("mux_sequence");
   }
 
-  mux_conf_file_ = conf.get<std::string>("mux_conf_file");
+  mux_connections_ = conf.get<std::string>("mux_connections");
 
-  if (mux_conf_file_[0] != '/') {
-    mux_conf_file_ = hw::conf_dir + conf.get<std::string>("mux_conf_file");
+  if (mux_connections_[0] != '/') {
+    mux_connections_ = hw::conf_dir + conf.get<std::string>("mux_connections");
   }
 
   // Load trigger sequence
-  LogMessage("loading trigger sequence from %s", trg_seq_file_.c_str());
-  boost::property_tree::read_json(trg_seq_file_, conf);
+  LogMessage("loading trigger sequence from %s", mux_sequence_.c_str());
+  boost::property_tree::read_json(mux_sequence_, conf);
 
   for (auto &mux : conf) {
 
@@ -196,7 +196,7 @@ int FixedProbeSequencer::BeginOfRun()
   bid_map['d'] = 3;
 
   // Load the data channel/mux maps
-  boost::property_tree::read_json(mux_conf_file_, conf);
+  boost::property_tree::read_json(mux_connections_, conf);
   for (auto &mux : conf) {
     char bid = mux.second.get<char>("dio_board_id");
     std::string mux_name(mux.first);

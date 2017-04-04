@@ -178,9 +178,9 @@ void set_json_tmpfiles()
   conf_file = std::string(tmp_file);
 
   // Copy the json, and set to the temp file.
-  pt = conf.get_child("trg_seq_file");
-  conf.erase("trg_seq_file");
-  conf.put<std::string>("trg_seq_file", conf_file);
+  pt = conf.get_child("config.mux_sequence");
+  conf.erase("config.mux_sequence");
+  conf.put<std::string>("config.mux_sequence", conf_file);
   boost::property_tree::write_json(conf_file, pt);
 
   // Now the mux configuration
@@ -189,9 +189,9 @@ void set_json_tmpfiles()
   conf_file = std::string(tmp_file);
 
   // Copy the json, and set to the temp file.
-  pt = conf.get_child("mux_conf_file");
-  conf.erase("mux_conf_file");
-  conf.put<std::string>("mux_conf_file",  conf_file);
+  pt = conf.get_child("config.mux_connections");
+  conf.erase("config.mux_connections");
+  conf.put<std::string>("config.mux_connections",  conf_file);
   boost::property_tree::write_json(conf_file, pt);
 
   // And the fid params.
@@ -200,9 +200,9 @@ void set_json_tmpfiles()
   conf_file = std::string(tmp_file);
 
   // Copy the json, and set to the temp file.
-  pt = conf.get_child("fid_conf_file");
-  conf.erase("fid_conf_file");
-  conf.put<std::string>("fid_conf_file", conf_file);
+  pt = conf.get_child("config.fid_analysis");
+  conf.erase("config.fid_analysis");
+  conf.put<std::string>("config.fid_analysis", conf_file);
   boost::property_tree::write_json(conf_file, pt);
 
   // Now save the config to a temp file and feed it to the Event Manager.
