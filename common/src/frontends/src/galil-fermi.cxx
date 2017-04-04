@@ -931,7 +931,7 @@ void GalilControl(const GCon &g){
       }
     }
     if (command == 1){
-      INT AbsPos;
+/*      INT AbsPos;
       INT Size_Int = sizeof(AbsPos);
       INT CurrentPos[6];
       INT Size_Current_Pos = sizeof(CurrentPos);
@@ -959,7 +959,7 @@ void GalilControl(const GCon &g){
 	mlock.unlock();
       }else{
 	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
-      }
+      }*/
       //Block before the motion is done
       while(1){
 	int trolley_complete = 0;

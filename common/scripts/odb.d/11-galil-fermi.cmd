@@ -47,12 +47,12 @@ set "Cmd" 0
 mkdir "Trolley"
 mkdir "Plunging Probe"
 cd "/Equipment/GalilFermi/Settings/Manual Control/Trolley"
-create INT "Garage Abs Pos"
 create INT "Garage Rel Pos"
 create INT "Garage Velocity"
 create BOOL "Garage Switch"
-create INT "Trolley Abs Pos"
 create INT "Trolley Rel Pos"
+create INT "Trolley1 Rel Pos"
+create INT "Trolley2 Rel Pos"
 create INT "Trolley Velocity"
 create INT "Tension Range Low"
 create INT "Tension Range High"
@@ -74,18 +74,20 @@ set "Plunging Probe Switch" false
 
 
 cd "/Equipment/GalilFermi/Settings/Auto Control"
-create INT "Trigger"
+create INT "Trigger Trolley"
+create INT "Trigger Plunging Probe"
 create STRING "Mode[1][256]"
-set "Mode" "Continuous"
-set "Trigger" 0
+create STRING "Continuous Motion[1][256]"
+set "Trigger Trolley" 0
+set "Trigger Plunging Probe" 0
+set "Mode" "Continuous Motion"
+set "Continuous Motion" "Full Run with Garage"
 
 mkdir "Trolley"
 mkdir "Plunging Probe"
 cd "/Equipment/GalilFermi/Settings/Auto Control/Trolley"
-create INT "Garage Rel Pos"
-create INT "Garage Step Number"
 create INT "Trolley Rel Pos"
-create INT "Trolley Steop Number"
+create INT "Trolley Step Number"
 cd "/Equipment/GalilFermi/Settings/Auto Control/Plunging Probe"
 create INT "Plunging Probe Rel Pos[3]"
 create INT "Plunging Probe Step Number[3]"
