@@ -42,11 +42,11 @@ function load()   {
       document.getElementById("LRC").innerHTML = Lr[2];
       var MO= String(rpc.result.data[6]);
       MO = MO.split(',');
-      if (MO[0])document.getElementById("MOA").innerHTML = "OFF";
+      if (MO[0]=="false")document.getElementById("MOA").innerHTML = "OFF";
       else document.getElementById("MOA").innerHTML = "ON";
-      if (MO[1])document.getElementById("MOB").innerHTML = "OFF";
+      if (MO[1]=="false")document.getElementById("MOB").innerHTML = "OFF";
       else document.getElementById("MOB").innerHTML = "ON";
-      if (MO[2])document.getElementById("MOC").innerHTML = "OFF";
+      if (MO[2]=="false")document.getElementById("MOC").innerHTML = "OFF";
       else document.getElementById("MOC").innerHTML = "ON";
       }).catch(function(error) {
 	mjsonrpc_error_alert(error);
