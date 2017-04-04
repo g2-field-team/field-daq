@@ -7,6 +7,8 @@ create SHORT "/Equipment/TrolleyInterface/Hardware/Pressure Sensor Calibration[7
 cd "/Equipment/TrolleyInterface/Monitor"
 
 create BOOL "Barcode Error"
+create FLOAT "LED Voltage"
+create INT "Barcode Readout[6]"
 create BOOL "Temperature Interrupt"
 create BOOL "Power Supply Status[3]"
 create BOOL "Read Thread Active"
