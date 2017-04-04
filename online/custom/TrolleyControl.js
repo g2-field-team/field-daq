@@ -127,6 +127,12 @@ function ManualGarageControlRel(){
 }
 
 function ManualDefineOrigin(){
+  var TrolleyPos1 = document.getElementById("DefTrolley1").value;
+  var TrolleyPos2 = document.getElementById("DefTrolley2").value;
+  var GaragePos = document.getElementById("DefGarage").value;
+  mjsonrpc_db_paste(["/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Def Pos1","/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Def Pos2","/Equipment/GalilFermi/Settings/Manual Control/Trolley/Garage Def Pos"],[TrolleyPos1,TrolleyPos2,GaragePos]).then(function(rpc){;}).catch(function(error) {
+      mjsonrpc_error_alert(error);
+      });
   mjsonrpc_db_paste(["/Equipment/GalilFermi/Settings/Manual Control/Cmd"],[3]).then(function(rpc){;}).catch(function(error) {
       mjsonrpc_error_alert(error);
       });
