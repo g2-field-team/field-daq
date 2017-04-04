@@ -92,14 +92,13 @@ def main():
             
             ch = int(key[-2:])
 
-            f.write('mkdir "%i"\n' % ch)
-            f.write('create INT "%i/fixed"\n' % ch)
+            f.write('create INT "ch_%02i"\n' % ch)
 
             probe_id = probe_mux_map[mux_idx]['ch%02i' % ch]
             probe_loc = probe_ring_map[probe_id]
             probe_idx = probe_labels[probe_loc]
 
-            f.write('set "%i/fixed" %i\n' % (ch, probe_idx))
+            f.write('set "ch_%02i" %i\n' % (ch, probe_idx))
 
             json_seq[mux_key][ch] = {'fixed': probe_idx}
         
