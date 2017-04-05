@@ -12,16 +12,16 @@ cd $(dirname $(readlink -f $0))
 
 # Now proceed with setting up gm2 packages via UPS.
 source /cvmfs/gm2.opensciencegrid.org/prod7/g-2/setup
-setup gm2 v7_03_01 -q prof
+setup gm2 v7_04_00 -q prof
 
 # And initialize a new development space.
 mrb newDev -f
 source localProducts*/setup
 cd $MRB_SOURCE
 
-mrb g -b field-dev gm2dataproducts
-mrb g -b field-dev gm2unpackers
-mrb g -b field-dev gm2dqm
+mrb g -b develop gm2dataproducts
+mrb g -b develop gm2unpackers
+mrb g -b develop gm2dqm
 mrb g -b develop gm2midastoart
 mrb g -b develop gm2field
 mrb g -b develop gm2util
