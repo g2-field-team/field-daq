@@ -390,13 +390,13 @@ void FixedProbeSequencer::TriggerLoop()
 
 	  LogDebug("Generated DIO triggers");
 
-	  for (auto &trg : dio_triggers_) {
-	    trg->FireTriggers();
-	  }
-
 	  if (generate_software_triggers_) {
 	    LogDebug("Generated SW triggers");
 	    workers_.SoftwareTriggers();
+	  }
+
+	  for (auto &trg : dio_triggers_) {
+	    trg->FireTriggers();
 	  }
 
 	  LogDebug("TriggerLoop: muxes configure, triggers fired");
