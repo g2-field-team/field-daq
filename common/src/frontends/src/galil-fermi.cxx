@@ -89,7 +89,7 @@ extern "C" {
   EQUIPMENT equipment[] = {
 
    {"GalilFermi",                /* equipment name */
-      {EVENTID_GALIL_PLATFORM, 0,                   /* event ID, trigger mask */
+      {EVENTID_GALIL_FERMI, 0,                   /* event ID, trigger mask */
 	"SYSTEM",               /* event buffer */
 	EQ_POLLED,            /* equipment type */
 	0,                      /* event source */
@@ -141,8 +141,8 @@ typedef struct GalilDataStructD{
   double StatusArray[6];
 }GalilDataStructD;
 
-INT PlatformStepSize[3];
-INT PlatformStepNumber[3];
+INT PlungingProbeStepSize[3];
+INT PlungingProbeStepNumber[3];
 int IX,IY,IZ;
 
 INT TrolleyStepSize;
