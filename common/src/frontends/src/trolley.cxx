@@ -640,6 +640,7 @@ void ReadFromDevice(){
   float Vmax1;
   float Vmin2;
   float Vmax2;
+  float LED_Voltage;
 
   BOOL BarcodeErrorOld;
   BOOL TemperatureInterruptOld;
@@ -648,6 +649,8 @@ void ReadFromDevice(){
   BOOL NMRCheckSumPassedOld;
   BOOL ConfigCheckSumPassedOld;
   BOOL FrameCheckSumPassedOld;
+
+  INT BarcodeReadout[6];
 
 
   unsigned int FrameASize = 0;
@@ -789,6 +792,9 @@ void ReadFromDevice(){
       TrlyBarcodeDataUnit->DAC_1_Config = FrameA[78];
       TrlyBarcodeDataUnit->DAC_2_Config = FrameA[79];
       TrlyBarcodeDataUnit->Ref_CM = FrameA[80];
+      for (unsigned short ii=0;ii<6;ii++){
+	BarcodeReadout[ii] = FrameA[96+FrameA[12]+ii*FrameA[13]];
+      }
 
       //Monitor
       memcpy(&(TrlyMonitorDataUnit->local_clock_cycle_start),&(FrameA[36]),sizeof(unsigned long int));
@@ -846,6 +852,11 @@ void ReadFromDevice(){
 
       //Get new monitor values
       BarcodeError = BOOL(0x100 & FrameA[11]);
+      if (TrlyBarcodeDataUnit->DAC_2_Config == 1024)
+	LED_Voltage = -1;
+      else{
+	LED_Voltage = TrlyBarcodeDataUnit->DAC_2_Config*2.5/1023.0;
+      }
       TemperatureInterrupt = !BOOL(0x200 & FrameA[11]);//Low active
       PowersupplyStatus[0] = BOOL(0x400 & FrameA[11]);
       PowersupplyStatus[1] = BOOL(0x800 & FrameA[11]);
@@ -913,6 +924,8 @@ void ReadFromDevice(){
       //Update odb error monitors and sending messages
       mlock.lock();
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Barcode Error",&BarcodeError,sizeof(BarcodeError), 1 ,TID_BOOL);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/LED Voltage",&LED_Voltage,sizeof(LED_Voltage), 1 ,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Barcode Readout",BarcodeReadout,sizeof(BarcodeReadout), 6 ,TID_INT);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Temperature Interrupt",&TemperatureInterrupt,sizeof(TemperatureInterrupt), 1 ,TID_BOOL);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Power Supply Status",&PowersupplyStatus,sizeof(PowersupplyStatus), 3 ,TID_BOOL);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/NMR Check Sum",&NMRCheckSumPassed,sizeof(NMRCheckSumPassed), 1 ,TID_BOOL);
