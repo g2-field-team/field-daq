@@ -1,9 +1,16 @@
-mkdir "/Equipment/Surface Coils/Settings"
-cd "/Equipment/Surface Coils/Settings"
+mkdir "/Equipment/Surface Coils/Settings/Set Points"
+cd "/Equipment/Surface Coils/Settings/Set Points"
 
 create DOUBLE "Allowed Difference"
 create DOUBLE "Bottom Set Currents[100]"
 create DOUBLE "Top Set Currents[100]"
+
+cd
+mkdir "/Equipment/Surface Coils/Settings/Offset Values"
+cd "/Equipment/Surface Coils/Settings/Offset Values"
+
+create DOUBLE "Bottom Offset Values[100]"
+create DOUBLE "Top Offset Values[100]"
 
 cd
 
