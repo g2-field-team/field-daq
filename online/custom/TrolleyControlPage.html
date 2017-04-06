@@ -1,0 +1,238 @@
+
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <title> Trolley Control</title>
+   <link rel="stylesheet" type="text/css" href="trolleycontrolpage.css">
+   <script src='mhttpd.js'></script>
+   <script src='TrolleyControl.js'></script>
+</head>
+
+<body>
+<script>
+update();
+</script>
+
+<form name=" form1" method="Get" action="/CS/Trolley Control&">
+
+<header>
+<h3>Trolley Control and Monitor</h3>
+</header>
+
+<nav>
+<ul>
+<li ><input name="cmd" value="Status" type="submit"></li>
+<li ><input name="cmd" value="Start" type="submit"></li>
+<li ><input name="cmd" value="Pause" type="submit"></li>
+<li ><input name="cmd" value="Stop" type="submit"></li>
+<li ><input name="cmd" value="ODB" type="submit"></li>
+<li ><input name="cmd" value="Messages" type="submit"></li>
+</ul>
+
+</nav>
+<br>
+
+<table class="table-fill" id="MotorMonitor">
+<tr>
+<th colspan="5" class="text-center"> Motor Monitor</th>
+</tr>
+<tr>
+<td colspan="1" class="text-center"></td>
+<td colspan="1" class="text-center">Fishing Line</td>
+<td colspan="1" class="text-center">Signal Cable</td>
+<td colspan="1" class="text-center">Garage</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Position (Enc counts)</td>
+<td colspan="1" class="ODB-Monitor" id="PA">000</td>
+<td colspan="1" class="ODB-Monitor" id="PB">000</td>
+<td colspan="1" class="ODB-Monitor" id="PC">000</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Velocity (Counts/sec)</td>
+<td colspan="1" class="ODB-Monitor" id="VA">000</td>
+<td colspan="1" class="ODB-Monitor" id="VB">000</td>
+<td colspan="1" class="ODB-Monitor" id="VC">000</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Control Voltage  (V)</td>
+<td colspan="1" class="ODB-Monitor" id="CA">000</td>
+<td colspan="1" class="ODB-Monitor" id="CB">000</td>
+<td colspan="1" class="ODB-Monitor" id="CC">000</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Tension</td>
+<td colspan="1" class="ODB-Monitor" id="TA">0</td>
+<td colspan="1" class="ODB-Monitor" id="TB">0</td>
+<td colspan="1" class="ODB-Monitor" ></td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Temperature</td>
+<td colspan="1" class="ODB-Monitor" id="TempA">0</td>
+<td colspan="1" class="ODB-Monitor" id="TempB">0</td>
+<td colspan="1" class="ODB-Monitor" ></td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Forward limit status (0: at limit)</td>
+<td colspan="1" class="ODB-Monitor" id="LFA">0</td>
+<td colspan="1" class="ODB-Monitor" id="LFB">0</td>
+<td colspan="1" class="ODB-Monitor" id="LFC">0</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Reverse limit status (0: at limit)</td>
+<td colspan="1" class="ODB-Monitor" id="LRA">0</td>
+<td colspan="1" class="ODB-Monitor" id="LRB">0</td>
+<td colspan="1" class="ODB-Monitor" id="LRC">0</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Motor status</td>
+<td colspan="1" class="ODB-Monitor" id="MOA">OFF</td>
+<td colspan="1" class="ODB-Monitor" id="MOB">OFF</td>
+<td colspan="1" class="ODB-Monitor" id="MOC">OFF</td>
+</tr>
+</table>
+
+<br>
+
+<section id="MotorControl">
+<table class="table-fill" id="MotionManual">
+<th colspan="3"> Manual Motion Control
+<button type="button" class="HeaderButtons" onclick="AbortMotion()" id="AbortButton">Abort</button>
+</th>
+
+<tr>
+<td colspan="1" >Switches</td>
+<td colspan="2" >
+<button type="button" onclick="TurnONTrolley()" id="TrolleyONButton">Trolley ON</button>
+<button type="button" onclick="TurnOFFTrolley()" id="TrolleyOFFButton">Trolley OFF</button>
+<br>
+<button type="button" onclick="TurnONGarage()" id="GarageONButton">Garage ON</button>
+<button type="button" onclick="TurnOFFGarage()" id="GarageOFFButton">Garage OFF</button>
+</td>
+</tr>
+
+
+<tr>
+<td colspan="1" >Trolley</td>
+<td colspan="1" ><input id="ManRelTrolley" type="number" value=0></input></td>
+<td colspan="1" ><button type="button" onclick="ManualTrolleyControlRel()">Run</button></td>
+</tr>
+
+<tr>
+<td colspan="1" >Trolley Motors</td>
+<td colspan="1" >
+Fishing line: <input id="ManRelTrolley1" type="number" value=0></input> <br>
+Signal cable: <input id="ManRelTrolley2" type="number" value=0></input>
+</td>
+<td colspan="1" ><button type="button" onclick="ManualTrolleyIndependentControlRel()">Run</button></td>
+</tr>
+
+<tr>
+<td colspan="1" >Garage</td>
+<td colspan="1" ><input id="ManRelGarage" type="number" value=0></input></td>
+<td colspan="1" ><button type="button" onclick="ManualGarageControlRel()">Run</button></td>
+</tr>
+
+<tr>
+<td colspan="1" >Define Positions</td>
+<td colspan="1" >
+Fishing line: <input id="DefTrolley1" type="number" value=0></input> <br>
+Signal cable: <input id="DefTrolley2" type="number" value=0></input> <br>
+Garage: <input id="DefGarage" type="number" value=0></input>
+</td>
+<td colspan="1" ><button type="button" onclick="ManualDefineOrigin()">Define Positions</button></td>
+</tr>
+
+<tr>
+<td colspan="1" >Motions</td>
+<td colspan="2" >
+<button type="button" onclick="ManualGarageIn()">Garage In</button>
+<button type="button" onclick="ManualGarageOut()">Garage Out</button>
+</td>
+</tr>
+</table>
+
+<br>
+
+<table class="table-fill" id="MotionAuto">
+<th colspan="3"> Auto Motion Control
+<button type="button" class="HeaderButtons" onclick="SetAutoMotionControl()" id="AutoCtrlButton">Set</button> 
+</th>
+
+<tr>
+<td colspan="1" >Mode Select</td>
+<td colspan="2" >
+<div class="dropdown">
+<p class="dropbtnlong" id="AutoMotionMode">Continuous Motion</p>
+<div class="dropdown-content">
+<p onclick="DropdownSelectGeneral('AutoMotionMode','Continuous Motion')" >Continuous Motion</p>
+<p onclick="DropdownSelectGeneral('AutoMotionMode','Interactive Stepping')">Interactive Stepping</p>
+<p onclick="DropdownSelectGeneral('AutoMotionMode','Self Stepping')">Self Stepping</p>
+</div>
+</div>
+</td>
+</tr>
+
+<tr>
+<td colspan="1" >Trolley Stepping</td>
+<td colspan="2" >
+Trolley Step Size: <input id="TrolleyStepSize" type="number" value=0></input> <br>
+Trolley Step Number: <input id="TrolleyStepNumber" type="number" value=0></input>
+</td>
+</tr>
+
+<tr>
+<td colspan="1" >Continuous Motions</td>
+<td colspan="2" >
+<div class="dropdown">
+<p class="dropbtnlong" id="ContinuousMotionSelect">Full Run with Garage</p>
+<div class="dropdown-content">
+<p onclick="DropdownSelectGeneral('ContinuousMotionSelect','Full Run with Garage')" >Full Run with Garage</p>
+<p onclick="DropdownSelectGeneral('ContinuousMotionSelect','Full Run Without Garage')">Full Run without Garage</p>
+</div>
+</div>
+</td>
+</tr>
+</table>
+
+<br>
+
+<table class="table-fill" id="MotionRegulation">
+<th colspan="3"> Trolley Motion Regulation
+<button type="button" class="HeaderButtons" onclick="SetTrolleyRegulation()" id="TrolleyRegulationButton">Set</button> 
+</th>
+<tr>
+<td colspan="1" >Tension Range</td>
+<td colspan="2" >
+Low: <input id="TensionLow" type="number" value=0.4></input> <br>
+High: <input id="TensionHigh" type="number" value=0.8></input>
+</td>
+</tr>
+<tr>
+<td colspan="1" >Trolley Velocity</td>
+<td colspan="2" >
+<input id="TrolleyVelocity" type="number" value=100></input> 
+</td>
+</tr>
+<tr>
+<td colspan="1" >Garage Velocity</td>
+<td colspan="2" >
+<input id="GarageVelocity" type="number" value=1000></input> 
+</td>
+</tr>
+</table> 
+</section>
+
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+
+</form>
+</body>
+
+</html>	

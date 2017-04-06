@@ -102,7 +102,7 @@
       <key name="Frontend host" type="STRING" size="32">localhost</key>
       <key name="Frontend name" type="STRING" size="32">Trolley Interface</key>
       <key name="Frontend file name" type="STRING" size="256">src/trolley.cxx</key>
-      <key name="Status" type="STRING" size="256">Trolley Interface@localhost</key>
+      <key name="Status" type="STRING" size="256">Trolley Interface@g2field-fe1.fnal.gov</key>
       <key name="Status color" type="STRING" size="32">greenLight</key>
       <key name="Hidden" type="BOOL">n</key>
     </dir>
@@ -141,7 +141,7 @@
       <key name="kBytes per sec." type="DOUBLE">0</key>
     </dir>
   </dir>
-  <dir name="Galil">
+  <dir name="GalilFermi">
     <dir name="Common">
       <key name="Event ID" type="WORD">4</key>
       <key name="Trigger mask" type="WORD">0</key>
@@ -158,65 +158,11 @@
       <key name="Frontend host" type="STRING" size="32">localhost</key>
       <key name="Frontend name" type="STRING" size="32">Galil Motion Control</key>
       <key name="Frontend file name" type="STRING" size="256">src/galil.cxx</key>
-      <key name="Status" type="STRING" size="256">Galil Motion Control@localhost</key>
+      <key name="Status" type="STRING" size="256">Galil Motion Control@g2field-fe1.fnal.gov</key>
       <key name="Status color" type="STRING" size="32">greenLight</key>
       <key name="Hidden" type="BOOL">n</key>
     </dir>
     <dir name="Variables"/>
-    <dir name="Statistics">
-      <key name="Events sent" type="DOUBLE">0</key>
-      <key name="Events per sec." type="DOUBLE">0</key>
-      <key name="kBytes per sec." type="DOUBLE">0</key>
-    </dir>
-  </dir>
-  <dir name="SimTrolleyInterface">
-    <dir name="Common">
-      <key name="Event ID" type="WORD">2</key>
-      <key name="Trigger mask" type="WORD">0</key>
-      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
-      <key name="Type" type="INT">2</key>
-      <key name="Source" type="INT">0</key>
-      <key name="Format" type="STRING" size="8">MIDAS</key>
-      <key name="Enabled" type="BOOL">y</key>
-      <key name="Read on" type="INT">1</key>
-      <key name="Period" type="INT">100</key>
-      <key name="Event limit" type="DOUBLE">0</key>
-      <key name="Num subevents" type="DWORD">0</key>
-      <key name="Log history" type="INT">0</key>
-      <key name="Frontend host" type="STRING" size="32">localhost</key>
-      <key name="Frontend name" type="STRING" size="32">Trolley Interface</key>
-      <key name="Frontend file name" type="STRING" size="256">src/trolley.cxx</key>
-      <key name="Status" type="STRING" size="256">Trolley Interface@localhost</key>
-      <key name="Status color" type="STRING" size="32">greenLight</key>
-      <key name="Hidden" type="BOOL">n</key>
-    </dir>
-    <dir name="Statistics">
-      <key name="Events sent" type="DOUBLE">0</key>
-      <key name="Events per sec." type="DOUBLE">0</key>
-      <key name="kBytes per sec." type="DOUBLE">0</key>
-    </dir>
-  </dir>
-  <dir name="SimGalil">
-    <dir name="Common">
-      <key name="Event ID" type="WORD">4</key>
-      <key name="Trigger mask" type="WORD">0</key>
-      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
-      <key name="Type" type="INT">2</key>
-      <key name="Source" type="INT">0</key>
-      <key name="Format" type="STRING" size="8">MIDAS</key>
-      <key name="Enabled" type="BOOL">y</key>
-      <key name="Read on" type="INT">257</key>
-      <key name="Period" type="INT">100</key>
-      <key name="Event limit" type="DOUBLE">0</key>
-      <key name="Num subevents" type="DWORD">0</key>
-      <key name="Log history" type="INT">0</key>
-      <key name="Frontend host" type="STRING" size="32">localhost</key>
-      <key name="Frontend name" type="STRING" size="32">Galil Motion Control</key>
-      <key name="Frontend file name" type="STRING" size="256">src/galil.cxx</key>
-      <key name="Status" type="STRING" size="256">Galil Motion Control@localhost</key>
-      <key name="Status color" type="STRING" size="32">greenLight</key>
-      <key name="Hidden" type="BOOL">n</key>
-    </dir>
     <dir name="Statistics">
       <key name="Events sent" type="DOUBLE">0</key>
       <key name="Events per sec." type="DOUBLE">0</key>

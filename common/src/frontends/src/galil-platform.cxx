@@ -26,8 +26,8 @@ $Id$
 #include <sstream>
 #include <thread>
 #include <mutex>
-#include "field_constants.hh"
-#include "field_structs.hh"
+#include "g2field/core/field_constants.hh"
+#include "g2field/core/field_structs.hh"
 
 #define GALIL_EXAMPLE_OK G_NO_ERROR //return code for correct code execution
 #define GALIL_EXAMPLE_ERROR -100
@@ -207,7 +207,12 @@ INT frontend_init()
   INT DirectName_size = sizeof(DirectName);
   db_get_value(hDB,0,"/Equipment/GalilPlatform/Settings/Script Directory",DirectName,&DirectName_size,TID_STRING,0);
   string FullScriptName = string(DirectName)+string(ScriptName)+string(".dmc");
-  cm_msg(MINFO,"begin_of_run","Galil Script to load: %s",FullScriptName.c_str());
+  cm_msg(MINFO,"init","Galil Script to load: %s",FullScriptName.c_str());
+
+  //Flip the AllStop bit and then motions are allowed
+  GCmd(g, "CB 2");
+  sleep(1);
+  GCmd(g, "SB 2");
 
   GProgramDownload(g,"",0); //to erase prevoius programs
   //dump the buffer
@@ -406,22 +411,22 @@ INT read_event(char *pevent, INT off){
     GCmd(g,CmdBuffer);
     GCmd(g,"BGA");
     mlock.unlock();
-    if (IY>=StepNumber[1]){
-      IY=0;
-      //move back to Y0
-      sprintf(CmdBuffer,"PRB=%d",-StepNumber[1]*StepSize[1]);
+    if (IZ>=StepNumber[2]){
+      IZ=0;
+      //move back to Z0
+      sprintf(CmdBuffer,"PRC=%d",-StepNumber[2]*StepSize[2]);
       mlock.lock();
       GCmd(g,CmdBuffer);
-      GCmd(g,"BGB");
+      GCmd(g,"BGC");
       mlock.unlock();
-      if (IZ>=StepNumber[2]){
-	IZ=0;
-	//move back to Z0
-	sprintf(CmdBuffer,"PRC=%d",-StepNumber[2]*StepSize[2]);
-        mlock.lock();
+      if (IY>=StepNumber[1]){
+	IY=0;
+	//move back to Y0
+	sprintf(CmdBuffer,"PRB=%d",-StepNumber[1]*StepSize[1]);
+	mlock.lock();
 	GCmd(g,CmdBuffer);
-	GCmd(g,"BGC");
-        mlock.unlock();
+	GCmd(g,"BGB");
+	mlock.unlock();
 	if (IS>=StepNumber[3]){
 	  IS=0;
 	  //move back to S0
@@ -446,22 +451,22 @@ INT read_event(char *pevent, INT off){
 	  IS++;
 	}
       }else{
-	//move forward in Z
-	sprintf(CmdBuffer,"PRC=%d",StepSize[2]);
-        mlock.lock();
+	//move forward in Y
+	sprintf(CmdBuffer,"PRB=%d",StepSize[1]);
+	mlock.lock();
 	GCmd(g,CmdBuffer);
-	GCmd(g,"BGC");
-        mlock.unlock();
-        IZ++;
+	GCmd(g,"BGB");
+	mlock.unlock();
+	IY++;
       }
     }else{
-      //move forward in Y
-      sprintf(CmdBuffer,"PRB=%d",StepSize[1]);
+      //move forward in Z
+      sprintf(CmdBuffer,"PRC=%d",StepSize[2]);
       mlock.lock();
       GCmd(g,CmdBuffer);
-      GCmd(g,"BGB");
+      GCmd(g,"BGC");
       mlock.unlock();
-      IY++;
+      IZ++;
     }
   }else{
     //move forward in X
