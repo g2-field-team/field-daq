@@ -24,6 +24,9 @@ FixedProbeSequencer::~FixedProbeSequencer()
 
 int FixedProbeSequencer::Init()
 {
+  DWORD time;
+  cm_synchronize(&time);
+
   go_time_ = false;
   thread_live_ = false;
 
@@ -103,7 +106,7 @@ int FixedProbeSequencer::BeginOfRun()
    				      NMR_FID_LENGTH_ONLINE));
   }
 
-
+  workers_[0]->SetVerbosity(5);
 
   // Set up the NMR pulser triggers
   dio_triggers_.resize(0);
@@ -165,6 +168,8 @@ int FixedProbeSequencer::BeginOfRun()
   for (auto &mux : conf) {
 
     int count = 0;
+    std::cout << "load mux: " << mux.first << ", " << std::endl;
+    boost::property_tree::write_json(std::cout, mux.second);
     for (auto &chan : mux.second) {
 
       // If we are adding a new mux, resize.
@@ -185,10 +190,10 @@ int FixedProbeSequencer::BeginOfRun()
   }
 
   mux_boards_.resize(0);
-  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_A, false));
-  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_B, false));
-  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_C, false));
-  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_D, false));
+  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_A, true));
+  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_B, true));
+  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_C, true));
+  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_D, true));
 
   std::map<char, int> bid_map;
   bid_map['a'] = 0;
@@ -204,7 +209,7 @@ int FixedProbeSequencer::BeginOfRun()
     int port = mux.second.get<int>("dio_port_num");
 
     mux_idx_map_[mux_name] = bid_map[bid];
-    mux_boards_[mux_idx_map_[mux_name]]->AddMux(mux_name, port);
+    mux_boards_[mux_idx_map_[mux_name]]->AddMux(mux_name, port, false);
 
     std::string wfd_name(mux.second.get<std::string>("wfd_name"));
     int wfd_chan(mux.second.get<int>("wfd_chan"));
@@ -291,9 +296,7 @@ void FixedProbeSequencer::RunLoop()
 {
   while (thread_live_) {
 
-    workers_.FlushEventData();
-
-    while (go_time_) {
+    while (false & go_time_) {
 
       if (workers_.AnyWorkersHaveEvent()) {
 
@@ -343,7 +346,6 @@ void FixedProbeSequencer::RunLoop()
         }
 
         queue_mutex_.unlock();
-        workers_.FlushEventData();
       }
 
       std::this_thread::yield();
@@ -388,16 +390,66 @@ void FixedProbeSequencer::TriggerLoop()
       	  LogDebug("TriggerLoop: muxes are configured for this round");
           usleep(mux_switch_time_);
 
-	  LogDebug("Generated DIO triggers");
+	  // LogDebug("Generated DIO triggers");
+	  // for (auto &trg : dio_triggers_) {
+	  //   trg->FireTriggers();
+	  // }
 
-	  if (generate_software_triggers_) {
-	    LogDebug("Generated SW triggers");
-	    workers_.SoftwareTriggers();
-	  }
+	  // Pause workers.
+	  workers_.StopWorkers();
+	  hw::wait_ns(hw::short_sleep * 2);
 
-	  for (auto &trg : dio_triggers_) {
-	    trg->FireTriggers();
+	  // Fire triggers and get waveforms on 3316.
+	  int idx = sis_idx_map_["sis_3316_0"];
+	  auto wfd_3316 = workers_[idx];
+
+	  idx = sis_idx_map_["sis_3302_0"];
+	  auto wfd_3302 = workers_[idx];
+
+	  while (wfd_3316->GenerateTrigger() != 0) usleep(10000);
+	  dio_triggers_[0]->FireTriggers(0xff);
+	  dio_triggers_[1]->FireTriggers(0xff);
+
+	  // wfd_3316->StartWorker();
+	  // usleep(50e3);
+	  // while(!wfd_3316->DataAvailable()) {
+	  //   usleep(500);
+	  // }
+	  // wfd_3316->StopWorker();
+
+	  // Trigger the 3302 and pulse the relevant NMR pulsers.
+	  while (wfd_3302->GenerateTrigger() != 0) usleep(10000);
+	  hw::wait_ns(0.5e6);
+	  dio_triggers_[2]->FireTriggers(0x0f);
+
+	  // wfd_3302->StartWorker();
+	  // usleep(50e3);
+	  // while(!wfd_3302->DataAvailable()) {
+	  //   usleep(500);
+	  // }
+	  // wfd_3302->StopWorker();
+
+	  // if (generate_software_triggers_) {
+	  //   LogDebug("Generated SW triggers");
+	  //   workers_.SoftwareTriggers();
+	  // }
+
+	  workers_.StartWorkers();
+	  hw::wait_ns(100e6);
+	  
+	  while (!workers_.AllWorkersHaveEvent()) usleep(500);
+
+	  hw::event_data_t bundle;
+	  workers_.GetEventData(bundle);
+
+	  queue_mutex_.lock();
+	  if (data_queue_.size() <= kMaxQueueSize) {
+	    data_queue_.push(bundle);
+	    
+	    LogDebug("RunLoop: Got data. Data queue now: %i",
+		     data_queue_.size());
 	  }
+	  queue_mutex_.unlock();
 
 	  LogDebug("TriggerLoop: muxes configure, triggers fired");
 	  mux_round_configured_ = true;
@@ -488,9 +540,6 @@ void FixedProbeSequencer::BuilderLoop()
               int sis_idx = sis_idx_map_[sis_name];
               int trace_idx = data_in_[pair.first].second;
 
-              LogDebug("BuilderLoop: copying %s, ch %i",
-                       sis_name.c_str(), trace_idx);
-
               int idx = 0;
               ULong64_t clock = 0;
 
@@ -504,6 +553,10 @@ void FixedProbeSequencer::BuilderLoop()
               auto arr_ptr = &bundle.trace[idx][0];
               auto trace = data[sis_idx].trace[trace_idx];
               auto size = data[sis_idx].trace[trace_idx].size();
+
+              LogDebug("BuilderLoop: round %i, copying %s, ch %i -> %i",
+                       seq_index, sis_name.c_str(), trace_idx, idx);
+
               std::copy(&trace[0], &trace[0] + size, arr_ptr);
               
               // Save the index for analysis after copying
