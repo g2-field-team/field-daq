@@ -941,8 +941,10 @@ void GalilControl(const GCon &g){
       sprintf(CmdBuffer,"PR %d,%d",RelPos1,RelPos2);
       if (!PreventManualCtrl){
 	mlock.lock();
+	GCmd(g,"KPA=100");
+	GCmd(g,"KPB=100");
 	GCmd(g,CmdBuffer);
-	GCmd(g,"BG");
+	GCmd(g,"BGAB");
 	mlock.unlock();
       }else{
 	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
@@ -953,13 +955,15 @@ void GalilControl(const GCon &g){
       INT CurrentVelocities_size = sizeof(CurrentVelocities);
 
       while(1){
+	sleep(1);
 	db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Velocities",CurrentVelocities,&CurrentVelocities_size,TID_INT,0);
 	if (CurrentVelocities[0]==0 && CurrentVelocities[1]==0)break;
-	sleep(1);
       }
 
       command=0;
       mlock.lock();
+      GCmd(g,"KPA=0");
+      GCmd(g,"KPB=0");
       db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
       mlock.unlock();
     }else if (command == 2){
