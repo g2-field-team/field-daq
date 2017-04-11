@@ -1,0 +1,80 @@
+// Fill an art file with MIDAS data
+process_name : fixedprobepub
+
+source : {
+
+  module_type : MidasBankInput
+
+  // Parameters parsed by the art::Source class template.
+  fileNames   : [ "/dev/null" ]
+  maxEvents   : -1
+
+  //Parameters parsed by the detail class
+  detail : {
+   online : false
+   requestedBanks : ['FXPR'] 
+   eventIDMask: 1
+   midasTriggerMask: 0
+   
+ }
+
+}
+
+services : { 
+
+ message : {
+
+   debugModules : ["*"]
+   suppressInfo : []
+
+   destinations : {
+     LogToConsole : {
+       type      : "cout"
+       threshold : "INFO"
+     }
+
+     LogToFile : {
+      type : "file"
+      filename : "/var/log/g2field/art_fixed_probe_unpacker.log"
+      append : true
+      threshold : "INFO"
+    }
+   }
+
+  }//message
+
+}
+outputs: {
+}
+
+
+physics : {
+
+  producers: {
+
+  }
+
+  analyzers:{
+
+  unpacker: {
+     module_type : FixedProbeUnpacker
+  }
+
+  } // analyzers
+
+
+  // Define paths/streams
+
+  unpackerPath   : []
+  onlinePath: [unpacker]
+
+  dataOutputPath : []
+
+  // List trigger (producer/filter) and end (analyzer/output) paths
+
+  trigger_paths : [ ]
+
+  end_paths     : [onlinePath]
+
+}
+
