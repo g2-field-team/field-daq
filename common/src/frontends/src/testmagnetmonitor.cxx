@@ -113,7 +113,7 @@ EQUIPMENT equipment[] = {
      0,                      /* event source */
      "MIDAS",                /* format */
      TRUE,                   /* enabled */
-     RO_ALWAYS |   /* read when running and on transitions */
+     RO_ALWAYS  |   /* read when running and on transitions */
      RO_ODB,                 /* and update ODB */
      300000,                  /* read every 5 minutes */
      0,                      /* stop run after this event limit */
@@ -346,7 +346,7 @@ INT end_of_run(INT run_number, char *error)
 {
   output1_3.close();
   output2.close();
-   return SUCCESS;
+  return SUCCESS;
 }
 
 /*-- Pause Run -----------------------------------------------------*/
@@ -689,7 +689,7 @@ INT read_HeLevel_event(char *pevent, INT off)
   //Communicating to port2
   float Threshold = 74.0;
 
-  double HeLevel=102;
+  double HeLevel=-1;
   double shieldTemp = -1;
   float HeLevel_f;
   float shieldTemp_f;
@@ -724,7 +724,7 @@ INT read_HeLevel_event(char *pevent, INT off)
   ss_sleep(2000);
   n = 0;
   b = 2;
-  while(b>1 && n<=20 && (shieldTemp==-1 || HeLevel==102)){
+  while(b>1 && n<=20 && (shieldTemp==-1 || HeLevel==-1)){
     b=read(fSerialPort2_ptr, &buf, 500);
     string teststring = buf;
     size_t found2 = teststring.find("11;43H");
@@ -749,7 +749,7 @@ INT read_HeLevel_event(char *pevent, INT off)
   //Output to text file
   output2<<HeLevel<<" "<<shieldTemp<<endl;
 
-  if (HeLevel>101){
+  if (HeLevel == -1){
     cout << "Read out error!"<<endl;
   }else if (HeLevel<Threshold){
     cout << "He level is too low!";
@@ -759,7 +759,6 @@ INT read_HeLevel_event(char *pevent, INT off)
 
   if (10 * HeLevel == round(10 * prevHe)) {
     alarm++;
-    cout<<"Alarm is at: "<<alarm<<endl;
   } else {
     alarm = 0;
   }
@@ -775,11 +774,11 @@ INT read_HeLevel_event(char *pevent, INT off)
 
   HeLevel_f = float(HeLevel);
   
-  if (HeLevel != 102){
+  if (HeLevel != -1){
     *pdata++=HeLevel;
   } else {
     *pdata++=prevHe;
-    alarm = 100; 
+    alarm = -1; 
   }
   
   db_set_value(hDBhe,0,"/Equipment/HeLevel/Settings/Alarm",&alarm,alarm_size,1,TID_INT);

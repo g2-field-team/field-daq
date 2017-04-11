@@ -50,7 +50,7 @@ cp "Demo ODB" "Helium Status"
 cd "Helium Status"
 set "Active" n
 set "Check interval" 10
-set "Condition" "/Equipment/HeLevel/Settings/Alarm > 50"
+set "Condition" "/Equipment/HeLevel/Settings/Alarm > 100"
 set "Alarm Class" "AlarmMsg"
 set "Alarm Message" "Helium level is off or not read properly."
 
@@ -88,6 +88,6 @@ cp "Demo ODB" "Helium Warning"
 cd "FE Status"
 set "Active" n
 set "Check interval" 10
-set "Condition" "/Equipment/HeLevel/Settings/Alarm = 100"
+set "Condition" "/Equipment/HeLevel/Settings/Alarm = -1"
 set "Alarm Class" "AlarmMsg"
 set "Alarm Message" "Helium Monitor is off or not read correctly."

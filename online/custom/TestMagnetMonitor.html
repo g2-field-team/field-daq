@@ -115,6 +115,33 @@ update();
 </tr>
 </table>
 
+<table class="table-fill" id="FEControl">
+<tr>
+<th colspan="4" class="text-center">Frontend Control</th>
+</tr>
+<tr>
+<td colspan="1" class="text-center"><button type="button" onclick="SetUpdatePeriod(30,5,5)" id="DefaultUpdateButton">Restore Defaults</button></td>
+<td colspan="1" class="text-center">Current Value</td>
+<td colspan="1" class="text-center"><button type="button" onclick="SetUpdatePeriod(document.getElementById('SetHe').value,document.getElementById('SetCC').value,document.getElementById('SetMC').value)" id="UpdatePeriodButton">Set Update Period</button></td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Helium Monitor</td>
+<td colspan="1" class="ODB-Monitor" id="HeM">000</td>
+<td colspan="1"><input id="SetHe" type="number" step="1" min="1" max="600" value=30></input> minutes</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">CompressorChiller Monitor</td>
+<td colspan="1" class="ODB-Monitor" id="CCM">000</td>
+<td colspan="1"><input id="SetCC" type="number" step="1" min="1" max="600" value=5></input> minutes</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Magnet Coil Monitor</td>
+<td colspan="1" class="ODB-Monitor" id="MCM">000</td>
+<td colspan="1"><input id="SetMC" type="number" step="" min="2" max="3600" value=5></input> seconds</td>
+</tr>
+</table>
+
+
 <br>
 <input type="checkbox" name="AllowOnOff" id="OnOff"> Allow turning machines on and off</input>
 <br><br>

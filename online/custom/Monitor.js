@@ -12,7 +12,7 @@ function update()  {
     updateTimerId = setTimeout('update()', updatePeriod);
 }
 function load()   {
-  mjsonrpc_db_get_values(["/Equipment/CompressorChiller/Variables/sta1","/Equipment/CompressorChiller/Variables/Errs","/Equipment/CompressorChiller/Variables/sta3","/Equipment/CompressorChiller/Variables/Temp","/Equipment/CompressorChiller/Variables/Pres","/Equipment/CompressorChiller/Variables/Flow","/Equipment/HeLevel/Variables/HeLe","/Equipment/CompressorChiller/Variables/Hour","/Equipment/HeLevel/Variables/ShTe","/Equipment/MagnetCoils/Variables/CoiX","/Equipment/MagnetCoils/Variables/CoiY","/Equipment/MagnetCoils/Variables/CoiZ"]).then(function(rpc) {
+  mjsonrpc_db_get_values(["/Equipment/CompressorChiller/Variables/sta1","/Equipment/CompressorChiller/Variables/Errs","/Equipment/CompressorChiller/Variables/sta3","/Equipment/CompressorChiller/Variables/Temp","/Equipment/CompressorChiller/Variables/Pres","/Equipment/CompressorChiller/Variables/Flow","/Equipment/HeLevel/Variables/HeLe","/Equipment/CompressorChiller/Variables/Hour","/Equipment/HeLevel/Variables/ShTe","/Equipment/MagnetCoils/Variables/CoiX","/Equipment/MagnetCoils/Variables/CoiY","/Equipment/MagnetCoils/Variables/CoiZ","/Equipment/CompressorChiller/Common/Period","/Equipment/HeLevel/Common/Period","/Equipment/MagnetCoils/Common/Period"]).then(function(rpc) {
       var CoS = String(rpc.result.data[0]);
       if(CoS == "0x0001") {var sta = "On";}
       else if(CoS == "0x0000"){var sta = "Off";}
@@ -42,6 +42,12 @@ function load()   {
       document.getElementById("CoY").innerHTML = CoY;
       var CoZ = String(Math.round(rpc.result.data[11]*1000)/1000);
       document.getElementById("CoZ").innerHTML = CoZ;
+      var HeM = String(rpc.result.data[13] / 60000);
+      document.getElementById("HeM").innerHTML = HeM.concat(" minutes");
+      var CCM = String(rpc.result.data[12] / 60000);
+      document.getElementById("CCM").innerHTML = CCM.concat(" minutes");
+      var MCM = String(rpc.result.data[14] / 1000);
+      document.getElementById("MCM").innerHTML = MCM.concat(" seconds");
       }).catch(function(error) {
         mjsonrpc_error_alert(error);
 	});
@@ -97,6 +103,33 @@ function writeErrString(errArray){
   }
 
   return CompressorErrorMessage;
+}
+
+function SetUpdatePeriod(he, cc, mc){
+  he = 60000 * he;
+  cc = 60000 * cc;
+  mc = 1000 * mc;
+
+  mjsonrpc_db_paste(["/Equipment/HeLevel/Common/Period"],[he]).then(function(rpc){;}).catch(function(error) {
+    mjsonrpc_error_alert(error);
+  });
+  mjsonrpc_db_paste(["/Equipment/CompressorChiller/Common/Period"],[cc]).then(function(rpc){;}).catch(function(error) {
+    mjsonrpc_error_alert(error);
+  });
+  mjsonrpc_db_paste(["/Equipment/MagnetCoils/Common/Period"],[mc]).then(function(rpc){;}).catch(function(error) {
+    mjsonrpc_error_alert(error);
+  });
+
+  ccalarm = cc / 1000;
+  if (ccalarm < 300){
+    ccalarm = 300;
+  }
+  mjsonrpc_db_paste(["/Alarms/Alarms/FE Monitor/Check interval"],[ccalarm]).then(function(rpc){;}).catch(function(error) {
+    mjsonrpc_error_alert(error);
+  });
+  mjsonrpc_db_paste(["/Alarms/Alarms/FE Monitor/Triggered"],[0]).then(function(rpc){;}).catch(function(error) {
+    mjsonrpc_error_alert(error);
+  });
 }
 
 function SetCurrents(x,y,z){
