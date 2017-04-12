@@ -14,13 +14,18 @@ source : {
    online : false
    requestedBanks : ['FXPR'] 
    eventIDMask: 1
-   midasTriggerMask: 0
-   
+   midasTriggerMask: 1
  }
-
 }
 
 services : { 
+
+   OnlineContext: {
+      // need to choose unique heatbeaAddress
+      heartbeatAddress: "tcp://*:7654" 
+      // need to chose unique publish Address
+      pubAddress: "tcp://*:7653"
+   }
 
  message : {
 
@@ -35,8 +40,8 @@ services : {
 
      LogToFile : {
       type : "file"
-      filename : "/var/log/g2field/art_fixed_probe_unpacker.log"
-      append : true
+      filename : "output/fixed_probe_publisher.log"
+      append : false
       threshold : "INFO"
     }
    }
@@ -56,8 +61,8 @@ physics : {
 
   analyzers:{
 
-  unpacker: {
-     module_type : FixedProbeUnpacker
+  publisher: {
+     module_type : FixedProbePublisher
   }
 
   } // analyzers
@@ -66,7 +71,7 @@ physics : {
   // Define paths/streams
 
   unpackerPath   : []
-  onlinePath: [unpacker]
+  onlinePath: [publisher]  
 
   dataOutputPath : []
 
