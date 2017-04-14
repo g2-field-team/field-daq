@@ -124,6 +124,7 @@ vector<g2field::trolley_monitor_t> TrlyMonitorBuffer;
 g2field::trolley_nmr_t TrlyNMRCurrent;
 g2field::trolley_barcode_t TrlyBarcodeCurrent;
 g2field::trolley_monitor_t TrlyMonitorCurrent;
+g2field::trolley_extra_t TrlyExtraCurrent;
 
 thread read_thread;
 thread control_thread;
@@ -150,6 +151,7 @@ TTree *pt_norm;
 const char * const nmr_bank_name = "TLNP"; // 4 letters, try to make sensible
 const char * const barcode_bank_name = "TLBC"; // 4 letters, try to make sensible
 const char * const monitor_bank_name = "TLMN"; // 4 letters, try to make sensible
+const char * const extra_bank_name = "TLEX"; // 4 letters, try to make sensible
 
 
 /********************************************************************\
@@ -413,6 +415,7 @@ INT begin_of_run(INT run_number, char *error)
     pt_norm->Branch(nmr_bank_name, &TrlyNMRCurrent, g2field::trolley_nmr_str);
     pt_norm->Branch(barcode_bank_name, &TrlyBarcodeCurrent, g2field::trolley_barcode_str);
     pt_norm->Branch(monitor_bank_name, &TrlyMonitorCurrent, g2field::trolley_monitor_str);
+    pt_norm->Branch(extra_bank_name, &TrlyExtraCurrent, g2field::trolley_extra_str);
   }
 
   mlock.lock();
@@ -560,6 +563,26 @@ INT read_trly_event(char *pevent, INT off){
       TrlyRegisters[16];
       */
 
+  //Read the Galil Info from odb
+  
+  mlock.lock();
+  double GalilTime = 0.0;
+  INT GalilTime_size = sizeof(GalilTime);
+  db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Time Stamp",&GalilTime,&GalilTime_size,TID_DOUBLE, 0);
+  INT GalilPositions[6];
+  INT GalilVelocities[6];
+  INT GalilPos_size = sizeof(GalilPositions);
+  INT GalilVel_size = sizeof(GalilVelocities);
+  db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Positions",GalilPositions,&GalilPos_size,TID_INT, 0);
+  db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Velocities",GalilVelocities,&GalilVel_size,TID_INT, 0);
+  mlock.unlock();
+
+  TrlyExtraCurrent.GalilTime = GalilTime;
+  for (int i=0;i<2;i++){
+    TrlyExtraCurrent.GalilPos[i] = GalilPositions[i];
+    TrlyExtraCurrent.GalilVel[i] = GalilVelocities[i];
+  }
+
   if (write_root) {
     mlockdata.lock();
     TrlyNMRCurrent = TrlyNMRBuffer[0];
@@ -604,7 +627,9 @@ INT read_trly_event(char *pevent, INT off){
   mlockdata.unlock();
 
   //update buffer load in odb
+  mlock.lock();
   db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Buffer Load",&BufferLoad,BufferLoad_size, 1 ,TID_INT);
+  mlock.unlock();
 
   return bk_size(pevent);
 }

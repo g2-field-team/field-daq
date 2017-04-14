@@ -318,6 +318,8 @@ INT begin_of_run(INT run_number, char *error)
     pt_norm->Branch(galil_plunging_probe_bank_name, &GalilPlungingProbeDataCurrent, g2field::galil_plunging_probe_str);
   }
 
+  //Clear history data in buffer
+  GalilDataBuffer.clear();
   //Turn the Run Active Flag to true
   RunActive = true;
 
@@ -363,6 +365,7 @@ INT end_of_run(INT run_number, char *error)
  // INT Finished=1;
  // db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Finished",&Finished,sizeof(Finished), 1 ,TID_INT);
   PreventManualCtrl = false;
+  RunActive = false;
 
   GalilDataBuffer.clear();
   cm_msg(MINFO,"end_of_run","Data buffer is emptied.");
@@ -483,13 +486,12 @@ INT read_event(char *pevent, INT off){
     }
     memcpy(pdataTrolley, &GalilTrolleyDataCurrent, sizeof(g2field::galil_trolley_t));
     pdataTrolley += sizeof(g2field::galil_trolley_t)/sizeof(WORD);
-    mlockdata.unlock();
 
     //Write to ROOT file
     if (write_root) {
       pt_norm->Fill();
     }
-
+    mlockdata.unlock();
   } 
   bk_close(pevent,pdataTrolley);
 
@@ -654,7 +656,7 @@ void GalilMonitor(const GCon &g){
   //Readout loop
   int i=0;
   int jj=0;
-  double Time,Time0;
+  double Time;
   //Data trigger mask
   //bit0:position
   //bit1:velocity
@@ -706,8 +708,6 @@ void GalilMonitor(const GCon &g){
       if(Header.compare("POSITION")==0){
 	//iss >> GalilDataUnit.TimeStamp;
 	iss >> Time;
-	if (i==0 && jj==0)Time0=Time;
-	Time-=Time0;
 	for (int j=0;j<6;j++){
 	  iss >> GalilDataUnitD.PositionArray[j];
 	}
@@ -819,6 +819,7 @@ void GalilMonitor(const GCon &g){
 
     //Update odb for monitoring
     mlock.lock();
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Time Stamp",&GalilDataUnit.TimeStamp,sizeof(GalilDataUnit.TimeStamp), 1 ,TID_INT); 
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Positions",&GalilDataUnit.PositionArray,sizeof(GalilDataUnit.PositionArray), 6 ,TID_INT); 
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Velocities",&GalilDataUnit.VelocityArray,sizeof(GalilDataUnit.VelocityArray), 6 ,TID_INT); 
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Control Voltages",&GalilDataUnit.OutputVArray,sizeof(GalilDataUnit.OutputVArray), 6 ,TID_INT); 
