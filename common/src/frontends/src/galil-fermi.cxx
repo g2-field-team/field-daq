@@ -828,6 +828,15 @@ void GalilMonitor(const GCon &g){
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Limit Switches Reverse",&GalilDataUnit.LimRArray,sizeof(GalilDataUnit.LimRArray), 6 ,TID_INT);
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Status",&GalilDataUnit.StatusArray,sizeof(GalilDataUnit.StatusArray), 6 ,TID_BOOL);
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Buffer Load",&BufferLoad,sizeof(BufferLoad), 1 ,TID_INT);
+
+    //Add Time, Position and Velocity to TrolleyInterface subtree
+    char SourceName[256];
+    INT SourceName_size = sizeof(SourceName);
+    sprintf(SourceName,"Galil-Fermi");
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Source",SourceName,SourceName_size,TID_STRING,0);
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Time Stamp",&GalilDataUnit.TimeStamp,sizeof(GalilDataUnit.TimeStamp), 1 ,TID_INT); 
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Positions",&GalilDataUnit.PositionArray,sizeof(GalilDataUnit.PositionArray), 6 ,TID_INT); 
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Velocities",&GalilDataUnit.VelocityArray,sizeof(GalilDataUnit.VelocityArray), 6 ,TID_INT); 
     mlock.unlock();
 
     //Check emergencies

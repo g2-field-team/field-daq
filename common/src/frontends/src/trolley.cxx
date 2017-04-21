@@ -120,10 +120,13 @@ HNDLE hDB;
 vector<g2field::trolley_nmr_t> TrlyNMRBuffer;
 vector<g2field::trolley_barcode_t> TrlyBarcodeBuffer;
 vector<g2field::trolley_monitor_t> TrlyMonitorBuffer;
+vector<g2field::trolley_interface_t> TrlyInterfaceBuffer;
+vector<g2field::trolley_extra_t> TrlyExtraBuffer;
 
 g2field::trolley_nmr_t TrlyNMRCurrent;
 g2field::trolley_barcode_t TrlyBarcodeCurrent;
 g2field::trolley_monitor_t TrlyMonitorCurrent;
+g2field::trolley_interface_t TrlyInterfaceCurrent;
 g2field::trolley_extra_t TrlyExtraCurrent;
 
 thread read_thread;
@@ -151,6 +154,7 @@ TTree *pt_norm;
 const char * const nmr_bank_name = "TLNP"; // 4 letters, try to make sensible
 const char * const barcode_bank_name = "TLBC"; // 4 letters, try to make sensible
 const char * const monitor_bank_name = "TLMN"; // 4 letters, try to make sensible
+const char * const interface_bank_name = "TLIF"; // 4 letters, try to make sensible
 const char * const extra_bank_name = "TLEX"; // 4 letters, try to make sensible
 
 
@@ -342,6 +346,7 @@ INT frontend_exit()
     TrlyNMRBuffer.clear();
     TrlyBarcodeBuffer.clear();
     TrlyMonitorBuffer.clear();
+    TrlyInterfaceBuffer.clear();
     cm_msg(MINFO,"exit","Data buffer is emptied before exit.");
 
     //Ramp down the trolley power
@@ -422,6 +427,7 @@ INT begin_of_run(INT run_number, char *error)
   TrlyNMRBuffer.clear();
   TrlyBarcodeBuffer.clear();
   TrlyMonitorBuffer.clear();
+  TrlyInterfaceBuffer.clear();
   mlock.unlock();
   cm_msg(MINFO,"begin_of_run","Data buffer is emptied at the beginning of the run.");
 
@@ -462,6 +468,7 @@ INT end_of_run(INT run_number, char *error)
   TrlyNMRBuffer.clear();
   TrlyBarcodeBuffer.clear();
   TrlyMonitorBuffer.clear();
+  TrlyInterfaceBuffer.clear();
   cm_msg(MINFO,"end_of_run","Data buffer is emptied before exit.");
 
   if(write_root){
@@ -521,7 +528,7 @@ INT poll_event(INT source, INT count, BOOL test)
   }
 
   mlock.lock();
-  BOOL check = (TrlyNMRBuffer.size()>0 && TrlyBarcodeBuffer.size()>0 && TrlyMonitorBuffer.size()>0);
+  BOOL check = (TrlyNMRBuffer.size()>0 && TrlyBarcodeBuffer.size()>0 && TrlyMonitorBuffer.size()>0 && TrlyInterfaceBuffer.size()>0 && TrlyExtraBuffer.size()>0);
   mlock.unlock();
   if (check)return 1;
   else return 0;
@@ -552,6 +559,8 @@ INT read_trly_event(char *pevent, INT off){
   WORD *pNMRdata;
   WORD *pBarcodedata;
   WORD *pMonitordata;
+  WORD *pInterfacedata;
+  WORD *pExtradata;
   
   INT BufferLoad;
   INT BufferLoad_size = sizeof(BufferLoad);
@@ -563,31 +572,13 @@ INT read_trly_event(char *pevent, INT off){
       TrlyRegisters[16];
       */
 
-  //Read the Galil Info from odb
-  
-  mlock.lock();
-  double GalilTime = 0.0;
-  INT GalilTime_size = sizeof(GalilTime);
-  db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Time Stamp",&GalilTime,&GalilTime_size,TID_DOUBLE, 0);
-  INT GalilPositions[6];
-  INT GalilVelocities[6];
-  INT GalilPos_size = sizeof(GalilPositions);
-  INT GalilVel_size = sizeof(GalilVelocities);
-  db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Positions",GalilPositions,&GalilPos_size,TID_INT, 0);
-  db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Velocities",GalilVelocities,&GalilVel_size,TID_INT, 0);
-  mlock.unlock();
-
-  TrlyExtraCurrent.GalilTime = GalilTime;
-  for (int i=0;i<2;i++){
-    TrlyExtraCurrent.GalilPos[i] = GalilPositions[i];
-    TrlyExtraCurrent.GalilVel[i] = GalilVelocities[i];
-  }
-
   if (write_root) {
     mlockdata.lock();
     TrlyNMRCurrent = TrlyNMRBuffer[0];
     TrlyBarcodeCurrent = TrlyBarcodeBuffer[0];
     TrlyMonitorCurrent = TrlyMonitorBuffer[0];
+    TrlyInterfaceCurrent = TrlyInterfaceBuffer[0];
+    TrlyExtraCurrent = TrlyExtraBuffer[0];
     mlockdata.unlock();
     pt_norm->Fill();
     num_events++;
@@ -618,9 +609,21 @@ INT read_trly_event(char *pevent, INT off){
   pMonitordata += sizeof(g2field::trolley_monitor_t)/sizeof(WORD);
   bk_close(pevent,pMonitordata);
 
+  bk_create(pevent, interface_bank_name, TID_WORD, (void **)&pInterfacedata);
+  memcpy(pInterfacedata, &(TrlyInterfaceBuffer[0]), sizeof(g2field::trolley_interface_t));
+  pInterfacedata += sizeof(g2field::trolley_interface_t)/sizeof(WORD);
+  bk_close(pevent,pInterfacedata);
+
+  bk_create(pevent, extra_bank_name, TID_WORD, (void **)&pExtradata);
+  memcpy(pExtradata, &(TrlyExtraBuffer[0]), sizeof(g2field::trolley_extra_t));
+  pExtradata += sizeof(g2field::trolley_extra_t)/sizeof(WORD);
+  bk_close(pevent,pExtradata);
+
   TrlyNMRBuffer.erase(TrlyNMRBuffer.begin());
   TrlyBarcodeBuffer.erase(TrlyBarcodeBuffer.begin());
   TrlyMonitorBuffer.erase(TrlyMonitorBuffer.begin());
+  TrlyInterfaceBuffer.erase(TrlyInterfaceBuffer.begin());
+  TrlyExtraBuffer.erase(TrlyExtraBuffer.begin());
   
   //Check current size of the readout buffer
   BufferLoad = TrlyNMRBuffer.size();
@@ -628,7 +631,7 @@ INT read_trly_event(char *pevent, INT off){
 
   //update buffer load in odb
   mlock.lock();
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Buffer Load",&BufferLoad,BufferLoad_size, 1 ,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Buffer Load",&BufferLoad,BufferLoad_size, 1 ,TID_INT);
   mlock.unlock();
 
   return bk_size(pevent);
@@ -640,6 +643,7 @@ void ReadFromDevice(){
   int FrameANumber = 0;
  
   //Monitor data will be synced to ODB
+  //Trolley variables
   BOOL BarcodeError = TRUE;
   BOOL PowersupplyStatus[3];
   BOOL VMStatus = FALSE;
@@ -677,6 +681,26 @@ void ReadFromDevice(){
 
   INT BarcodeReadout[6];
 
+  //Interface variables
+  BOOL TrolleyPowerProtectionTrip;
+  BOOL TrolleyPowerStatus;
+  unsigned int RFInterface0;
+  unsigned int RFInterface1;
+  float ldo_temp_monitor_min;
+  float ldo_temp_monitor_max;
+  float v_15neg_min;
+  float v_15neg_max;
+  float v_15pos_min;
+  float v_15pos_max;
+  float v_5_min;
+  float v_5_max;
+  float v_33_min;
+  float v_33_max;
+  float v_monitor;
+  float i_monitor;
+
+  BOOL TrolleyPowerProtectionTripOld;
+  BOOL TrolleyPowerStatusOld;
 
   unsigned int FrameASize = 0;
   unsigned int FrameBSize = 0;
@@ -686,7 +710,7 @@ void ReadFromDevice(){
 
   int ReadThreadActive = 1;
   mlock.lock();
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
   mlock.unlock();
 
   //Read first frame and sync
@@ -694,7 +718,7 @@ void ReadFromDevice(){
   if (rc<0){
     ReadThreadActive = 0;
     mlock.lock();
-    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
     if (rc==errorEOF){
       cm_msg(MINFO,"ReadFromDevice","End of fake file frontend");
     }else{
@@ -728,7 +752,7 @@ void ReadFromDevice(){
     if (rc<0){
       ReadThreadActive = 0;
       mlock.lock();
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
       if (rc==errorEOF){
 	cm_msg(MINFO,"ReadFromDevice","End of fake file frontend");
       }else{
@@ -746,7 +770,8 @@ void ReadFromDevice(){
       }
       memcpy(&FrameASize,&(FrameA[7]),sizeof(int));
       mlock.lock();
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Data Frame Index",&FrameANumber,sizeof(FrameANumber), 1 ,TID_INT); 
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Trolley Frame Index",&FrameANumber,sizeof(FrameANumber), 1 ,TID_INT); 
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Trolley Frame Size",&FrameASize,sizeof(FrameASize), 1 ,TID_INT); 
 
       if (FrameANumber!=(LastFrameANumber+1)){
 	cm_msg(MERROR,"ReadFromDevice","Skipping trolley data frame at iteration %d",i);
@@ -755,10 +780,18 @@ void ReadFromDevice(){
     }
     LastFrameANumber=FrameANumber;
 
+    if (FrameBSize!=0){
+      mlock.lock();
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface Frame Size",&FrameBSize,sizeof(FrameBSize), 1 ,TID_INT); 
+      mlock.unlock();
+    }
+
     //Translate buffer into TrlyDataStruct
     g2field::trolley_nmr_t* TrlyNMRDataUnit = new g2field::trolley_nmr_t;
     g2field::trolley_barcode_t* TrlyBarcodeDataUnit = new g2field::trolley_barcode_t;
     g2field::trolley_monitor_t* TrlyMonitorDataUnit = new g2field::trolley_monitor_t;
+    g2field::trolley_interface_t* TrlyInterfaceDataUnit = new g2field::trolley_interface_t;
+    g2field::trolley_extra_t* TrlyExtraDataUnit = new g2field::trolley_extra_t;
 
     if (CurrentMode.compare("Sleep")!=0 && FrameASize!=0){
       //Probe
@@ -948,23 +981,23 @@ void ReadFromDevice(){
 
       //Update odb error monitors and sending messages
       mlock.lock();
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Barcode Error",&BarcodeError,sizeof(BarcodeError), 1 ,TID_BOOL);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/LED Voltage",&LED_Voltage,sizeof(LED_Voltage), 1 ,TID_FLOAT);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Barcode Readout",BarcodeReadout,sizeof(BarcodeReadout), 6 ,TID_INT);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Temperature Interrupt",&TemperatureInterrupt,sizeof(TemperatureInterrupt), 1 ,TID_BOOL);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Power Supply Status",&PowersupplyStatus,sizeof(PowersupplyStatus), 3 ,TID_BOOL);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/NMR Check Sum",&NMRCheckSumPassed,sizeof(NMRCheckSumPassed), 1 ,TID_BOOL);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Config Check Sum",&ConfigCheckSumPassed,sizeof(ConfigCheckSumPassed), 1 ,TID_BOOL);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Frame Check Sum",&FrameCheckSumPassed,sizeof(FrameCheckSumPassed), 1 ,TID_BOOL);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Power Factor",&PowerFactor,sizeof(PowerFactor),1,TID_FLOAT);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Temperature In",&TemperatureIn,sizeof(TemperatureIn),1,TID_FLOAT);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Temperature Ext1",&Temperature1,sizeof(Temperature1),1,TID_FLOAT);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Pressure Temperature",&PressureTemperature,sizeof(PressureTemperature),1,TID_FLOAT);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Pressure",&Pressure,sizeof(Pressure),1,TID_FLOAT);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Vmin 1",&Vmin1,sizeof(Vmin1),1,TID_FLOAT);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Vmax 1",&Vmax1,sizeof(Vmax1),1,TID_FLOAT);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Vmin 2",&Vmin2,sizeof(Vmin2),1,TID_FLOAT);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Vmax 2",&Vmax2,sizeof(Vmax2),1,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Trolley/Barcode Error",&BarcodeError,sizeof(BarcodeError), 1 ,TID_BOOL);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Trolley/LED Voltage",&LED_Voltage,sizeof(LED_Voltage), 1 ,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Trolley/Barcode Readout",BarcodeReadout,sizeof(BarcodeReadout), 6 ,TID_INT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Trolley/Temperature Interrupt",&TemperatureInterrupt,sizeof(TemperatureInterrupt), 1 ,TID_BOOL);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Trolley/Power Supply Status",&PowersupplyStatus,sizeof(PowersupplyStatus), 3 ,TID_BOOL);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Trolley/NMR Check Sum",&NMRCheckSumPassed,sizeof(NMRCheckSumPassed), 1 ,TID_BOOL);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Trolley/Config Check Sum",&ConfigCheckSumPassed,sizeof(ConfigCheckSumPassed), 1 ,TID_BOOL);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Trolley/Frame Check Sum",&FrameCheckSumPassed,sizeof(FrameCheckSumPassed), 1 ,TID_BOOL);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Trolley/Power Factor",&PowerFactor,sizeof(PowerFactor),1,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Trolley/Temperature In",&TemperatureIn,sizeof(TemperatureIn),1,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Trolley/Temperature Ext1",&Temperature1,sizeof(Temperature1),1,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Trolley/Pressure Temperature",&PressureTemperature,sizeof(PressureTemperature),1,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Trolley/Pressure",&Pressure,sizeof(Pressure),1,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Trolley/Vmin 1",&Vmin1,sizeof(Vmin1),1,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Trolley/Vmax 1",&Vmax1,sizeof(Vmax1),1,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Trolley/Vmin 2",&Vmin2,sizeof(Vmin2),1,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Trolley/Vmax 2",&Vmax2,sizeof(Vmax2),1,TID_FLOAT);
 
       if(BarcodeError && (!BarcodeErrorOld || i==0))cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Barcode reading error. At iteration %d",i);
       if(TemperatureInterrupt && (!TemperatureInterruptOld || i==0))cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Temperature interrupt. At iteration %d",i);
@@ -981,12 +1014,131 @@ void ReadFromDevice(){
 
     }
 
+    if (FrameBSize!=0){
+      //Interface
+      memcpy(&(TrlyInterfaceDataUnit->gps_clock_cycle_start),&(FrameB[8]),sizeof(unsigned long int));
+      memcpy(&(TrlyInterfaceDataUnit->local_clock_cycle_start),&(FrameB[12]),sizeof(unsigned long int));
+      memcpy(&(TrlyInterfaceDataUnit->local_clock_iv),&(FrameB[16]),sizeof(unsigned long int));
+
+      memcpy(&(TrlyInterfaceDataUnit->rf_power0),&(FrameB[30]),sizeof(unsigned int));
+      memcpy(&(TrlyInterfaceDataUnit->rf_power1),&(FrameB[32]),sizeof(unsigned int));
+
+      TrlyInterfaceDataUnit->rf_switch_offset = FrameB[34];
+      TrlyInterfaceDataUnit->comm_switch_offset = FrameB[34];
+      TrlyInterfaceDataUnit->n_iv_samples = FrameB[4];
+      TrlyInterfaceDataUnit->power_protection_trip = FrameB[5];
+      TrlyInterfaceDataUnit->power_status = FrameB[5];
+      TrlyInterfaceDataUnit->ldo_temp_monitor_min = FrameB[20];
+      TrlyInterfaceDataUnit->ldo_temp_monitor_max = FrameB[21];
+      TrlyInterfaceDataUnit->v_15neg_min = FrameB[22];
+      TrlyInterfaceDataUnit->v_15neg_max = FrameB[23];
+      TrlyInterfaceDataUnit->v_15pos_min = FrameB[24];
+      TrlyInterfaceDataUnit->v_15pos_max = FrameB[25];
+      TrlyInterfaceDataUnit->v_5_min = FrameB[26];
+      TrlyInterfaceDataUnit->v_5_max = FrameB[27];
+      TrlyInterfaceDataUnit->v_33_min = FrameB[28];
+      TrlyInterfaceDataUnit->v_33_max = FrameB[29];
+
+      for (unsigned short ii=0;ii<FrameB[4];ii++){
+	TrlyInterfaceDataUnit->trace_v_monitor[ii] = FrameB[36+ii];
+      }
+      for (unsigned short ii=0;ii<FrameB[4];ii++){
+	TrlyInterfaceDataUnit->trace_i_monitor[ii] = FrameB[36+FrameB[4]+ii];
+      }
+
+      //Data quality monitoring
+      //keep previous conditions
+      TrolleyPowerProtectionTripOld = TrolleyPowerProtectionTrip;
+      TrolleyPowerStatusOld = TrolleyPowerStatus;
+
+      ldo_temp_monitor_min = float(FrameB[20])/128.0;
+      ldo_temp_monitor_max = float(FrameB[21])/128.0;
+      v_15neg_min = float(FrameB[22])/65535.0*20.0;
+      v_15neg_max = float(FrameB[23])/65535.0*20.0;
+      v_15pos_min = float(FrameB[24])/65535.0*20.0;
+      v_15pos_max = float(FrameB[25])/65535.0*20.0;
+      v_5_min = float(FrameB[26])/65535.0*10.0;
+      v_5_max = float(FrameB[27])/65535.0*10.0;
+      v_33_min = float(FrameB[28])/65535.0*5.0;
+      v_33_max = float(FrameB[29])/65535.0*5.0;
+      v_monitor = float(FrameB[36])/65535.0*10.0;
+      i_monitor = float(FrameB[36+FrameB[4]])/65535.0*10.0;
+
+      TrolleyPowerProtectionTrip = BOOL(FrameB[5]);
+      TrolleyPowerStatus = BOOL(FrameB[6]);
+
+      //Update odb error monitors and sending messages
+      mlock.lock();
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/Trolley Power Protection Trip",&TrolleyPowerProtectionTrip,sizeof(TrolleyPowerProtectionTrip), 1 ,TID_BOOL);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/Trolley Power Status",&TrolleyPowerStatus,sizeof(TrolleyPowerStatus), 1 ,TID_BOOL);
+
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/Interface RF0",&(TrlyInterfaceDataUnit->rf_power0),sizeof(TrlyInterfaceDataUnit->rf_power0), 1 ,TID_INT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/Interface RF1",&(TrlyInterfaceDataUnit->rf_power1),sizeof(TrlyInterfaceDataUnit->rf_power1), 1 ,TID_INT);
+
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/ldo_temp_monitor_min",&(ldo_temp_monitor_min),sizeof(ldo_temp_monitor_min), 1 ,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/ldo_temp_monitor_max",&(ldo_temp_monitor_max),sizeof(ldo_temp_monitor_max), 1 ,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V15neg Min",&(v_15neg_min),sizeof(v_15neg_min), 1 ,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V15neg Max",&(v_15neg_max),sizeof(v_15neg_max), 1 ,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V15pos Min",&(v_15pos_min),sizeof(v_15pos_min), 1 ,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V15pos Max",&(v_15pos_max),sizeof(v_15pos_max), 1 ,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V5 Min",&(v_5_min),sizeof(v_5_min), 1 ,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V5 Max",&(v_5_max),sizeof(v_5_max), 1 ,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V33 Min",&(v_33_min),sizeof(v_33_min), 1 ,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V33 Max",&(v_33_max),sizeof(v_33_max), 1 ,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V Monitor",&(v_monitor),sizeof(v_monitor), 1 ,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/I Monitor",&(i_monitor),sizeof(i_monitor), 1 ,TID_FLOAT);
+
+      if(TrolleyPowerProtectionTrip && (!TrolleyPowerProtectionTripOld))cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Trolley Power Tripped. At iteration %d",i);
+
+      mlock.unlock();
+
+    }
+
+    //Fill the Extra Bank, mainly Galil readouts
+    //Read the Galil Info from odb
+
+    mlock.lock();
+    char SourceName[32];
+    INT SourceName_size = sizeof(SourceName);
+    db_get_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Source",SourceName,&SourceName_size,TID_STRING,0);
+    double GalilTime = 0.0;
+    INT GalilTime_size = sizeof(GalilTime);
+    db_get_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Time Stamp",&GalilTime,&GalilTime_size,TID_INT, 0);
+    INT GalilPositions[6];
+    INT GalilVelocities[6];
+    INT GalilPos_size = sizeof(GalilPositions);
+    INT GalilVel_size = sizeof(GalilVelocities);
+    db_get_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Positions",GalilPositions,&GalilPos_size,TID_INT, 0);
+    db_get_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Velocities",GalilVelocities,&GalilVel_size,TID_INT, 0);
+    mlock.unlock();
+
+    //Galil-Fermi: 0
+    //Galil-Argonne: 1
+    //Unknown: -1
+    string SourceName_str = string(SourceName);
+    if (SourceName_str.compare("Galil-Fermi")==0){
+      TrlyExtraDataUnit->Source = 0;
+    }else if (SourceName_str.compare("Galil-Argonne")==0){
+      TrlyExtraDataUnit->Source = 1;
+    }else{
+      TrlyExtraDataUnit->Source = -1;
+    }
+
+
+    TrlyExtraDataUnit->GalilTime = GalilTime;
+    for (int i=0;i<2;i++){
+      TrlyExtraDataUnit->GalilPos[i] = GalilPositions[i];
+      TrlyExtraDataUnit->GalilVel[i] = GalilVelocities[i];
+    }
+
     //Push to buffer
     mlockdata.lock();
-    if (RunActiveForRead && CurrentMode.compare("Sleep")!=0 && FrameASize!=0){
+    if (RunActiveForRead && CurrentMode.compare("Sleep")!=0 && (FrameASize!=0 || FrameBSize!=0)){
       TrlyNMRBuffer.push_back(*TrlyNMRDataUnit);
       TrlyBarcodeBuffer.push_back(*TrlyBarcodeDataUnit);
       TrlyMonitorBuffer.push_back(*TrlyMonitorDataUnit);
+      TrlyInterfaceBuffer.push_back(*TrlyInterfaceDataUnit);
+      TrlyExtraBuffer.push_back(*TrlyExtraDataUnit);
     }
     mlockdata.unlock();
 
@@ -997,7 +1149,7 @@ void ReadFromDevice(){
   }
   ReadThreadActive = 0;
   mlock.lock();
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Read Thread Active",&ReadThreadActive,sizeof(ReadThreadActive), 1 ,TID_BOOL); 
   mlock.unlock();
   delete []FrameA;
   delete []FrameB;
@@ -1033,7 +1185,7 @@ void ControlDevice(){
   while (1){
     int ControlThreadActive = 1;
     mlock.lock();
-    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Control Thread Active",&ControlThreadActive,sizeof(ControlThreadActive), 1 ,TID_BOOL); 
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Control Thread Active",&ControlThreadActive,sizeof(ControlThreadActive), 1 ,TID_BOOL); 
     mlock.unlock();
 
     //Check if the front-end is active
@@ -1209,12 +1361,12 @@ void ControlDevice(){
     //update odb CurrentMode
     char ModeName[32];
     sprintf(ModeName,"%s",CurrentMode.c_str());
-    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Current Mode",&ModeName,sizeof(ModeName), 1 ,TID_STRING); 
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Current Mode",&ModeName,sizeof(ModeName), 1 ,TID_STRING); 
 
     unsigned int FIFORunning = 0;
     //Check FIFO status
     DeviceReadMask(reg_nmr_status,0x00000001,&FIFORunning);
-    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/FIFO Status",(INT *)&FIFORunning,sizeof(FIFORunning), 1 ,TID_INT); 
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/FIFO Status",(INT *)&FIFORunning,sizeof(FIFORunning), 1 ,TID_INT); 
     if (CurrentMode.compare("Continuous")==0 && StartUpCount>0){
       if (FIFORunning==0){
 	StartUpCount--;
@@ -1247,7 +1399,7 @@ void ControlDevice(){
 	db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Run Config/Interactive/Trigger",&Trigger,&size_INT,TID_INT, 0);
 	if (Trigger==1){
 	  Executing = 1;
-	  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/FIFO Status",&Executing,size_INT, 1 ,TID_INT); 
+	  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/FIFO Status",&Executing,size_INT, 1 ,TID_INT); 
 	  //Load Probe settings
 	  LoadProbeSettings();
 	  //Start FIFO
@@ -1267,7 +1419,7 @@ void ControlDevice(){
   }
   int ControlThreadActive = 0;
   mlock.lock();
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Control Thread Active",&ControlThreadActive,sizeof(ControlThreadActive), 1 ,TID_BOOL); 
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Control Thread Active",&ControlThreadActive,sizeof(ControlThreadActive), 1 ,TID_BOOL); 
   mlock.unlock();
 }
 
@@ -1382,25 +1534,25 @@ void UpdateGeneralOdbSettings()
   DeviceRead(reg_free_event_memory,(unsigned int *)(& Buffer_Load));
 
   //Load values back to odb
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Interface Comm Stop",&Interface_Comm_Stop,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Trolley Comm Start",&Trolley_Comm_Start,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Trolley Comm Data Start",&Trolley_Comm_Data_Start,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Trolley Comm Stop",&Trolley_Comm_Stop,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Switch To RF",&Switch_To_RF,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Power ON",&Power_ON,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/RF Enable",&RF_Enable,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Switch To Comm",&Switch_To_Comm,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Interface Comm Start",&Interface_Comm_Start,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Cycle Length",&Cycle_Length,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/RF Prescale",&RF_Prescale,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Switch RF Offset",&Switch_RF_Offset,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Cycle/Switch Comm Offset",&Switch_Comm_Offset,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Cycle/Interface Comm Stop",&Interface_Comm_Stop,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Cycle/Trolley Comm Start",&Trolley_Comm_Start,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Cycle/Trolley Comm Data Start",&Trolley_Comm_Data_Start,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Cycle/Trolley Comm Stop",&Trolley_Comm_Stop,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Cycle/Switch To RF",&Switch_To_RF,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Cycle/Power ON",&Power_ON,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Cycle/RF Enable",&RF_Enable,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Cycle/Switch To Comm",&Switch_To_Comm,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Cycle/Interface Comm Start",&Interface_Comm_Start,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Cycle/Cycle Length",&Cycle_Length,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Cycle/RF Prescale",&RF_Prescale,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Cycle/Switch RF Offset",&Switch_RF_Offset,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Cycle/Switch Comm Offset",&Switch_Comm_Offset,size_INT, 1,TID_INT);
 
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Barcode/LED Voltage",&BC_LED_Voltage,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Barcode/Sample Period",&BC_Sample_Period,size_INT, 1,TID_INT);
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Barcode/Acq Delay",&BC_Acq_Delay,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Barcode/LED Voltage",&BC_LED_Voltage,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Barcode/Sample Period",&BC_Sample_Period,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Barcode/Acq Delay",&BC_Acq_Delay,size_INT, 1,TID_INT);
 
-  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitor/Interface Buffer Load",&Buffer_Load,size_INT, 1,TID_INT);
+  db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface Buffer Load",&Buffer_Load,size_INT, 1,TID_INT);
 }
 
 int RampTrolleyVoltage(int InitialVoltage,int TargetVoltage)

@@ -83,7 +83,7 @@ DFCPPFLAGS += -I$(BOOST_INC) -I$(shell echo $(ZMQ_INCLUDE_DIR))
 DFCPPFLAGS += -I/usr/local/include/ -I/usr/local/include/g2field
 DFCPPFLAGS += -Wl,-rpath,/usr/local/lib
 
-allRH: bin/trolley bin/sim_trolley bin/galil bin/sim_galil bin/abs-probe bin/galil-platform
+allRH: bin/trolley bin/sim_trolley bin/galil-fermi bin/abs-probe bin/galil-platform
 allDF: bin/yokogawa
 
 bin/trolley: src/trolley.cxx $(MID_LIB)/mfe.o
@@ -96,7 +96,7 @@ bin/sim_trolley: src/sim_trolley.cxx $(MID_LIB)/mfe.o
 	$(RHLIBS) $(ROOTLIBS)
 	ln -sf $(shell pwd)/$@ ../../bin/
 
-bin/galil: src/galil.cxx $(MID_LIB)/mfe.o
+bin/galil-fermi: src/galil-fermi.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	        $(RHLIBS) $(ROOTLIBS)
 	ln -sf $(shell pwd)/$@ ../../bin/
