@@ -19,6 +19,7 @@ About: Implements a MIDAS frontend for the surface coils. It checks
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -38,7 +39,7 @@ using std::string;
 
 //--- project includes -----------------------------------------------------//
 #include "frontend_utils.hh"
-#include "field_structs.hh"
+#include "core/field_structs.hh"
 
 //--- globals --------------------------------------------------------------//
 #define FRONTEND_NAME "Surface Coils"
@@ -107,6 +108,19 @@ extern "C" {
 
 RUNINFO runinfo;
 
+std::string coil_string(string loc, int i);
+std::string coil_string(string loc, int i){
+  string beg;
+  string end;
+  if(loc == "bot") beg = "B-";
+  if(loc == "top") beg = "T-";
+  if (0 <= i < 9) end = "00" + std::to_string(i+1);
+  if (9 <= i <= 98) end = "0" + std::to_string(i+1);
+  if(i == 99) end = "100";
+  string result = beg + end;
+  return result;
+}
+
 //Anonymous namespace for "globals"
 namespace{
   
@@ -143,6 +157,13 @@ namespace{
   Double_t bot_temps[nCoils];
   Double_t top_temps[nCoils];
   
+  Double_t high_temp;
+
+  bool bot_current_health;
+  bool top_current_health;
+  bool bot_temp_health;
+  bool top_temp_health;
+
   std::map<std::string, std::string> coil_map; //sc_id, hw_id
   std::map<std::string, std::string> rev_coil_map;//hw_id, sc_id
   json request; //json object to hold set currents
@@ -246,7 +267,13 @@ INT begin_of_run(INT run_number, char *error)
   //Grab the database handle
   cm_get_experiment_database(&hDB, NULL);
 
-  //Get bottom set currents                                                                  
+  //Start with all healths being good
+  bot_current_health = true;
+  top_current_health = true;
+  bot_temp_health = true;
+  top_current_health = true;
+
+  //Get bottom set currents                                                    
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Bottom Set Currents", &hkey);
 
   if(hkey == NULL){
@@ -262,7 +289,7 @@ INT begin_of_run(INT run_number, char *error)
 
   db_get_data(hDB, hkey, &bot_set_values, &bot_size, TID_DOUBLE);
 
-  //Top                                                                                      
+  //Top                                                                        
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Top Set Currents", &hkey);
 
   if(hkey == NULL){
@@ -275,13 +302,18 @@ INT begin_of_run(INT run_number, char *error)
 
   std::cout << "TESTTESTTEST" << std::endl;
   for(int i=0;i<10;i++) std::cout << bot_set_values[i] << " " << top_set_values[i] << std::endl;
-  //Get the allowable difference                                                            
-  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Allowed Difference", &hkey);
 
+  //Get the allowable difference                                               
+  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Allowed Difference", &hkey);
   setPoint = 0;
   int setpt_size = sizeof(setPoint);
-
   db_get_data(hDB, hkey, &setPoint, &setpt_size, TID_DOUBLE);
+
+  //Get the allowed temp
+  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Allowed Temperature", &hkey);
+  high_temp = 0;
+  int temp_size = sizeof(high_temp);
+  db_get_data(hDB, hkey, &high_temp, &temp_size, TID_DOUBLE);
 
 
   //Now that we have the data, package it into json object
@@ -323,16 +355,7 @@ INT begin_of_run(INT run_number, char *error)
        }	
     }
 
-    /*do{
-      try{
-	st = publisher.send(message, ZMQ_DONTWAIT);
-	usleep(200);
-	std::cout << "Sent a message" << std::endl;
-      } catch(const zmq::error_t e1) {std::cout << "Problem publishing" << std::endl;};
-    } while(!st); */
-    
     usleep(500000);
-    //publisher.disconnect("tcp://127.0.0.1:5550");
   }//end for loop
 
   cm_msg(MINFO, "begin_of_run", "Current values sent to beaglebones");            
@@ -499,19 +522,13 @@ INT read_surface_coils(char *pevent, INT c)
   static unsigned long long num_events;
   static unsigned long long events_written;
 
- // std::cout << "Binding to subscribe socket" << std::endl;
- // subscriber.bind("tcp://127.0.0.1:5551");    
- // cm_msg(MINFO, "info", "Bound to subscribe socket");
- // std::cout << "Bound" << std::endl;
-                                     
-  //Subscribe to all incoming data                                             
-  //subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
-
-
   HNDLE hDB, hkey;
   char bk_name[10]; //bank name
   DWORD *pdata; //place to store data
-  
+
+  //Grab the database handle                             
+  cm_get_experiment_database(&hDB, NULL);
+
   //initialize MIDAS bank
   bk_init32(pevent);
 
@@ -527,9 +544,6 @@ INT read_surface_coils(char *pevent, INT c)
   }
 
   //Receive values from beaglebones
-  //zmq::pollitem_t poller;
-  //poller.socket = (void *)subscriber; //Attaches pointer of socket to poller
-  //poller.events = ZMQ_POLLIN;
   std::vector<json> dataVector;
   bool st = false; //status of request/reply
   zmq::message_t bbVals;
@@ -549,23 +563,6 @@ INT read_surface_coils(char *pevent, INT c)
   std::cout << s << std::endl;
   json reply_data = json::parse(s);
   dataVector.push_back(reply_data);
-
-  //if(zmq::poll(&poller, 1, 1) == 0){return 0;} //if no data, exit loop
-
-  /*while(zmq::poll(&poller, 1, 1) > 0){ //if we have data, process it
-    zmq::message_t bbVals(4096);
-    do{
-      try{
-	st = subscriber.recv(&bbVals, ZMQ_DONTWAIT | ZMQ_NOBLOCK);
-	usleep(200);
-      } catch(const zmq::error_t e) {};
-   } while((!st) && (zmq_errno() == EINTR));
-   string s(static_cast<char*>(bbVals.data()));
-   s.resize(bbVals.size());
-   std::cout << s << std::endl;
-   json reply_data = json::parse(s);
-   dataVector.push_back(reply_data);
-  }*/
 
 	
   cm_msg(MINFO, "read_surface_coils", "Received reply from beaglebones");
@@ -632,54 +629,50 @@ INT read_surface_coils(char *pevent, INT c)
   pdata += sizeof(data) / sizeof(DWORD);
 
   bk_close(pevent, pdata);
-  /*
-  //Check values vs set points. Set a flag if something drifts out of range
-  if(event_number % 10 == 0){
-    //json reset_request;
-    
-    for(int i=0;i<nCoils;i++){ //Check all the values. Fill json with problem channels
 
-      string coilNum;
-      if(i >= 0 && i <= 8) coilNum = "00" + std::to_string(i+1);
-      if(i > 8 && i <= 98) coilNum = "0" + std::to_string(i+1);
-      if(i==99) coilNum = std::to_string(i+1);
-      string topString = "T-"+coilNum;
-      string botString = "B-"+coilNum;
-
-      if(abs(bot_currents[i]- bot_set_values[i]) > setPoint){
-	cm_msg(MINFO, "read_surface_coils", "Problem  with %s, out of range", botString.c_str());
-	//reset_request[coil_map[botString]] = bot_set_values[i];
-      }
-      if(abs(top_currents[i]- top_set_values[i]) > setPoint){
-	cm_msg(MINFO, "read_surface_coils", "Problem  with %s, out of range", topString.c_str());
-        //reset_request[coil_map[topString]] = top_set_values[i];
-      }
-
-    }
-    }*/
-    /*
-    //Publish json of problem channels
-    for(int i=0;i<5;i++){
-      std::string buffer = reset_request.dump();
-      zmq::message_t message (buffer.size());
-      std::copy(buffer.begin(), buffer.end(), (char *)message.data());
-
-      bool st = false; //status of publishing                                   
-
-      do{
-	try{
-	  st = publisher.send(message, ZMQ_DONTWAIT);
-	  usleep(200);
-	} catch(const zmq::error_t e1) {std::cout << "Problem publishing" << std::endl;};
-      } while(!st);
-
-    }
-  }
-  */
   event_number++;
 
-  //subscriber.disconnect("tcp://127.0.0.1:5551");
+  //Update values in odb
+  db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Currents/Bottom Currents", &bot_currents, sizeof(bot_currents), 100, TID_DOUBLE);
+  db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Currents/Top Currents", &top_currents, sizeof(top_currents), 100, TID_DOUBLE);
+  db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Temperatures/Bottom Temps", &bot_temps, sizeof(bot_temps), 100, TID_DOUBLE);
+  db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Temperatures/Top Temps", &top_temps, sizeof(top_temps), 100, TID_DOUBLE);
 
+  //Check values vs. set points
+  for(int i=0;i<nCoils;i++){
+    //bottom currents
+    if(abs(bot_currents[i]-bot_set_values[i]) >= setPoint){
+      bot_current_health = false;
+      string bad_curr_string = coil_string("bot", i);
+      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Bot. Currents Health", &bot_current_health, sizeof(bot_current_health), 1, TID_BOOL);
+      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", &bad_curr_string, sizeof(bad_curr_string), 1, TID_STRING);
+    }
+
+    //top currents                                                          
+    if(abs(top_currents[i]-top_set_values[i]) >= setPoint){
+      top_current_health = false;
+      string bad_curr_string = coil_string("top", i);
+      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Top Currents Health", &top_current_health, sizeof(top_current_health), 1, TID_BOOL);
+      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", &bad_curr_string, sizeof(bad_curr_string), 1, TID_STRING);
+    }
+
+    //bottom temps                                                           
+    if(bot_temps[i] > high_temp){
+      bot_temp_health = false;
+      string bad_temp_string = coil_string("bot", i);
+      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Bot. Temp Health", &bot_temp_health, sizeof(bot_temp_health), 1, TID_BOOL);
+      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", &bad_temp_string, sizeof(bad_temp_string), 1, TID_STRING);
+    }
+
+    //top temps    
+    if(top_temps[i] > high_temp){
+      top_temp_health = false;
+      string bad_temp_string = coil_string("top", i);
+      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Top Temp Health", &top_temp_health, sizeof(top_temp_health), 1, TID_BOOL);
+      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", &bad_temp_string, sizeof(bad_temp_string), 1, TID_STRING);
+    }
+  }
+  
   cm_msg(MINFO, "read_surface_coils", "Finished generating event");
   return bk_size(pevent);
 
