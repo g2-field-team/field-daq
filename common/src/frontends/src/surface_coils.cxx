@@ -148,8 +148,10 @@ namespace{
   Double_t bot_set_values[nCoils];
   Double_t top_set_values[nCoils];
 
-  Double_t bot_offsets[nCoils];
-  Double_t top_offsets[nCoils];
+  Double_t bot_intercepts[nCoils];
+  Double_t top_intercepts[nCoils];
+  Double_t bot_slopes[nCoils];
+  Double_t top_slopes[nCoils];
 
   Double_t bot_currents[nCoils];
   Double_t top_currents[nCoils];
@@ -159,10 +161,10 @@ namespace{
   
   Double_t high_temp;
 
-  bool bot_current_health;
-  bool top_current_health;
-  bool bot_temp_health;
-  bool top_temp_health;
+  int bot_current_health;
+  int top_current_health;
+  int bot_temp_health;
+  int top_temp_health;
 
   std::map<std::string, std::string> coil_map; //sc_id, hw_id
   std::map<std::string, std::string> rev_coil_map;//hw_id, sc_id
@@ -180,9 +182,8 @@ INT frontend_init()
   //Get the channel mapping
   HNDLE hDB, hkey;
 
-  //Grab the database handle                                                                 
+  //Grab the database handle                                        
   cm_get_experiment_database(&hDB, NULL);
-
   
   for(int i=0;i<2*nCoils;i++){
     string crate_key;
@@ -218,24 +219,47 @@ INT frontend_init()
     }
   }
  
-  //Get the offset values
-  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Offset Values/Bottom Offset Values", &hkey);
+  //Get the calibration values (intercepts and slopes)
+  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Calibration/Bottom Intercepts", &hkey);
  
    if(hkey == NULL){
-    cm_msg(MERROR, "begin_of_run", "unable to find Bottom Offset Values key");
+    cm_msg(MERROR, "begin_of_run", "unable to find Bottom Intercepts key");
   }
 
-  int bot_off_size = sizeof(bot_offsets);
-  db_get_data(hDB, hkey, &bot_offsets, &bot_off_size, TID_DOUBLE); 
+  int bot_int_size = sizeof(bot_intercepts);
+  db_get_data(hDB, hkey, &bot_intercepts, &bot_int_size, TID_DOUBLE); 
+  
+  ///
+  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Calibration/Top Intercepts", &hkey);
 
-  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Offset Values/Top Offset Values", &hkey);
-
-   if(hkey == NULL){
-    cm_msg(MERROR, "begin_of_run", "unable to find Top Offset Values key");
+  if(hkey == NULL){
+    cm_msg(MERROR, "begin_of_run", "unable to find Top Intercepts key");
   }
 
-  int top_off_size = sizeof(top_offsets);
-  db_get_data(hDB, hkey, &top_offsets, &top_off_size, TID_DOUBLE);
+  int top_int_size = sizeof(top_intercepts);
+  db_get_data(hDB, hkey, &top_intercepts, &top_int_size, TID_DOUBLE);
+
+  ///
+  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Calibration/Bottom Slopes", &hkey);
+
+  if(hkey == NULL){
+    cm_msg(MERROR, "begin_of_run", "unable to find Bottom Slopess key");
+  }
+
+  int bot_sl_size = sizeof(bot_slopes);
+  db_get_data(hDB, hkey, &bot_slopes, &bot_sl_size, TID_DOUBLE);
+
+  ///
+  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Calibration/Top Slopes", &hkey);
+
+  if(hkey == NULL){
+    cm_msg(MERROR, "begin_of_run", "unable to find Top Slopess key");
+  }
+
+  int top_sl_size = sizeof(top_slopes);
+  db_get_data(hDB, hkey, &top_slopes, &top_sl_size, TID_DOUBLE);
+
+
 
 
   run_in_progress = false;
@@ -268,12 +292,12 @@ INT begin_of_run(INT run_number, char *error)
   cm_get_experiment_database(&hDB, NULL);
 
   //Start with all healths being good
-  bot_current_health = true;
-  top_current_health = true;
-  bot_temp_health = true;
-  top_current_health = true;
+  bot_current_health = 1;
+  top_current_health = 1;
+  bot_temp_health = 1;
+  top_current_health = 1;
 
-  //Get bottom set currents                                                    
+  //Get bottom set currents                                        
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Bottom Set Currents", &hkey);
 
   if(hkey == NULL){
@@ -289,7 +313,7 @@ INT begin_of_run(INT run_number, char *error)
 
   db_get_data(hDB, hkey, &bot_set_values, &bot_size, TID_DOUBLE);
 
-  //Top                                                                        
+  //Top set currents        
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Top Set Currents", &hkey);
 
   if(hkey == NULL){
@@ -300,23 +324,19 @@ INT begin_of_run(INT run_number, char *error)
 
   db_get_data(hDB, hkey, &top_set_values, &top_size, TID_DOUBLE);
 
-  std::cout << "TESTTESTTEST" << std::endl;
-  for(int i=0;i<10;i++) std::cout << bot_set_values[i] << " " << top_set_values[i] << std::endl;
-
-  //Get the allowable difference                                               
+  //Get the allowable difference     
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Allowed Difference", &hkey);
   setPoint = 0;
   int setpt_size = sizeof(setPoint);
   db_get_data(hDB, hkey, &setPoint, &setpt_size, TID_DOUBLE);
 
-  //Get the allowed temp
+  //Get the highest allowed temp
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Allowed Temperature", &hkey);
   high_temp = 0;
   int temp_size = sizeof(high_temp);
   db_get_data(hDB, hkey, &high_temp, &temp_size, TID_DOUBLE);
 
-
-  //Now that we have the data, package it into json object
+  //Now that we have the current set points, package them into json object
   if(coil_map.size()!=200) cm_msg(MERROR, "begin_of_run", "Coil map is of wrong size");
   for(int i=1;i<nCoils+1;i++){
     string coilNum;
@@ -325,8 +345,14 @@ INT begin_of_run(INT run_number, char *error)
     if(i==100) coilNum = std::to_string(i);
     string topString = "T-"+coilNum;
     string botString = "B-"+coilNum;
-    request[coil_map[botString]] = bot_set_values[i-1]-bot_offsets[i-1];
-    request[coil_map[topString]] = top_set_values[i-1]-top_offsets[i-1];
+
+    if(bot_slopes[i-1] == 0) bot_slopes[i-1] = 1;
+    if(top_slopes[i-1] == 0) top_slopes[i-1] = 1;
+
+    Double_t bot_val = (bot_set_values[i-1]-bot_intercepts[i-1])/bot_slopes[i-1];
+    Double_t top_val = (top_set_values[i-1]-top_intercepts[i-1])/top_slopes[i-1];
+    request[coil_map[botString]] = bot_val;
+    request[coil_map[topString]] = top_val;
   }
   
   //bind to server
@@ -334,11 +360,8 @@ INT begin_of_run(INT run_number, char *error)
   publisher.bind("tcp://127.0.0.1:5550");
   usleep(200);
 
-  //send data to driver boards                                                 
+  //send data to driver boards             
   for(int i=0;i<5;i++){
-    //bind to server                           
-    //cm_msg(MINFO, "init", "Binding to server");
-    //publisher.bind("tcp://127.0.0.1:5550");      
     std::string buffer = request.dump();
     zmq::message_t message (buffer.size());
     std::copy(buffer.begin(), buffer.end(), (char *)message.data());
@@ -358,7 +381,7 @@ INT begin_of_run(INT run_number, char *error)
     usleep(500000);
   }//end for loop
 
-  cm_msg(MINFO, "begin_of_run", "Current values sent to beaglebones");            
+  cm_msg(MINFO, "begin_of_run", "Current values sent to beaglebones"); 
  
   //Now bind subscriber to receive data being pushed by beaglebones         
   std::cout << "Binding to subscribe socket" << std::endl;
@@ -366,21 +389,21 @@ INT begin_of_run(INT run_number, char *error)
   cm_msg(MINFO, "info", "Bound to subscribe socket");
   std::cout << "Bound" << std::endl;
                                      
-  //Subscribe to all incoming data                                             
+  //Subscribe to all incoming data      
   subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);        
 
   //set up the data
   std::string datadir;
   std::string filename;
 
-  // Get the run info out of the ODB.                                                     
+  // Get the run info out of the ODB.          
   db_find_key(hDB, 0, "/Runinfo", &hkey);
   if (db_open_record(hDB, hkey, &runinfo, sizeof(runinfo), MODE_READ, NULL, NULL) != DB_SUCCESS) {
     cm_msg(MERROR, "begin_of_run", "Can't open \"/Runinfo\" in ODB");
     return CM_DB_ERROR;
   }
 
-  // Get the data directory from the ODB.                                                 
+  // Get the data directory from the ODB. 
   snprintf(str, sizeof(str), "/Logger/Data dir");
   db_find_key(hDB, 0, str, &hkey);
 
@@ -390,13 +413,13 @@ INT begin_of_run(INT run_number, char *error)
     datadir = std::string(str);
   }
 
-  // Set the filename                                                          
+  // Set the filename       
   snprintf(str, sizeof(str), "root/surface_coil_run_%05d.root", runinfo.run_number);
 
-  // Join the directory and filename using boost filesystem.                   
+  // Join the directory and filename using boost filesystem. 
   filename = (filesystem::path(datadir) / filesystem::path(str)).string();
 
-  // Get the parameter for root output.                                        
+  // Get the parameter for root output.  
   db_find_key(hDB, 0, "/Experiment/Run Parameters/Root Output", &hkey);
 
   if (hkey) {
@@ -410,7 +433,7 @@ INT begin_of_run(INT run_number, char *error)
   }
 
   if (write_root) {
-    // Set up the ROOT data output.                                            
+    // Set up the ROOT data output.        
     pf = new TFile(filename.c_str(), "recreate");
     pt_norm = new TTree("t_scc", "Surface Coil Data");
     pt_norm->SetAutoSave(5);
@@ -437,7 +460,7 @@ INT end_of_run(INT run_number, char *error)
   publisher.disconnect("tcp://127.0.0.1:5550");
   subscriber.disconnect("tcp://127.0.0.1:5551");
   
-  // Make sure we write the ROOT data.                                                    
+  // Make sure we write the ROOT data.       
   if (run_in_progress && write_root) {
 
     pt_norm->Write();
@@ -518,7 +541,7 @@ INT interrupt_configure(INT cmd, INT source, PTYPE adr)
 //--- Event Readout ----------------------------------------------------------//
 INT read_surface_coils(char *pevent, INT c)
 {
-  std::cout << "Made it into readout routine" << std::endl;
+  //std::cout << "Made it into readout routine" << std::endl;
   static unsigned long long num_events;
   static unsigned long long events_written;
 
@@ -535,7 +558,7 @@ INT read_surface_coils(char *pevent, INT c)
   sprintf(bk_name, "SCCS");
   bk_create(pevent, bk_name, TID_DOUBLE, (void **)&pdata);
 
-  //reset arrays to hold currents
+  //reset arrays to hold data sent from beaglebones
   for(int i=0;i<nCoils;i++){
     bot_currents[i]=0;
     top_currents[i]=0;
@@ -560,10 +583,9 @@ INT read_surface_coils(char *pevent, INT c)
 
   string s(static_cast<char*>(bbVals.data()));
   s.resize(bbVals.size());
-  std::cout << s << std::endl;
+  //std::cout << s << std::endl;
   json reply_data = json::parse(s);
   dataVector.push_back(reply_data);
-
 	
   cm_msg(MINFO, "read_surface_coils", "Received reply from beaglebones");
  
@@ -595,7 +617,7 @@ INT read_surface_coils(char *pevent, INT c)
 
     }
  
-
+  //Get data ready for midas banks
   for(int idx = 0; idx < nCoils; ++idx){
     data.bot_sys_clock[idx] = hw::systime_us();
     data.top_sys_clock[idx] = hw::systime_us();
@@ -610,18 +632,16 @@ INT read_surface_coils(char *pevent, INT c)
   //write root output
   if (write_root && run_in_progress) {
     cm_msg(MINFO, "read_fixed_event", "Filling TTree");
-    // Now that we have a copy of the latest event, fill the tree.                        
+    // Now that we have a copy of the latest event, fill the tree. 
     pt_norm->Fill();
-
     num_events++;
 
     if (num_events % 10 == 1) {
-
       cm_msg(MINFO, frontend_name, "flushing TTree.");
       pt_norm->AutoSave("SaveSelf,FlushBaskets");
-
       pf->Flush();
     }
+
   }
 
   //Write midas output
@@ -638,39 +658,39 @@ INT read_surface_coils(char *pevent, INT c)
   db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Temperatures/Bottom Temps", &bot_temps, sizeof(bot_temps), 100, TID_DOUBLE);
   db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Temperatures/Top Temps", &top_temps, sizeof(top_temps), 100, TID_DOUBLE);
 
-  //Check values vs. set points
+  //Check values vs. set points/allowed difference and temperature
   for(int i=0;i<nCoils;i++){
     //bottom currents
-    if(abs(bot_currents[i]-bot_set_values[i]) >= setPoint){
-      bot_current_health = false;
+    if(std::abs(bot_currents[i]-bot_set_values[i]) >= setPoint){
+      bot_current_health = 0;
       string bad_curr_string = coil_string("bot", i);
       db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Bot. Currents Health", &bot_current_health, sizeof(bot_current_health), 1, TID_BOOL);
-      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", &bad_curr_string, sizeof(bad_curr_string), 1, TID_STRING);
+      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", bad_curr_string.c_str(), sizeof(bad_curr_string.c_str()), 1, TID_STRING);
     }
-
+    
     //top currents                                                          
-    if(abs(top_currents[i]-top_set_values[i]) >= setPoint){
-      top_current_health = false;
+    if(std::abs(top_currents[i]-top_set_values[i]) >= setPoint){
+      top_current_health = 0;
       string bad_curr_string = coil_string("top", i);
       db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Top Currents Health", &top_current_health, sizeof(top_current_health), 1, TID_BOOL);
-      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", &bad_curr_string, sizeof(bad_curr_string), 1, TID_STRING);
+      //  db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", &bad_curr_string, sizeof(bad_curr_string), 1, TID_STRING);
     }
 
     //bottom temps                                                           
     if(bot_temps[i] > high_temp){
-      bot_temp_health = false;
+      bot_temp_health = 0;
       string bad_temp_string = coil_string("bot", i);
       db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Bot. Temp Health", &bot_temp_health, sizeof(bot_temp_health), 1, TID_BOOL);
-      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", &bad_temp_string, sizeof(bad_temp_string), 1, TID_STRING);
+      // db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", &bad_temp_string, sizeof(bad_temp_string), 1, TID_STRING);
     }
 
     //top temps    
     if(top_temps[i] > high_temp){
-      top_temp_health = false;
+      top_temp_health = 0;
       string bad_temp_string = coil_string("top", i);
       db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Top Temp Health", &top_temp_health, sizeof(top_temp_health), 1, TID_BOOL);
-      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", &bad_temp_string, sizeof(bad_temp_string), 1, TID_STRING);
-    }
+      // db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", &bad_temp_string, sizeof(bad_temp_string), 1, TID_STRING);
+      }
   }
   
   cm_msg(MINFO, "read_surface_coils", "Finished generating event");

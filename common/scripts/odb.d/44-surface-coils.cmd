@@ -9,11 +9,13 @@ create DOUBLE "Bottom Set Currents[100]"
 create DOUBLE "Top Set Currents[100]"
 
 cd
-mkdir "/Equipment/Surface Coils/Settings/Offset Values"
-cd "/Equipment/Surface Coils/Settings/Offset Values"
+mkdir "/Equipment/Surface Coils/Settings/Calibration"
+cd "/Equipment/Surface Coils/Settings/Calibration"
 
-create DOUBLE "Bottom Offset Values[100]"
-create DOUBLE "Top Offset Values[100]"
+create DOUBLE "Bottom Intercepts[100]"
+create DOUBLE "Top Intercepts[100]"
+create DOUBLE "Bottom Slopes[100]"
+create DOUBLE "Top Slopes[100]"
 
 cd
 mkdir "/Equipment/Surface Coils/Settings/Monitoring"
