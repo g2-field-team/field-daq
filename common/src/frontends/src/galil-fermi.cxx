@@ -833,7 +833,7 @@ void GalilMonitor(const GCon &g){
     char SourceName[256];
     INT SourceName_size = sizeof(SourceName);
     sprintf(SourceName,"Galil-Fermi");
-    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Source",SourceName,SourceName_size,TID_STRING,0);
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Source",SourceName,SourceName_size,1,TID_STRING);
     db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Time Stamp",&GalilDataUnit.TimeStamp,sizeof(GalilDataUnit.TimeStamp), 1 ,TID_INT); 
     db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Positions",&GalilDataUnit.PositionArray,sizeof(GalilDataUnit.PositionArray), 6 ,TID_INT); 
     db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Velocities",&GalilDataUnit.VelocityArray,sizeof(GalilDataUnit.VelocityArray), 6 ,TID_INT); 
