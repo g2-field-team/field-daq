@@ -23,6 +23,7 @@ set "Simulation Mode" false
 cd "/Equipment/GalilFermi/Monitors"
 create BOOL "Monitor Thread Active"
 create BOOL "Control Thread Active"
+create INT "Time Stamp"
 create INT "Positions[6]"
 create INT "Velocities[6]"
 create INT "Control Voltages[6]"
