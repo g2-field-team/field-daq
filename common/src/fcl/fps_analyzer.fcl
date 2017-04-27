@@ -1,0 +1,62 @@
+process_name : fixedProbeAnalyzer
+
+source : {
+
+  module_type : RootInput
+  fileNames   : ["/dev/null"]
+  maxEvents   : -1
+
+}
+
+services : {
+
+  message : {
+
+     debugModules : ["*"]
+     suppressInfo : []
+     
+     destinations : {
+
+       LogToConsole : {
+         type      : "cout"
+         threshold : "INFO"
+       }
+
+       LogToFile : {
+         type : "file"
+         filename : "/var/log/g2field/fps_art_analyzer.log"
+         append : true
+         threshold : "INFO"
+       }
+     }
+
+  }//message
+
+  TFileService : {
+    fileName : "fps_analyzer.root"
+  }
+
+}
+
+
+physics : {
+
+  producers: {}
+
+  analyzers: {
+
+    FreqPlotter : {
+      module_type : FixedProbeFreqPlotter
+      inputTag : FixedProbeUnpacker
+    }
+
+  }
+
+  e1 : [ FreqPlotter ]
+  trigger_paths : []
+  end_paths     : [ e1 ]
+
+}
+
+outputs : {}
+

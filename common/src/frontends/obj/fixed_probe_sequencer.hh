@@ -29,8 +29,10 @@
 #include "g2field/event_manager_base.hh"
 #include "g2field/dio_mux_controller.hh"
 #include "g2field/dio_trigger_board.hh"
-#include "field_constants.hh"
-#include "field_structs.hh"
+#include "g2field/sis3302.hh"
+#include "g2field/sis3316.hh"
+#include "g2field/core/field_constants.hh"
+#include "g2field/core/field_structs.hh"
 #include "frontend_utils.hh"
 
 

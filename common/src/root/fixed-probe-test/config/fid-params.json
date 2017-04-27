@@ -1,0 +1,17 @@
+{
+    "fid": {
+        "num_samples": "1000000",
+        "start_time": "0",
+        "delta_time": "1.0000000000000000e-04",
+        "params": {
+            "fit_width": "50",
+            "zc_width": "200",
+            "edge_ignore": "100",
+            "start_thresh": "3.7000000000000000e-01",
+            "max_phase_jump": "1",
+            "low_pass_freq": "1000",
+            "centroid_thresh": "0x00000000",
+            "hyst_thresh": "2.9999999999999999e-01"
+        }
+    }
+}

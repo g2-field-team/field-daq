@@ -78,17 +78,6 @@
     <key name="Alarm class" type="STRING" size="32"></key>
     <key name="First failed" type="DWORD">1484608759</key>
   </dir>
-  <dir name="Sim Galil Motion Control">
-    <key name="Required" type="BOOL">y</key>
-    <key name="Watchdog timeout" type="INT">60000</key>
-    <key name="Check interval" type="DWORD">180000</key>
-    <key name="Start command" type="STRING" size="256">sim_galil</key>
-    <key name="Auto start" type="BOOL">n</key>
-    <key name="Auto stop" type="BOOL">n</key>
-    <key name="Auto restart" type="BOOL">n</key>
-    <key name="Alarm class" type="STRING" size="32"></key>
-    <key name="First failed" type="DWORD">1484608718</key>
-  </dir>
   <dir name="Absolute Probe">
     <key name="Required" type="BOOL">y</key>
     <key name="Watchdog timeout" type="INT">60000</key>
@@ -111,17 +100,6 @@
     <key name="Alarm class" type="STRING" size="32"></key>
     <key name="First failed" type="DWORD">1484608756</key>
   </dir>
-  <dir name="Sim Trolley Interface">
-    <key name="Required" type="BOOL">y</key>
-    <key name="Watchdog timeout" type="INT">60000</key>
-    <key name="Check interval" type="DWORD">180000</key>
-    <key name="Start command" type="STRING" size="256">sim_trolley</key>
-    <key name="Auto start" type="BOOL">n</key>
-    <key name="Auto stop" type="BOOL">n</key>
-    <key name="Auto restart" type="BOOL">n</key>
-    <key name="Alarm class" type="STRING" size="32"></key>
-    <key name="First failed" type="DWORD">1484608770</key>
-  </dir>
   <key name="Execute on start run" type="STRING" size="256"></key>
   <key name="Execute on start abort" type="STRING" size="256"></key>
   <key name="Execute on stop run" type="STRING" size="256"></key>
@@ -135,5 +113,16 @@
     <key name="Auto restart" type="BOOL">n</key>
     <key name="Alarm class" type="STRING" size="32"></key>
     <key name="First failed" type="DWORD">1484611427</key>
+  </dir>
+  <dir name="Yokogawa">
+    <key name="Required" type="BOOL">y</key>
+    <key name="Watchdog timeout" type="INT">60000</key>
+    <key name="Check interval" type="DWORD">180000</key>
+    <key name="Start command" type="STRING" size="256">yokogawa</key>
+    <key name="Auto start" type="BOOL">n</key>
+    <key name="Auto stop" type="BOOL">n</key>
+    <key name="Auto restart" type="BOOL">n</key>
+    <key name="Alarm class" type="STRING" size="32"></key>
+    <key name="First failed" type="DWORD">1484608740</key>
   </dir>
 </odb>

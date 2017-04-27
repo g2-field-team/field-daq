@@ -1,0 +1,85 @@
+// Fill an art file with MIDAS data
+process_name : fixedprobepub
+
+source : {
+
+  module_type : MidasBankInput
+
+  // Parameters parsed by the art::Source class template.
+  fileNames   : [ "/dev/null" ]
+  maxEvents   : -1
+
+  //Parameters parsed by the detail class
+  detail : {
+   online : false
+   requestedBanks : ['FXPR'] 
+   eventIDMask: 1
+   midasTriggerMask: 1
+ }
+}
+
+services : { 
+
+   OnlineContext: {
+      // need to choose unique heatbeaAddress
+      heartbeatAddress: "tcp://*:7654" 
+      // need to chose unique publish Address
+      pubAddress: "tcp://*:7653"
+   }
+
+ message : {
+
+   debugModules : ["*"]
+   suppressInfo : []
+
+   destinations : {
+     LogToConsole : {
+       type      : "cout"
+       threshold : "INFO"
+     }
+
+     LogToFile : {
+      type : "file"
+      filename : "output/fixed_probe_publisher.log"
+      append : false
+      threshold : "INFO"
+    }
+   }
+
+  }//message
+
+}
+outputs: {
+}
+
+
+physics : {
+
+  producers: {
+
+  }
+
+  analyzers:{
+
+  publisher: {
+     module_type : FixedProbePublisher
+  }
+
+  } // analyzers
+
+
+  // Define paths/streams
+
+  unpackerPath   : []
+  onlinePath: [publisher]  
+
+  dataOutputPath : []
+
+  // List trigger (producer/filter) and end (analyzer/output) paths
+
+  trigger_paths : [ ]
+
+  end_paths     : [onlinePath]
+
+}
+

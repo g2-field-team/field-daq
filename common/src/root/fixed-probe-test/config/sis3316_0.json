@@ -1,0 +1,14 @@
+{
+    "base_address": "0x20000000",
+    "enable_ext_trg": true,
+    "enable_int_trg": false,
+    "invert_ext_trg": false,
+    "enable_ext_clk": false,
+    "oscillator_hs": 5,
+    "oscillator_n1": 8,
+    "iob_tap_delay": "0x1020",
+    "set_voltage_offset": true,
+    "dac_voltage_offset": "0x8000",
+    "pretrigger_samples": "0x0",
+    "logfile": "/usr/local/var/log/g2field/sis3316.log"
+}
