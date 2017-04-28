@@ -114,7 +114,7 @@ int event_number = 0;
 
 bool write_midas = true;
 bool write_root = false;
-bool write_full_waveform = false;
+bool write_full_waveforms = false;
 int full_waveform_subsampling = 1;
 
 bool simulation_mode = false;
@@ -310,15 +310,15 @@ INT begin_of_run(INT run_number, char *error)
   // Join the directory and filename using boost filesystem.
   {
     std::string d1 = conf.get<std::string>("output.root_path");
-    std::string d2 = conf.get<std::string>("output.root_path");
+    std::string d2 = conf.get<std::string>("output.root_file");
     auto p = boost::filesystem::path(d1) / boost::filesystem::path(d2);
     filename = p.string();
   }
 
   // Get the parameters for root output.
   write_root = conf.get<bool>("output.write_root", false);
-  write_full_waveform = conf.get<bool>("output.write_full_waveform");
-  full_waveform_subsampling = conf.get<bool>("output.write_full_waveform");
+  write_full_waveforms = conf.get<bool>("output.write_full_waveforms");
+  full_waveform_subsampling = conf.get<bool>("output.write_full_waveforms");
 
   // Set up the ROOT data output.
   if (write_root) {
@@ -332,7 +332,7 @@ INT begin_of_run(INT run_number, char *error)
 
     pt_shim->Branch(br_name.c_str(), &data.sys_clock[0], g2field::fixed_str);
 
-    if (write_full_waveform) {
+    if (write_full_waveforms) {
       std::string br_name("full_shim_fixed");
       pt_full->SetAutoSave(5);
       pt_full->SetAutoFlush(20);
@@ -363,7 +363,7 @@ INT end_of_run(INT run_number, char *error)
 
     pt_shim->Write();
 
-    if (write_full_waveform) {
+    if (write_full_waveforms) {
       pt_full->Write();
     }
 
@@ -598,7 +598,7 @@ INT read_fixed_probe_event(char *pevent, INT off)
     // Now that we have a copy of the latest event, fill the tree.
     pt_shim->Fill();
 
-    if (write_full_waveform) {
+    if (write_full_waveforms) {
       if (num_events % full_waveform_subsampling == 0) pt_full->Fill();
     }
 
@@ -609,7 +609,7 @@ INT read_fixed_probe_event(char *pevent, INT off)
       cm_msg(MINFO, frontend_name, "flushing TTree.");
       pt_shim->AutoSave("SaveSelf,FlushBaskets");
 
-      if (write_full_waveform) {
+      if (write_full_waveforms) {
         pt_full->AutoSave("SaveSelf,FlushBaskets");
       }
 
