@@ -1,10 +1,17 @@
 import psycopg2
 import sys
 import os 
+import midas
 
+#Set up to access odb                                                          
+odb = midas.ODB('g2-field')
 
-file_name = sys.argv[1];
-dbname = sys.argv[2];
+# Start collecting information from ODB first
+Run_number = odb.get_value('/RunInfo/Run number')
+Data_dir = odb.get_value('/Logger/Data dir')
+filename = Data_dir.strip() + 'run' + '{0:05d}'.format(int(Run_number)) + '.json'
+
+dbname = sys.argv[1];
 
 run_num =int(filter(str.isdigit,os.path.basename(file_name)));
 print(run_num);
