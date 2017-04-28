@@ -611,7 +611,7 @@ INT read_surface_coils(char *pevent, INT c)
       string coil_id = rev_coil_map[it.key()];
       int coil_index = stoi(coil_id.substr(2,3).erase(0,coil_id.substr(2,3).find_first_not_of('0')))-1; //Get coil index without leading zeros
       string tb = coil_id.substr(0,1); //Top or bottom?
-      
+     
       if(tb == "B"){
 	bot_currents[coil_index] = it.value()[0];
 	bot_temps[coil_index] = it.value()[1];
