@@ -91,22 +91,22 @@ int FixedProbeSequencer::BeginOfRun()
 				      NMR_FID_LENGTH_ONLINE));
   }
 
-  // for (auto &v : conf.get_child("devices.sis_3316")) {
+  for (auto &v : conf.get_child("devices.sis_3316")) {
 
-  //   std::string name(v.first);
-  //   std::string dev_conf_file = std::string(v.second.data());
+    std::string name(v.first);
+    std::string dev_conf_file = std::string(v.second.data());
 
-  //   if (dev_conf_file[0] != '/') {
-  //     dev_conf_file = hw::conf_dir + std::string(v.second.data());
-  //   }
+    if (dev_conf_file[0] != '/') {
+      dev_conf_file = hw::conf_dir + std::string(v.second.data());
+    }
 
-  //   sis_idx_map_[name] = sis_idx++;
+    sis_idx_map_[name] = sis_idx++;
 
-  //   LogDebug("loading hw: %s, %s", name.c_str(), dev_conf_file.c_str());
-  //   workers_.PushBack(new hw::Sis3316(name, 
-  // 				      dev_conf_file, 
-  // 				      NMR_FID_LENGTH_ONLINE));
-  // }
+    LogDebug("loading hw: %s, %s", name.c_str(), dev_conf_file.c_str());
+    workers_.PushBack(new hw::Sis3316(name, 
+   				      dev_conf_file, 
+   				      NMR_FID_LENGTH_ONLINE));
+  }
 
   sis_idx = 0;
   // for (auto &v : conf.get_child("devices.sis_3350")) {
@@ -433,7 +433,7 @@ void FixedProbeSequencer::BuilderLoop()
     while (go_time_) {
 
       static nmr_vector bundle;
-      if (bundle.sys_clock.size() < num_probes_) bundle.Resize(num_probes_);
+      if (bundle.clock_sys_ns.size() < num_probes_) bundle.Resize(num_probes_);
 
       static hw::event_data_t data;
       int seq_index = 0;
@@ -480,9 +480,17 @@ void FixedProbeSequencer::BuilderLoop()
               // Store index and clock.
               clock = data[sis_idx].dev_clock[trace_idx];
               idx = data_out_[pair].second;
-              bundle.dev_clock[idx] = clock;
-              bundle.gps_clock[idx] = gps_clock;
-              
+              bundle.clock_gps_ns[idx] = gps_clock;
+              bundle.device_clock[idx] = clock;
+
+	      if (sis_idx == 0) {
+		bundle.device_rate_mhz[idx] = 10.0;
+		bundle.device_gain_vpp[idx] = 20.0;
+	      } else if (sis_idx == 1) {
+		bundle.device_rate_mhz[idx] = 12.307;
+		bundle.device_gain_vpp[idx] = 10.0;
+	      }
+
               // Get FID data.
               auto arr_ptr = &bundle.trace[idx][0];
               auto trace = data[sis_idx].trace[trace_idx];
@@ -502,7 +510,7 @@ void FixedProbeSequencer::BuilderLoop()
             for (auto &idx : indices) {
 
               // Get the timestamp
-              bundle.sys_clock[idx] = hw::systime_us();
+              bundle.clock_sys_ns[idx] = hw::systime_us() * 1000;
 
               if (analyze_fids_online_ || (idx == 0)) {
 
@@ -520,8 +528,8 @@ void FixedProbeSequencer::BuilderLoop()
                   // Make sure we got an FID signal
                   if (myfid.isgood()) {
 
-                    bundle.snr[idx] = myfid.snr();
-                    bundle.len[idx] = myfid.fid_time();
+                    bundle.fid_snr[idx] = myfid.snr();
+                    bundle.fid_len[idx] = myfid.fid_time();
                     bundle.freq[idx] = myfid.CalcFreq();
                     bundle.ferr[idx] = myfid.freq_err();
                     bundle.method[idx] = (ushort)fid::Method::ZC;
@@ -532,8 +540,8 @@ void FixedProbeSequencer::BuilderLoop()
                   } else {
 
                     myfid.DiagnosticInfo();
-                    bundle.snr[idx] = 0.0;
-                    bundle.len[idx] = 0.0;
+                    bundle.fid_snr[idx] = 0.0;
+                    bundle.fid_len[idx] = 0.0;
                     bundle.freq[idx] = 0.0;
                     bundle.ferr[idx] = 0.0;
                     bundle.method[idx] = (ushort)fid::Method::ZC;
@@ -549,8 +557,8 @@ void FixedProbeSequencer::BuilderLoop()
                   // Make sure we got an FID signal
                   if (myfid.isgood()) {
 
-                    bundle.snr[idx] = myfid.snr();
-                    bundle.len[idx] = myfid.fid_time();
+                    bundle.fid_snr[idx] = myfid.snr();
+                    bundle.fid_len[idx] = myfid.fid_time();
                     bundle.freq[idx] = myfid.CalcPhaseFreq();
                     bundle.ferr[idx] = myfid.freq_err();
                     bundle.method[idx] = (ushort)fid::Method::PH;
@@ -561,8 +569,8 @@ void FixedProbeSequencer::BuilderLoop()
                   } else {
 
                     myfid.DiagnosticInfo();
-                    bundle.snr[idx] = 0.0;
-                    bundle.len[idx] = 0.0;
+                    bundle.fid_snr[idx] = 0.0;
+                    bundle.fid_len[idx] = 0.0;
                     bundle.freq[idx] = 0.0;
                     bundle.ferr[idx] = 0.0;
                     bundle.method[idx] = (ushort)fid::Method::PH;
@@ -575,8 +583,8 @@ void FixedProbeSequencer::BuilderLoop()
 
                 LogDebug("BuilderLoop: skipping analysis");
 
-                bundle.snr[idx] = 0.0;
-                bundle.len[idx] = 0.0;
+                bundle.fid_snr[idx] = 0.0;
+                bundle.fid_len[idx] = 0.0;
                 bundle.freq[idx] = 0.0;
                 bundle.ferr[idx] = 0.0;
                 bundle.method[idx] = (ushort)fid::Method::PH;

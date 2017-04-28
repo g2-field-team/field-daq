@@ -330,7 +330,7 @@ INT begin_of_run(INT run_number, char *error)
 
     std::string br_name("shim_fixed");
 
-    pt_shim->Branch(br_name.c_str(), &data.sys_clock[0], g2field::fixed_str);
+    pt_shim->Branch(br_name.c_str(), &data.clock_sys_ns[0], g2field::fixed_str);
 
     if (write_full_waveforms) {
       std::string br_name("full_shim_fixed");
@@ -338,7 +338,7 @@ INT begin_of_run(INT run_number, char *error)
       pt_full->SetAutoFlush(20);
 
       pt_full->Branch(br_name.c_str(),
-                      &full_data.sys_clock[0],
+                      &full_data.clock_sys_ns[0],
                       g2field::online_fixed_str);
     }
   }
@@ -497,8 +497,8 @@ INT read_fixed_probe_event(char *pevent, INT off)
 
     auto shim_data = event_manager->GetCurrentEvent();
 
-    if ((shim_data.sys_clock[0] == 0) && 
-	(shim_data.sys_clock[nprobes-1] == 0)) {
+    if ((shim_data.clock_sys_ns[0] == 0) && 
+	(shim_data.clock_sys_ns[nprobes-1] == 0)) {
 
       event_manager->PopCurrentEvent();
       triggered = false;
@@ -532,39 +532,47 @@ INT read_fixed_probe_event(char *pevent, INT off)
 	
 	data.freq[idx] = myfid.CalcPhaseFreq();
 	data.ferr[idx] = myfid.freq_err();
-	data.snr[idx] = myfid.snr();
-	data.len[idx] = myfid.fid_time();
+	data.fid_snr[idx] = myfid.snr();
+	data.fid_len[idx] = myfid.fid_time();
 	
       } else {
 	
 	myfid.DiagnosticInfo();
 	data.freq[idx] = -1.0;
 	data.ferr[idx] = -1.0;
-	data.snr[idx] = -1.0;
-	data.len[idx] = -1.0;
+	data.fid_snr[idx] = -1.0;
+	data.fid_len[idx] = -1.0;
       }
     }
 
     cm_msg(MINFO, frontend_name, "copying the data from event");
-    std::copy(shim_data.sys_clock.begin(),
-	      shim_data.sys_clock.begin() + nprobes,
-	      &data.sys_clock[0]);
+    std::copy(shim_data.clock_sys_ns.begin(),
+	      shim_data.clock_sys_ns.begin() + nprobes,
+	      &data.clock_sys_ns[0]);
     
-    std::copy(shim_data.gps_clock.begin(),
-	      shim_data.gps_clock.begin() + nprobes,
-	      &data.gps_clock[0]);
+    std::copy(shim_data.clock_gps_ns.begin(),
+	      shim_data.clock_gps_ns.begin() + nprobes,
+	      &data.clock_gps_ns[0]);
     
-    std::copy(shim_data.dev_clock.begin(),
-	      shim_data.dev_clock.begin() + nprobes,
-	      &data.dev_clock[0]);
+    std::copy(shim_data.device_clock.begin(),
+	      shim_data.device_clock.begin() + nprobes,
+	      &data.device_clock[0]);
+
+    std::copy(shim_data.device_rate_mhz.begin(),
+	      shim_data.device_rate_mhz.begin() + nprobes,
+	      &data.device_rate_mhz[0]);
+
+    std::copy(shim_data.device_gain_vpp.begin(),
+	      shim_data.device_gain_vpp.begin() + nprobes,
+	      &data.device_gain_vpp[0]);
     
-    std::copy(shim_data.snr.begin(),
-	      shim_data.snr.begin() + nprobes,
-	      &data.snr[0]);
+    std::copy(shim_data.fid_snr.begin(),
+	      shim_data.fid_snr.begin() + nprobes,
+	      &data.fid_snr[0]);
     
-    std::copy(shim_data.len.begin(),
-	      shim_data.len.begin() + nprobes,
-	      &data.len[0]);
+    std::copy(shim_data.fid_len.begin(),
+	      shim_data.fid_len.begin() + nprobes,
+	      &data.fid_len[0]);
     
     std::copy(shim_data.freq.begin(),
 	      shim_data.freq.begin() + nprobes,
@@ -679,8 +687,8 @@ INT simulate_fixed_probe_event()
       data.freq_zc[idx] = myfid.GetFreq();
       data.ferr_zc[idx] = myfid.freq_err();
 
-      data.snr[idx] = myfid.snr();
-      data.len[idx] = myfid.fid_time();
+      data.fid_snr[idx] = myfid.snr();
+      data.fid_len[idx] = myfid.fid_time();
 
     } else {
 
@@ -691,13 +699,13 @@ INT simulate_fixed_probe_event()
       data.freq_zc[idx] = -1.0;
       data.ferr_zc[idx] = -1.0;
 
-      data.snr[idx] = -1.0;
-      data.len[idx] = -1.0;
+      data.fid_snr[idx] = -1.0;
+      data.fid_len[idx] = -1.0;
     }
 
-    data.sys_clock[idx] = hw::systime_us();
-    data.gps_clock[idx] = 0;
-    data.dev_clock[idx] = 0;
+    data.clock_sys_ns[idx] = hw::systime_us() * 1000;
+    data.clock_gps_ns[idx] = 0;
+    data.device_clock[idx] = 0;
   }
 
   data_mutex.unlock();

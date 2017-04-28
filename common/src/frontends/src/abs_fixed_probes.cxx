@@ -349,7 +349,7 @@ INT begin_of_run(INT run_number, char *error)
 
     std::string br_name("abs_fixed");
 
-    pt_abs->Branch(br_name.c_str(), &data.sys_clock[0], g2field::abs_fixed_str);
+    pt_abs->Branch(br_name.c_str(), &data.clock_sys_ns[0], g2field::abs_fixed_str);
 
     if (save_full_waveforms) {
       std::string br_name("full_abs_fixed");
@@ -357,7 +357,7 @@ INT begin_of_run(INT run_number, char *error)
       pt_full->SetAutoFlush(20);
 
       pt_full->Branch(br_name.c_str(),
-                      &full_data.sys_clock[0],
+                      &full_data.clock_sys_ns[0],
                       g2field::abs_online_fixed_str);
     }
   }
@@ -509,7 +509,7 @@ INT read_fixed_probe_event(char *pevent, INT off)
   auto abs_data = event_manager->GetCurrentEvent();
 
 
-  if ((abs_data.sys_clock[0] == 0) && (abs_data.sys_clock[nprobes-1] == 0)) {
+  if ((abs_data.clock_sys_ns[0] == 0) && (abs_data.clock_sys_ns[nprobes-1] == 0)) {
     event_manager->PopCurrentEvent();
     triggered = false;
     return 0;
@@ -542,39 +542,39 @@ INT read_fixed_probe_event(char *pevent, INT off)
 
       data.freq[idx] = myfid.CalcPhaseFreq();
       data.ferr[idx] = myfid.freq_err();
-      data.snr[idx] = myfid.snr();
-      data.len[idx] = myfid.fid_time();
+      data.fid_snr[idx] = myfid.snr();
+      data.fid_len[idx] = myfid.fid_time();
 
     } else {
 
       myfid.DiagnosticInfo();
       data.freq[idx] = -1.0;
       data.ferr[idx] = -1.0;
-      data.snr[idx] = -1.0;
-      data.len[idx] = -1.0;
+      data.fid_snr[idx] = -1.0;
+      data.fid_len[idx] = -1.0;
     }
   }
 
   cm_msg(MINFO, frontend_name, "copying the data from event");
-  std::copy(abs_data.sys_clock.begin(),
-            abs_data.sys_clock.begin() + nprobes,
-            &data.sys_clock[0]);
+  std::copy(abs_data.clock_sys_ns.begin(),
+            abs_data.clock_sys_ns.begin() + nprobes,
+            &data.clock_sys_ns[0]);
 
-  std::copy(abs_data.gps_clock.begin(),
-            abs_data.gps_clock.begin() + nprobes,
-            &data.gps_clock[0]);
+  std::copy(abs_data.clock_gps_ns.begin(),
+            abs_data.clock_gps_ns.begin() + nprobes,
+            &data.clock_gps_ns[0]);
 
-  std::copy(abs_data.dev_clock.begin(),
-            abs_data.dev_clock.begin() + nprobes,
-            &data.dev_clock[0]);
+  std::copy(abs_data.device_clock.begin(),
+            abs_data.device_clock.begin() + nprobes,
+            &data.device_clock[0]);
 
-  std::copy(abs_data.snr.begin(),
-            abs_data.snr.begin() + nprobes,
-            &data.snr[0]);
+  std::copy(abs_data.fid_snr.begin(),
+            abs_data.fid_snr.begin() + nprobes,
+            &data.fid_snr[0]);
 
-  std::copy(abs_data.len.begin(),
-            abs_data.len.begin() + nprobes,
-            &data.len[0]);
+  std::copy(abs_data.fid_len.begin(),
+            abs_data.fid_len.begin() + nprobes,
+            &data.fid_len[0]);
 
   std::copy(abs_data.freq.begin(),
             abs_data.freq.begin() + nprobes,
