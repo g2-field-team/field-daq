@@ -61,13 +61,13 @@ extern "C" {
   INT display_period = 3000;
 
   /* maximum event size produced by this frontend */
-  INT max_event_size = 100000;
+  INT max_event_size = 1000000;
 
   /* maximum event size for fragmented events (EQ_FRAGMENTED) */
   INT max_event_size_frag = 5 * 1024 * 1024;
 
   /* buffer size to hold events */
-  INT event_buffer_size = 100 * 10000;
+  INT event_buffer_size = 100 * 100000;
 
 
   /*-- Function declarations -----------------------------------------*/
@@ -1098,7 +1098,7 @@ void ReadFromDevice(){
     //Read the Galil Info from odb
 
     mlock.lock();
-    char SourceName[32];
+    char SourceName[256];
     INT SourceName_size = sizeof(SourceName);
     db_get_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Source",SourceName,&SourceName_size,TID_STRING,0);
     double GalilTime = 0.0;
