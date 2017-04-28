@@ -31,12 +31,6 @@ for mu in "${MIDAS_UTIL[@]}"; do
             screen -dmS "${EXPT}.mlogger"
 	    sleep 0.05
             screen -S "${EXPT}.mlogger" -p 0 -rX stuff "$cmd";;
-        
-        'mevb')
-            cmd="mevb -e $EXPT -b BUF$(printf \\r)"
-            screen -dmS "${EXPT}.mevb"
-	    sleep 0.05
-            screen -S "${EXPT}.mevb" -p 0 -rX stuff "$cmd";;
     esac
 done
 
