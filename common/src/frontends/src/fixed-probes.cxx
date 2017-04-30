@@ -507,13 +507,8 @@ INT read_fixed_probe_event(char *pevent, INT off)
 
     // Set the time vector.
     if (tm.size() == 0) {
-      
       tm.resize(g2field::kNmrFidLengthRecord);
       wf.resize(g2field::kNmrFidLengthRecord);
-      
-      for (int n = 0; n < g2field::kNmrFidLengthRecord; ++n) {
-	tm[n] = 0.001 * n;
-      }
     }
 
     data_mutex.lock();
@@ -522,6 +517,7 @@ INT read_fixed_probe_event(char *pevent, INT off)
     
       for (int n = 0; n < g2field::kNmrFidLengthRecord; ++n) {
 	wf[n] = shim_data.trace[idx][n*10 + 1]; // Offset avoids wfd spikes
+	tm[n] = 0.1 * n / shim_data.device_rate_mhz[idx];
 	data.trace[idx][n] = wf[n];
       }
 

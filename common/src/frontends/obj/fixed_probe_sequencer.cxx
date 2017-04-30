@@ -484,9 +484,12 @@ void FixedProbeSequencer::BuilderLoop()
               bundle.device_clock[idx] = clock;
 
 	      if (sis_idx == 0) {
+
 		bundle.device_rate_mhz[idx] = 10.0;
 		bundle.device_gain_vpp[idx] = 20.0;
+
 	      } else if (sis_idx == 1) {
+
 		bundle.device_rate_mhz[idx] = 12.307;
 		bundle.device_gain_vpp[idx] = 10.0;
 	      }
