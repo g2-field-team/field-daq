@@ -6,6 +6,7 @@ About:  Addresses NI PCIe daq card, reads multiple channels of data, performs si
 \*****************************************************************************/
 #include <unistd.h>
 #include <stdio.h>
+#include <iostream>
 #include <stdlib.h>
 #include <string>
 #include <random>
@@ -16,6 +17,7 @@ About:  Addresses NI PCIe daq card, reads multiple channels of data, performs si
 #include "g2field/core/field_constants.hh"
 #include "g2field/core/field_structs.hh"
 using std::string;
+using namespace std;
 
 //--- globals ---------------------------------------------------------------//
 
@@ -99,7 +101,7 @@ namespace {
 	//THESE SHOULD BE SWAPPED TO ODB PARAMETERS WHERE POSSIBLE
 	//REMOVE OUTDATED MACROES, SWITCH TO ODB --- MINIMIZE RECOMPILING
 	//--- NI DAQ globals --------------------------------------------------------//
-	int32 error = 0; //DAQ tasks
+	int32 DAQerr = 0; //DAQ tasks
 	int errorreturn = 0; //error check/message returns
 	TaskHandle taskHandle; //NI DAQ task identifier
 	int32 read;
@@ -109,17 +111,17 @@ namespace {
 	int32 numChannels = 24; //these should go into ODB
 	//--- Channel Parameters ----------------------------------------------------//
 	//--- Timing Parameters -----------------------------------------------------//
-	float64 rate = 8000; //8000 samples per second
+	float64 rate = 2000; //8000 samples per second
 	float64 aqTime = 60; //time to acquire in seconds
 	uInt64 sampsPerChanToAcquire = static_cast<uInt64>(rate*aqTime);
 	size_t dataSize = static_cast<size_t>(sampsPerChanToAcquire*numChannels);
-	std::vector<float64> data(dataSize); //vector for writing DAQ buffer into
+	float64 data[2880000]; //vector for writing DAQ buffer into, fixing runtime allocation for testing
 	//--- DC Coupled Channels ---------------------------------------------------//
-	const char physicalChannelDC[] = "Dev1/ai0:11"; //creates DC AI channels 0-15
+	const char *physicalChannelDC = "Dev1/ai0:11"; //creates DC AI channels 0-15
 	float64 minVolDC = -10.0;
 	float64 maxVolDC = 10.0;
 	//--- AC Coupled Channels -----------------------------------------------//
-	const char physicalChannelAC[] = "Dev1/ai12:23"; //creates AC AI channels 16-31
+	const char *physicalChannelAC = "Dev1/ai12:23"; //creates AC AI channels 16-31
 	float64 minVolAC = -1.0;
 	float64 maxVolAC = 1.0;
 	//
@@ -130,55 +132,40 @@ namespace {
 //
 //
 
-//--- NI Error Check/Message ------------------------------------------------//
-INT ni_error_msg(INT error, const char *func, const char *successmsg){
-	if( DAQmxFailed(error) ) {
-			DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
-			cm_msg(MERROR, func, errBuff);
-			return 1;
-	}
-	else {
-			cm_msg(MINFO, func, successmsg);
-			return 0;
-	}
-}
-
 //--- Frontend Init ---------------------------------------------------------//
 INT frontend_init() {
-	error = DAQmxBaseCreateTask("",&taskHandle);
-	errorreturn = ni_error_msg(error, "frontend_init", "NI DAQ task created");
-	/*if( DAQmxFailed(error) ) {
-		DAQmxGetExtendedErrorInfo(errBuff,2048);
+	DAQerr = DAQmxBaseCreateTask("",&taskHandle);
+	if( DAQmxFailed(DAQerr) ) {
+		DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
 		cm_msg(MERROR,"frontend_init",errBuff);
 	}
 	else {
 		cm_msg(MINFO,"frontend_init","fluxgate DAQ task created");
-	}*/
+	}
 	return SUCCESS;
 }
 
 //--- Frontend Exit ---------------------------------------------------------//
 INT frontend_exit(){
-	error = DAQmxBaseClearTask(taskHandle);
-	errorreturn = ni_error_msg(error, "frontend_exit", "NI DAQ task cleared");
-	/*if( DAQmxFailed(error) ) {
-		DAQmxGetExtendedErrorInfo(errBuff,2048);
+	DAQerr = DAQmxBaseClearTask(taskHandle);
+	if( DAQmxFailed(DAQerr) ) {
+		DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
 		cm_msg(MERROR,"frontend_init",errBuff);
 	} else {
 		cm_msg(MINFO,"frontend_exit","fluxgate DAQ task cleared");
-	}*/
+	}
 	return SUCCESS;
 }
 
 //--- Begin of Run ----------------------------------------------------------//
 INT begin_of_run(INT run_number, char *err){
-
+/*
 	int rc = load_settings(frontend_name, conf);
 	if (rc != 0) {
 		cm_msg(MERROR, "begin_of_run", "could not load equipment settings");
 		return rc;
 	}
-
+*/
 	// ODB parameters
   	HNDLE hDB, hkey;
   	char str[256];
@@ -215,20 +202,49 @@ INT begin_of_run(INT run_number, char *err){
 	  
 	//setup channel and timing parameters
 	//create DC channels
-	error = DAQmxBaseCreateAIVoltageChan(taskHandle,physicalChannelDC,"Voltage",DAQmx_Val_Cfg_Default,minVolDC,maxVolDC,DAQmx_Val_Volts,NULL);
-	errorreturn = ni_error_msg(error, "begin_of_run", "NI DAQ DC channels configured");
+	DAQerr = DAQmxBaseCreateAIVoltageChan(taskHandle,physicalChannelDC,"Voltage",DAQmx_Val_Cfg_Default,minVolDC,maxVolDC,DAQmx_Val_Volts,NULL);
+	if( DAQmxFailed(DAQerr) ) {
+		DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
+		cm_msg(MERROR,"begin_of_run","error creating fluxgate DC channels");
+		cm_msg(MERROR,"begin_of_run",errBuff);
+	}
+	else {
+		cm_msg(MINFO,"begin_of_run","fluxgate DC channels created");
+	}
 	
 	//create AC channels
-	error = DAQmxBaseCreateAIVoltageChan(taskHandle,physicalChannelAC,"Voltage",DAQmx_Val_Cfg_Default,minVolAC,maxVolAC,DAQmx_Val_Volts,NULL);
-	errorreturn = ni_error_msg(error, "begin_of_run", "NI DAQ AC channels configured");
+	DAQerr = DAQmxBaseCreateAIVoltageChan(taskHandle,physicalChannelAC,"Voltage",DAQmx_Val_Cfg_Default,minVolAC,maxVolAC,DAQmx_Val_Volts,NULL);
+	if( DAQmxFailed(DAQerr) ) {
+		DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
+		cm_msg(MERROR,"begin_of_run","error creating fluxgate AC channels");
+		cm_msg(MERROR,"begin_of_run",errBuff);
+	}
+	else {
+		cm_msg(MINFO,"begin_of_run","fluxgate AC channels created");
+	}
 	
 	//setup timing
-	error = DAQmxBaseCfgSampClkTiming(taskHandle,"",rate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,sampsPerChanToAcquire);
-	errorreturn = ni_error_msg(error, "begin_of_run", "NI DAQ timing configured");
+	DAQerr = DAQmxBaseCfgSampClkTiming(taskHandle,"",rate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,sampsPerChanToAcquire);
+	if( DAQmxFailed(DAQerr) ) {
+		DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
+		cm_msg(MERROR,"begin_of_run","error configuring fluxgate sample clock");
+		cm_msg(MERROR,"begin_of_run",errBuff);
+	}
+	else {
+		cm_msg(MINFO,"begin_of_run","fluxgate sample clock configured");
+	}
 	
 	//start task
-	error = DAQmxBaseStartTask(taskHandle);
-	errorreturn = ni_error_msg(error, "begin_of_run", "NI DAQ task started");
+	DAQerr = DAQmxBaseStartTask(taskHandle);
+	if( DAQmxFailed(DAQerr) ) {
+		DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
+
+		cm_msg(MERROR,"begin_of_run","error starting fluxgate task");
+		cm_msg(MERROR,"begin_of_run",errBuff);
+	}
+	else {
+		cm_msg(MINFO,"begin_of_run","fluxgate task started");
+	}
 	
 	return SUCCESS;
 }
@@ -236,8 +252,16 @@ INT begin_of_run(INT run_number, char *err){
 //--- End of Run ------------------------------------------------------------//
 INT end_of_run(INT run_number, char *err){
 	//stop task
-	error = DAQmxBaseStopTask(taskHandle);
-	errorreturn = ni_error_msg(error, "end_of_run", "NI DAQ task stopped");
+	DAQerr = DAQmxBaseStopTask(taskHandle);
+	if( DAQmxFailed(DAQerr) ) {
+		DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
+
+		cm_msg(MERROR,"end_of_run","error stopping fluxgate task");
+		cm_msg(MERROR,"end_of_run",errBuff);
+	}
+	else {
+		cm_msg(MINFO,"end_of_run","fluxgate task stopped");
+	}
 	
 	return SUCCESS;
 }
@@ -295,18 +319,40 @@ INT read_fluxgate_event(char *pevent, INT off){
 	BYTE *pdata;
 	WORD *pfluxdata;
 	// Let MIDAS allocate the struct.
-	bk_create(pevent, bank_name, TID_BYTE, (void**)&pdata);
 
-	// Grab a timestamp.
-	//last_event = steadyclock_us();
 
+	//setup nidaq acquisition
+
+	int32 numSampsPerChan = -1; //reads all available samples
+	float64 timeout = 0; //tries to read samples once, otherwise returns a timeout error
+	bool32 fillMode = DAQmx_Val_GroupByChannel; //no interleaving
+	uInt32 arraySizeInSamps = sampsPerChanToAcquire*numChannels;
+	int32 sampsRead;
+	DAQerr = DAQmxBaseReadAnalogF64(taskHandle,numSampsPerChan,timeout,fillMode,data,arraySizeInSamps,&sampsRead,NULL);
+	cout << "event readout DAQerr is " << DAQerr <<endl;
+	if( DAQmxFailed(DAQerr) ) {
+		DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
+		cm_msg(MERROR,"read_fluxgate_event","error reading fluxgate event");
+		cm_msg(MERROR,"read_fluxgate_event",errBuff);
+	} else {
+		cm_msg(MINFO,"read_fluxgate_event","fluxgate DAQ event read");
+	}
+
+	cm_msg(MINFO,"read_fluxgate_event","boop");
 	// And MIDAS output.
+/*
 	bk_init32(pevent);
+	bk_create(pevent, bank_name, TID_BYTE, (void**)&pdata);
 	// Copy the fluxgate data.
-	memcpy(pfluxdata, &data, sizeof(data));
+	// THIS IS VERY SIMPLE AND ONLY STORES THE READ DATA. NEEDS TO FILL DATA STRUCT INSTEAD
+	//
+	//memcpy(pfluxdata, &data, sizeof(data));
+	//
+	//
 	pdata += sizeof(data) / sizeof(WORD);
 	bk_close(pevent, pdata);
-  
-	return bk_size(pevent);
+*/ 
+	return 0;//bk_size(pevent);
+
 }
 
