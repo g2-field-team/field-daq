@@ -1,5 +1,5 @@
 // Fill an art file with MIDAS data
-process_name : fixedprobepub
+process_name : fpsunpacker
 
 source : {
 
@@ -51,6 +51,7 @@ physics : {
   unpacker: {
      module_type : FixedProbeUnpacker
      recrunchData : true
+     freqMethod : CN
   }
 
   } // producers
