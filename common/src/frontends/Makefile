@@ -86,8 +86,26 @@ DFCPPFLAGS += -I$(BOOST_INC) -I$(shell echo $(ZMQ_INCLUDE_DIR))
 DFCPPFLAGS += -I/usr/local/include/ -I/usr/local/include/g2field
 DFCPPFLAGS += -Wl,-rpath,/usr/local/lib
 
+# Alec's version, copied and altered from Ran's. Added Nation Instruments driver.
+
+ATBLIBS += -L$(MID_LIB) -Lcore/lib -L/usr/lib64/mysql -L/usr/local/lib 
+ATBLIBS += -L/usr/lib -L$(BOOST_LIB)
+ATBLIBS += -lmidas-shared  -lmysqlclient -lsqlite3
+ATBLIBS += -lboost_system -lboost_filesystem
+ATBLIBS += -lm -lz -lpthread -lodbc -lrt
+ATBLIBS += -lgclib -lgclibo -ltrolleyinterface -lsg382interface
+#ATBLIBS += -L/usr/local/natinst/nidaqmxbase/include -L/usr/local/natinst/nidaqmxbase/lib
+ATBLIBS += -lnidaqmxbase
+ATBCPPFLAGS = -fpermissive -O2
+ATBCPPFLAGS = -m64 #this is for DAQmxbase
+ATBCPPFLAGS += -I$(MID_INC) -Icore/include -Iinclude -I/usr/include
+ATBCPPFLAGS += -I$(BOOST_INC) -I$(shell echo $(ZMQ_INCLUDE_DIR))
+ATBCPPFLAGS += -I/usr/local/include/ -I/usr/local/include/g2field
+ATBCPPFLAGS += -Wl,-rpath,/usr/local/lib
+
 allRH: bin/trolley bin/sim_trolley bin/galil-fermi bin/abs-probe bin/galil-platform
 allDF: bin/yokogawa
+allATB: bin/fluxgate
 
 bin/trolley: src/trolley.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
@@ -122,6 +140,10 @@ bin/galil-platform: src/galil-platform.cxx $(MID_LIB)/mfe.o
 bin/yokogawa: src/yokogawa.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(DFCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 		$(DFLIBS) $(ROOTLIBS)
+
+bin/fluxgate: src/fluxgate.cxx $(MID_LIB)/mfe.o
+	$(CXX) -o $@ $+ $(ATBCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
+		$(ATBLIBS) $(ROOTLIBS)
 
 
 #-------------------------------------------------------------------
