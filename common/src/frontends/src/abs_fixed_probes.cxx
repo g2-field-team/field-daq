@@ -1,6 +1,6 @@
 /*****************************************************************************\
 
-Name:   fixed-probes.cxx
+Name:   abs_fixed_probes.cxx
 Author: Matthias W. Smith
 Email:  mwsmith2@uw.edu
 
@@ -36,7 +36,7 @@ using std::string;
 #include "frontend_utils.hh"
 
 //--- globals ---------------------------------------------------------------//
-#define FRONTEND_NAME "Fixed Probes"
+#define FRONTEND_NAME "Abs Fixed Probes"
 
 extern "C" {
 
@@ -79,7 +79,7 @@ extern "C" {
   EQUIPMENT equipment[] =
     {
       {FRONTEND_NAME,  // equipment name
-       { EVENTID_FIXED_PROBES, 0x01,        // event ID, trigger mask
+       { 18, 13,        // event ID, trigger mask
          "SYSTEM",      // event buffer (use to be SYSTEM)
          EQ_PERIODIC,   // equipment type
          0,             // not used
@@ -111,18 +111,14 @@ int num_steps = 50; // num_steps was 50
 int num_shots = 1;
 int trigger_count = 0;
 int event_number = 0;
-
-bool write_midas = true;
 bool write_root = false;
-bool write_full_waveforms = false;
-int full_waveform_subsampling = 1;
-
-bool simulation_mode = false;
+bool save_full_waveforms = false;
+bool write_midas = true;
 bool use_stepper = true;
 bool ino_stepper_type = false;
 
 TFile *pf;
-TTree *pt_shim;
+TTree *pt_abs;
 TTree *pt_full;
 
 std::atomic<bool> run_in_progress;
@@ -131,18 +127,17 @@ std::mutex data_mutex;
 boost::property_tree::ptree conf;
 std::string nmr_sequence_conf_file;
 
-g2field::fixed_t data;
-g2field::online_fixed_t full_data;
-g2field::FixedProbeSequencer *event_manager;
+g2field::abs_fixed_t data;
+g2field::abs_online_fixed_t full_data;
+g2field::FixedProbeSequencer *event_manager = nullptr;
 
-const int nprobes = g2field::kNmrNumFixedProbes;
-const char *const mbank_name = (char *)"FXPR";
+const int nprobes = g2field::kAbsNmrNumFixedProbes;
+const char *const mbank_name = (char *)"ACFP";
 }
 
 void trigger_loop();
 void set_json_tmpfiles();
 int load_device_classes();
-int simulate_fixed_probe_event();
 
 void set_json_tmpfiles()
 {
@@ -158,13 +153,13 @@ void set_json_tmpfiles()
   conf_file = std::string(tmp_file);
 
   // Copy the json, and set to the temp file.
-  pt = conf.get_child("devices.sis_3316");
-  boost::property_tree::write_json(conf_file, pt.get_child("sis_3316_0"));
+  pt = conf.get_child("devices.sis_3302");
+  boost::property_tree::write_json(conf_file, pt.get_child("sis_3302_0"));
   pt.clear();
-  pt.put("sis_3316_0", conf_file);
+  pt.put("sis_3302_0", conf_file);
 
-  conf.get_child("devices.sis_3316").erase("sis_3316_0");
-  conf.put_child("devices.sis_3316", pt);
+  conf.get_child("devices.sis_3302").erase("sis_3302_0");
+  conf.put_child("devices.sis_3302", pt);
 
   // Copy the trigger sequence file.
   snprintf(tmp_file, 128, "/tmp/g2-nmr-config_XXXXXX.json");
@@ -218,6 +213,7 @@ int load_device_classes()
 						     nprobes);
   } else {
 
+    event_manager->EndOfRun();
     delete event_manager;
     event_manager = new g2field::FixedProbeSequencer(nmr_sequence_conf_file, 
 						     nprobes);
@@ -247,8 +243,9 @@ INT frontend_init()
   }
 
   run_in_progress = false;
+  event_manager->BeginOfRun();
 
-  cm_msg(MINFO, "init", "Shim Fixed initialization complete");
+  cm_msg(MINFO, "init", "Abs Fixed initialization complete");
   return SUCCESS;
 }
 
@@ -260,7 +257,7 @@ INT frontend_exit()
   event_manager->EndOfRun();
   delete event_manager;
 
-  cm_msg(MINFO, "exit", "Shim Fixed teardown complete");
+  cm_msg(MINFO, "exit", "Abs Fixed teardown complete");
   return SUCCESS;
 }
 
@@ -280,7 +277,9 @@ INT begin_of_run(INT run_number, char *error)
     return rc;
   }
 
-   // ODB parameters
+  event_manager->BeginOfRun();
+  
+  // ODB parameters
   HNDLE hDB, hkey;
   char str[256];
   int size;
@@ -295,57 +294,76 @@ INT begin_of_run(INT run_number, char *error)
 
   // Get the run info out of the ODB.
   db_find_key(hDB, 0, "/Runinfo", &hkey);
-  if (db_open_record(hDB, hkey, &runinfo, 
-		     sizeof(runinfo), MODE_READ,
+  if (db_open_record(hDB, hkey, &runinfo, sizeof(runinfo), MODE_READ,
 		     NULL, NULL) != DB_SUCCESS) {
     cm_msg(MERROR, "begin_of_run", "Can't open \"/Runinfo\" in ODB");
     return CM_DB_ERROR;
   }
 
-  // Get the filename for ROOT output.
-  snprintf(str, sizeof(str), 
-	   conf.get<std::string>("output.root_file").c_str(), 
-	   runinfo.run_number);
+  // Get the data directory from the ODB.
+  snprintf(str, sizeof(str), "/Logger/Data dir");
+  db_find_key(hDB, 0, str, &hkey);
 
-  // Join the directory and filename using boost filesystem.
-  {
-    std::string d1 = conf.get<std::string>("output.root_path");
-    std::string d2 = conf.get<std::string>("output.root_file");
-    auto p = boost::filesystem::path(d1) / boost::filesystem::path(d2);
-    filename = p.string();
+  if (hkey) {
+    size = sizeof(str);
+    db_get_data(hDB, hkey, str, &size, TID_STRING);
+    datadir = std::string(str);
   }
 
-  // Get the parameters for root output.
-  write_root = conf.get<bool>("output.write_root", false);
-  write_full_waveforms = conf.get<bool>("output.write_full_waveforms");
-  full_waveform_subsampling = conf.get<bool>("output.write_full_waveforms");
+  // Set the filename
+  snprintf(str, sizeof(str), "root/fixed_run_%05d.root", runinfo.run_number);
 
-  // Set up the ROOT data output.
+  // Join the directory and filename using boost filesystem.
+  filename = (boost::filesystem::path(datadir) / boost::filesystem::path(str)).string();
+
+  // Get the parameter for root output.
+  db_find_key(hDB, 0, "/Experiment/Run Parameters/Root Output", &hkey);
+
+  if (hkey) {
+    size = sizeof(flag);
+    db_get_data(hDB, hkey, &flag, &size, TID_BOOL);
+
+    write_root = flag;
+    write_root = true;
+  }
+
+  // Check if we want to save full waveforms.
   if (write_root) {
-  
+
+    db_find_key(hDB, 0, "/Experiment/Run Parameters/Save Full Waveforms", &hkey);
+
+    if (hkey) {
+      size = sizeof(flag);
+      db_get_data(hDB, hkey, &flag, &size, TID_BOOL);
+
+      save_full_waveforms = flag;
+    }
+  }
+
+  if (write_root) {
+    // Set up the ROOT data output.
     pf = new TFile(filename.c_str(), "recreate");
-    pt_shim = new TTree("t_fxpr", "Shim Fixed Probe Data");
-    pt_shim->SetAutoSave(5);
-    pt_shim->SetAutoFlush(20);
+    pt_abs = new TTree("t_acfp", "Abs Fixed Probe Data");
+    pt_abs->SetAutoSave(5);
+    pt_abs->SetAutoFlush(20);
 
-    std::string br_name("shim_fixed");
+    std::string br_name("abs_fixed");
 
-    pt_shim->Branch(br_name.c_str(), &data.clock_sys_ns[0], g2field::fixed_str);
+    pt_abs->Branch(br_name.c_str(), &data.clock_sys_ns[0], g2field::abs_fixed_str);
 
-    if (write_full_waveforms) {
-      std::string br_name("full_shim_fixed");
+    if (save_full_waveforms) {
+      std::string br_name("full_abs_fixed");
       pt_full->SetAutoSave(5);
       pt_full->SetAutoFlush(20);
 
       pt_full->Branch(br_name.c_str(),
                       &full_data.clock_sys_ns[0],
-                      g2field::online_fixed_str);
+                      g2field::abs_online_fixed_str);
     }
   }
 
   // HW part
   event_rate_limit = conf.get<double>("event_rate_limit");
-  simulation_mode = conf.get<bool>("simulation_mode");
 
   event_number = 0;
   run_in_progress = true;
@@ -361,9 +379,9 @@ INT end_of_run(INT run_number, char *error)
   // Make sure we write the ROOT data.
   if (run_in_progress && write_root) {
 
-    pt_shim->Write();
+    pt_abs->Write();
 
-    if (write_full_waveforms) {
+    if (save_full_waveforms) {
       pt_full->Write();
     }
 
@@ -480,130 +498,117 @@ INT read_fixed_probe_event(char *pevent, INT off)
     triggered = true;
   }
 
-  // Read data or fill a simulated event.
-  if (triggered && simulation_mode) {
-
-    simulate_fixed_probe_event();
-    triggered = false;
-
-  } else if (triggered && !event_manager->HasEvent()) {
-    
-    // No event yet.
+  if (triggered && !event_manager->HasEvent()) {
     return 0;
 
   } else {
 
-    cm_msg(MDEBUG, "read_fixed_event", "got real data event");
-
-    auto shim_data = event_manager->GetCurrentEvent();
-
-    if ((shim_data.clock_sys_ns[0] == 0) && 
-	(shim_data.clock_sys_ns[nprobes-1] == 0)) {
-
-      event_manager->PopCurrentEvent();
-      triggered = false;
-      return 0;
-    }
-
-    // Set the time vector.
-    if (tm.size() == 0) {
-      tm.resize(g2field::kNmrFidLengthRecord);
-      wf.resize(g2field::kNmrFidLengthRecord);
-    }
-
-    data_mutex.lock();
-    
-    for (int idx = 0; idx < nprobes; ++idx) {
-    
-      for (int n = 0; n < g2field::kNmrFidLengthRecord; ++n) {
-	wf[n] = shim_data.trace[idx][n*10 + 1]; // Offset avoids wfd spikes
-	tm[n] = 0.1 * n / shim_data.device_rate_mhz[idx];
-	data.trace[idx][n] = wf[n];
-      }
-
-      fid::Fid myfid(wf, tm);
-      
-      // Make sure we got an FID signal
-      if (myfid.isgood()) {
-	
-	data.freq[idx] = myfid.CalcPhaseFreq();
-	data.ferr[idx] = myfid.freq_err();
-	data.fid_snr[idx] = myfid.snr();
-	data.fid_len[idx] = myfid.fid_time();
-	
-      } else {
-	
-	myfid.DiagnosticInfo();
-	data.freq[idx] = -1.0;
-	data.ferr[idx] = -1.0;
-	data.fid_snr[idx] = -1.0;
-	data.fid_len[idx] = -1.0;
-      }
-    }
-
-    cm_msg(MINFO, frontend_name, "copying the data from event");
-    std::copy(shim_data.clock_sys_ns.begin(),
-	      shim_data.clock_sys_ns.begin() + nprobes,
-	      &data.clock_sys_ns[0]);
-    
-    std::copy(shim_data.clock_gps_ns.begin(),
-	      shim_data.clock_gps_ns.begin() + nprobes,
-	      &data.clock_gps_ns[0]);
-    
-    std::copy(shim_data.device_clock.begin(),
-	      shim_data.device_clock.begin() + nprobes,
-	      &data.device_clock[0]);
-
-    std::copy(shim_data.device_rate_mhz.begin(),
-	      shim_data.device_rate_mhz.begin() + nprobes,
-	      &data.device_rate_mhz[0]);
-
-    std::copy(shim_data.device_gain_vpp.begin(),
-	      shim_data.device_gain_vpp.begin() + nprobes,
-	      &data.device_gain_vpp[0]);
-    
-    std::copy(shim_data.fid_snr.begin(),
-	      shim_data.fid_snr.begin() + nprobes,
-	      &data.fid_snr[0]);
-    
-    std::copy(shim_data.fid_len.begin(),
-	      shim_data.fid_len.begin() + nprobes,
-	      &data.fid_len[0]);
-    
-    std::copy(shim_data.freq.begin(),
-	      shim_data.freq.begin() + nprobes,
-	      &data.freq[0]);
-    
-    std::copy(shim_data.ferr.begin(),
-	      shim_data.ferr.begin() + nprobes,
-	      &data.ferr[0]);
-    
-    std::copy(shim_data.freq_zc.begin(),
-	      shim_data.freq_zc.begin() + nprobes,
-	      &data.freq_zc[0]);
-    
-    std::copy(shim_data.ferr_zc.begin(),
-	      shim_data.ferr_zc.begin() + nprobes,
-	      &data.ferr_zc[0]);
-    
-    std::copy(shim_data.method.begin(),
-	      shim_data.method.begin() + nprobes,
-	      &data.method[0]);
-    
-    std::copy(shim_data.health.begin(),
-	      shim_data.health.begin() + nprobes,
-	      &data.health[0]);
-    
-    data_mutex.unlock();
+    cm_msg(MDEBUG, "read_fixed_event", "got data");
   }
+
+  auto abs_data = event_manager->GetCurrentEvent();
+
+
+  if ((abs_data.clock_sys_ns[0] == 0) && (abs_data.clock_sys_ns[nprobes-1] == 0)) {
+    event_manager->PopCurrentEvent();
+    triggered = false;
+    return 0;
+  }
+
+  // Set the time vector.
+  if (tm.size() == 0) {
+
+    tm.resize(g2field::kNmrFidLengthRecord);
+    wf.resize(g2field::kNmrFidLengthRecord);
+
+    for (int n = 0; n < g2field::kNmrFidLengthRecord; ++n) {
+      tm[n] = 0.001 * n;
+    }
+  }
+
+  data_mutex.lock();
+
+  for (int idx = 0; idx < nprobes; ++idx) {
+
+    for (int n = 0; n < g2field::kNmrFidLengthRecord; ++n) {
+      wf[n] = abs_data.trace[idx][n*10 + 1]; // Offset avoid spikes in sis3302
+      data.trace[idx][n] = wf[n];
+    }
+
+    fid::Fid myfid(wf, tm);
+
+    // Make sure we got an FID signal
+    if (myfid.isgood()) {
+
+      data.freq[idx] = myfid.CalcPhaseFreq();
+      data.ferr[idx] = myfid.freq_err();
+      data.fid_snr[idx] = myfid.snr();
+      data.fid_len[idx] = myfid.fid_time();
+
+    } else {
+
+      myfid.DiagnosticInfo();
+      data.freq[idx] = -1.0;
+      data.ferr[idx] = -1.0;
+      data.fid_snr[idx] = -1.0;
+      data.fid_len[idx] = -1.0;
+    }
+  }
+
+  cm_msg(MINFO, frontend_name, "copying the data from event");
+  std::copy(abs_data.clock_sys_ns.begin(),
+            abs_data.clock_sys_ns.begin() + nprobes,
+            &data.clock_sys_ns[0]);
+
+  std::copy(abs_data.clock_gps_ns.begin(),
+            abs_data.clock_gps_ns.begin() + nprobes,
+            &data.clock_gps_ns[0]);
+
+  std::copy(abs_data.device_clock.begin(),
+            abs_data.device_clock.begin() + nprobes,
+            &data.device_clock[0]);
+
+  std::copy(abs_data.fid_snr.begin(),
+            abs_data.fid_snr.begin() + nprobes,
+            &data.fid_snr[0]);
+
+  std::copy(abs_data.fid_len.begin(),
+            abs_data.fid_len.begin() + nprobes,
+            &data.fid_len[0]);
+
+  std::copy(abs_data.freq.begin(),
+            abs_data.freq.begin() + nprobes,
+            &data.freq[0]);
+
+  std::copy(abs_data.ferr.begin(),
+            abs_data.ferr.begin() + nprobes,
+            &data.ferr[0]);
+
+  std::copy(abs_data.freq_zc.begin(),
+            abs_data.freq_zc.begin() + nprobes,
+            &data.freq_zc[0]);
+
+  std::copy(abs_data.ferr_zc.begin(),
+            abs_data.ferr_zc.begin() + nprobes,
+            &data.ferr_zc[0]);
+
+  std::copy(abs_data.method.begin(),
+            abs_data.method.begin() + nprobes,
+            &data.method[0]);
+
+  std::copy(abs_data.health.begin(),
+            abs_data.health.begin() + nprobes,
+            &data.health[0]);
+
+  data_mutex.unlock();
 
   if (write_root && run_in_progress) {
     cm_msg(MINFO, "read_fixed_event", "Filling TTree");
     // Now that we have a copy of the latest event, fill the tree.
-    pt_shim->Fill();
+    pt_abs->Fill();
 
-    if (write_full_waveforms) {
-      if (num_events % full_waveform_subsampling == 0) pt_full->Fill();
+    if (save_full_waveforms) {
+      pt_full->Fill();
     }
 
     num_events++;
@@ -611,9 +616,9 @@ INT read_fixed_probe_event(char *pevent, INT off)
     if (num_events % 10 == 1) {
 
       cm_msg(MINFO, frontend_name, "flushing TTree.");
-      pt_shim->AutoSave("SaveSelf,FlushBaskets");
+      pt_abs->AutoSave("SaveSelf,FlushBaskets");
 
-      if (write_full_waveforms) {
+      if (save_full_waveforms) {
         pt_full->AutoSave("SaveSelf,FlushBaskets");
       }
 
@@ -626,7 +631,7 @@ INT read_fixed_probe_event(char *pevent, INT off)
 
   if (write_midas) {
 
-    // Copy the shimming trolley data.
+    // Copy the absolute calibration fixed probe data.
     bk_create(pevent, mbank_name, TID_DWORD, &pdata);
 
     memcpy(pdata, &data, sizeof(data));
@@ -643,69 +648,4 @@ INT read_fixed_probe_event(char *pevent, INT off)
   triggered = false;
 
   return bk_size(pevent);
-}
-
-INT simulate_fixed_probe_event()
-{
-  // Allocate vectors for the FIDs
-  static std::vector<double> tm;
-  static std::vector<double> wf;
-  static fid::FidFactory ff;
-
-  cm_msg(MINFO, "read_fixed_event", "simulating data");
-
-  // Set the time vector.
-  if (tm.size() == 0) {
-
-    tm.resize(g2field::kNmrFidLengthRecord);
-    wf.resize(g2field::kNmrFidLengthRecord);
-
-    for (int n = 0; n < g2field::kNmrFidLengthRecord; ++n) {
-      tm[n] = 0.001 * n - 0.3;
-    }
-  }
-
-  data_mutex.lock();
-
-  for (int idx = 0; idx < nprobes; ++idx) {
-
-    ff.IdealFid(wf, tm);
-    fid::FastFid myfid(wf, tm);
-
-    std::copy(wf.begin(), wf.end(), &data.trace[idx][0]);
-
-    // Make sure we got an FID signal
-    if (myfid.isgood()) {
-
-      data.freq[idx] = ff.freq();
-      data.ferr[idx] = 0.0;
-
-      data.freq_zc[idx] = myfid.GetFreq();
-      data.ferr_zc[idx] = myfid.freq_err();
-
-      data.fid_snr[idx] = myfid.snr();
-      data.fid_len[idx] = myfid.fid_time();
-
-    } else {
-
-      myfid.DiagnosticInfo();
-      data.freq[idx] = -1.0;
-      data.ferr[idx] = -1.0;
-
-      data.freq_zc[idx] = -1.0;
-      data.ferr_zc[idx] = -1.0;
-
-      data.fid_snr[idx] = -1.0;
-      data.fid_len[idx] = -1.0;
-    }
-
-    data.clock_sys_ns[idx] = hw::systime_us() * 1000;
-    data.clock_gps_ns[idx] = 0;
-    data.device_clock[idx] = 0;
-  }
-
-  data_mutex.unlock();
-
-  // Pop the event now that we are done copying it.
-  cm_msg(MINFO, "read_fixed_event", "Finished simulating event");
 }
