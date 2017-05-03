@@ -21,3 +21,10 @@ create STRING "daq git hash[1][256]"
 create STRING "core git hash[1][256]"
 create STRING "analysis git hash[1][256]"
 create STRING "signal lib git hash[1][256]"
+
+cd "/Logger"
+set "Data dir" "/home/newg2/gm2Data/"
+cd "/Logger/Channels/0/Settings/"
+set "Data checksum" "CRC32C"
+set "File checksum" "CRC32C"
+
