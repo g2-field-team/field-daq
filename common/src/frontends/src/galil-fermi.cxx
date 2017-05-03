@@ -26,6 +26,8 @@ $Id$
 #include <sstream>
 #include <thread>
 #include <mutex>
+#include <memory>
+#include <pqxx/pqxx>
 #include "g2field/core/field_constants.hh"
 #include "g2field/core/field_structs.hh"
 #include "TTree.h"
@@ -176,6 +178,8 @@ int ReadGroupSize = 50;
 
 GCon g = 0; //var used to refer to a unique connection. A valid connection is nonzero.
 
+std::unique_ptr<pqxx::connection> psql_con; //PSQL connection handle
+
 /********************************************************************\
   Callback routines for system transitions
 
@@ -222,6 +226,18 @@ INT frontend_init()
     return -1;
   }
   GTimeout(g,5000);//adjust timeout
+
+  //Initialize data base connection
+  const char * host = "g2db-priv";
+  const char * dbname = "test";
+  const char * user = "daq";
+  const char * password = "";
+  const char * port = "5432";
+  std::string psql_con_str = std::string("host=") + std::string(host) + std::string(" dbname=")\
+			     + std::string(dbname) + std::string(" user=") + std::string(user) \
+			     + std::string(" password=") + std::string(password) + std::string(" port=")\
+			     + std::string(port);
+  psql_con = std::make_unique<pqxx::connection>(psql_con_str);
 
   //Load script
   char ScriptName[500];
@@ -839,6 +855,32 @@ void GalilMonitor(const GCon &g){
     db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Velocities",&GalilDataUnit.VelocityArray,sizeof(GalilDataUnit.VelocityArray), 6 ,TID_INT); 
     mlock.unlock();
 
+    //Load to Data base
+/*    mlock.lock();
+    std::unique_ptr<pqxx::work> txnp;
+    try {
+      txnp = std::make_unique<pqxx::work>(*psql_con);
+    } catch (const pqxx::broken_connection& bc) {
+      txnp.reset();
+      cm_msg(MERROR, __FILE__, "broken connection exception %s!", bc.what());
+      // for now I will throw an exception.
+      // In future, handle this through alarm system
+      cm_yield(0);
+      throw;
+    }
+    if (txnp) {
+      // form query
+      std::string query_str =
+	"INSERT into g2field-monitor (name, value, time) VALUES ('";
+      query_str += "Trolley Motor Temperatures";
+      query_str += "', '";
+      query_str += "{20.8,35.9}";
+      query_str += "', now())";
+      txnp->exec(query_str);
+      txnp->commit();
+    }
+    mlock.unlock();
+*/
     //Check emergencies
     //This thread is not blocking
     INT emergency_size = sizeof(emergency);
