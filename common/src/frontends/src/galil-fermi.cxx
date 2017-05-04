@@ -237,8 +237,12 @@ INT frontend_init()
 			     + std::string(dbname) + std::string(" user=") + std::string(user) \
 			     + std::string(" password=") + std::string(password) + std::string(" port=")\
 			     + std::string(port);
-  psql_con = std::make_unique<pqxx::connection>(psql_con_str);
+//  psql_con = std::make_unique<pqxx::connection>(psql_con_str);
 
+  //Set the motor switch odb values to off as default
+  BOOL MOTOR_OFF = FALSE;
+  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Switch",&MOTOR_OFF,sizeof(MOTOR_OFF), 1 ,TID_BOOL); 
+  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Garage Switch",&MOTOR_OFF,sizeof(MOTOR_OFF), 1 ,TID_BOOL); 
   //Load script
   char ScriptName[500];
   INT ScriptName_size = sizeof(ScriptName);
@@ -248,6 +252,9 @@ INT frontend_init()
   db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Script Directory",DirectName,&DirectName_size,TID_STRING,0);
   string FullScriptName = string(DirectName)+string(ScriptName)+string(".dmc");
   cm_msg(MINFO,"init","Galil Script to load: %s",FullScriptName.c_str());
+  //Clear command
+  INT command=0;
+  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
 
   //Flip the AllStop bit and then motions are allowed
   GCmd(g, "CB 2");
@@ -277,6 +284,13 @@ INT frontend_exit()
 {
   mlock.lock();
   GCmd(g,"AB 1");
+  //Set the motor switch odb values to off
+  BOOL MOTOR_OFF = FALSE;
+  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Switch",&MOTOR_OFF,sizeof(MOTOR_OFF), 1 ,TID_BOOL); 
+  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Garage Switch",&MOTOR_OFF,sizeof(MOTOR_OFF), 1 ,TID_BOOL); 
+  //Clear command
+  INT command=0;
+  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
   mlock.unlock();
   cm_msg(MINFO,"end_of_run","Motion aborted.");
 
@@ -889,6 +903,16 @@ void GalilMonitor(const GCon &g){
     if (emergency == 1){
       mlock.lock();
       GCmd(g,"AB 1");
+      //Update finish labels
+      GCmd(g,"tlfinish=1");
+      GCmd(g,"grfinish=1");
+      //Terminate thread
+      GCmd(g,"HX 1");
+      //Set the motor switch odb values to off
+      BOOL MOTOR_OFF = FALSE;
+      db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Switch",&MOTOR_OFF,sizeof(MOTOR_OFF), 1 ,TID_BOOL); 
+      db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Garage Switch",&MOTOR_OFF,sizeof(MOTOR_OFF), 1 ,TID_BOOL); 
+      
 //      INT Finished=2;
 //      db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Finished",&Finished,sizeof(Finished), 1 ,TID_INT);
       mlock.unlock();
@@ -986,6 +1010,30 @@ void GalilControl(const GCon &g){
 	mlock.unlock();
       }else{
 	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
+      }
+      //Do not execute command if corresponding motors are not ON
+      BOOL MotorStatus[6];
+      INT size_MotorStatus = sizeof(MotorStatus);
+      mlock.lock();
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Status",&MotorStatus,&size_MotorStatus,TID_BOOL,0);
+      mlock.unlock();
+      if (MotorStatus[0] == FALSE || MotorStatus[1] == FALSE){
+	if (command == 1 || command == 2 || command == 6 || command == 7){
+	  command = 0;
+	  mlock.lock();
+	  cm_msg(MINFO,"ManualCtrl","This command requires the trolley motors being ON.");
+	  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
+	  mlock.unlock();
+	}
+      }
+      if (MotorStatus[2] == FALSE){
+	if (command == 5 || command == 6 || command == 7){
+	  command = 0;
+	  mlock.lock();
+	  cm_msg(MINFO,"ManualCtrl","This command requires the garage motor being ON.");
+	  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
+	  mlock.unlock();
+	}
       }
     }
     if (command == 1){
@@ -1154,7 +1202,7 @@ void GalilControl(const GCon &g){
     }else if (command == 6){
       if (!PreventManualCtrl){
 	mlock.lock();
-	sprintf(CmdBuffer,"gipos=%d",500);
+	sprintf(CmdBuffer,"gipos=%d",100);
 	GCmd(g,CmdBuffer);
 	GCmd(g,"grfinish=0");
 	GCmd(g,"XQ #GRIN,1");
@@ -1181,7 +1229,7 @@ void GalilControl(const GCon &g){
     }else if (command == 7){
       if (!PreventManualCtrl){
 	mlock.lock();
-	sprintf(CmdBuffer,"gopos=%d",50000);
+	sprintf(CmdBuffer,"gopos=%d",1010000);
 	GCmd(g,CmdBuffer);
 	GCmd(g,"grfinish=0");
 	GCmd(g,"XQ #GROUT,1");

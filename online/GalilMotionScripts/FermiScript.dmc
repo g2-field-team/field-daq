@@ -13,6 +13,9 @@ tlimit=1.0
 IF ((@AN[1]-lofst1 > tlimit) | (@AN[2]-lofst2 > tlimit))
   MG "ERROR TENSION IS TOO MUCH "
   AB 1
+  HX 1
+  tlfinish=1
+  grfinish=1
   KPA=0
   KPB=0
   KPC=0
@@ -73,13 +76,13 @@ BGB
 MG "MESSAGE FORWARD MOTION STARTED"
 #LOOP3
 IF (@AN[1]-ofst1-tension<0)
-  IF (@AN[2]-ofst2>=0)
+  IF (@AN[2]-ofst2>=0.1)
     JGB=-velocity*0.8
   ELSE
     JGB=0
   ENDIF
 ELSE
-  IF (@AN[2]-ofst2>=0)
+  IF (@AN[2]-ofst2>=0.1)
     speed=-(@AN[1]-ofst1-tension)*100-velocity
     JGB=speed
   ELSE
@@ -154,13 +157,13 @@ BGB
 MG "MESSAGE BACKWARD MOTION STARTED"
 #LOOPB3
 IF (@AN[2]-ofst2-tension<0)
-  IF (@AN[1]-ofst1>=0)
+  IF (@AN[1]-ofst1>=0.1)
     JGA=-velocity*0.8
   ELSE
     JGA=0
   ENDIF
 ELSE
-  IF (@AN[1]-ofst1>=0)
+  IF (@AN[1]-ofst1>=0.1)
     speed=-(@AN[2]-ofst2-tension)*100-velocity
     JGA=speed
   ELSE
@@ -200,12 +203,16 @@ IF (@AN[1]-ofst1 < 0.3)
   WT 2000
   KPA=0
   KPB=0
-  ENDIF
+ENDIF
 IF (_TPC<gipos)
   MG "MESSAGE GARAGE IS ALL THE WAY IN"
   STC
   WT 1000
   KPC=0
+  grfinish=1;
+  JP #ENDGI
+ENDIF
+IF (_LRC=0)
   grfinish=1;
   JP #ENDGI
 ENDIF
@@ -232,12 +239,16 @@ IF (@AN[1]-ofst1 > 0.2)
   WT 2000
   KPA=0
   KPB=0
-  ENDIF
+ENDIF
 IF (_TPC>gopos)
   MG "MESSAGE GARAGE IS ALL THE WAY OUT"
   STC
   WT 1000
   KPC=0
+  grfinish=1;
+  JP #ENDGO
+ENDIF
+IF (_LFC=0)
   grfinish=1;
   JP #ENDGO
 ENDIF
