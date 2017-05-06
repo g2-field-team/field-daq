@@ -86,7 +86,7 @@ extern "C" {
   EQUIPMENT equipment[] = 
     {
       {FRONTEND_NAME,  //equipment name
-       { 1, 0,         //event ID, trigger mask
+       { EVENTID_SURFACE_COIL, 0,         //event ID, trigger mask
 	 "SYSTEM",     //event bugger (use to be SYSTEM)
 	 EQ_PERIODIC,  //equipment type
 	 0,            //not used
@@ -130,7 +130,8 @@ namespace{
 
   //for zmq
   zmq::context_t context(1);
-  zmq::socket_t publisher(context, ZMQ_PUB); //for sending set point currents
+  //  zmq::socket_t publisher(context, ZMQ_PUB); //for sending set point currents
+  zmq::socket_t requester(context, ZMQ_REQ);
   zmq::socket_t subscriber(context, ZMQ_SUB); //subscribe to data being sent back from beaglebones
 
   TFile *pf;
@@ -257,8 +258,23 @@ INT frontend_init()
   int top_sl_size = sizeof(top_slopes);
   db_get_data(hDB, hkey, &top_slopes, &top_sl_size, TID_DOUBLE);
 
+  //bind to server                                           
+  cm_msg(MINFO, "init", "Binding to server");
+  //publisher.bind("tcp://127.0.0.1:5550");                              
+  //publisher.setsockopt(ZMQ_LINGER, 0);
+  //publisher.bind("tcp://*:5550");
+  requester.setsockopt(ZMQ_LINGER, 0);
+  requester.bind("tcp://*:5550");
 
-
+  //Now bind subscriber to receive data being pushed by beaglebones             
+  std::cout << "Binding to subscribe socket" << std::endl;
+  //subscriber.bind("tcp://127.0.0.1:5551");                                    
+  //Subscribe to all incoming data                                             
+  subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
+  subscriber.setsockopt(ZMQ_LINGER, 0);
+  subscriber.setsockopt(ZMQ_RCVTIMEO, 5000);
+  subscriber.bind("tcp://*:5551");
+  std::cout << "Bound to subscribe socket" << std::endl;
 
   run_in_progress = false;
   
@@ -356,13 +372,8 @@ INT begin_of_run(INT run_number, char *error)
     request[coil_map[botString]] = bot_val;
     request[coil_map[topString]] = top_val;
   }
-  
-  //bind to server
-  cm_msg(MINFO, "init", "Binding to server");
-  //publisher.bind("tcp://127.0.0.1:5550");
-  publisher.bind("tcp://*:5550");
-  usleep(200);
 
+  /*
   //send data to driver boards             
   for(int i=0;i<5;i++){
     std::string buffer = request.dump();
@@ -380,23 +391,22 @@ INT begin_of_run(INT run_number, char *error)
 	if(err.num() != EINTR) throw;	
        }	
     }
-
     usleep(500000);
   }//end for loop
+  */
+
+  //send data to driver boards
+  std::string buffer = request.dump();                                        
+  zmq::message_t message (buffer.size());                                     
+  std::copy(buffer.begin(), buffer.end(), (char *)message.data());
+  requester.send(message);
+  std::cout << "Sent the set points" << std::endl;
+  zmq::message_t reply;
+  requester.recv (&reply);
+  std::cout << "set Points were received" << std::endl;
 
   cm_msg(MINFO, "begin_of_run", "Current values sent to beaglebones"); 
  
-  //Now bind subscriber to receive data being pushed by beaglebones         
-  std::cout << "Binding to subscribe socket" << std::endl;
-  //subscriber.bind("tcp://127.0.0.1:5551");    
-  subscriber.bind("tcp://*:5551");
-
-  cm_msg(MINFO, "info", "Bound to subscribe socket");
-  std::cout << "Bound" << std::endl;
-                                     
-  //Subscribe to all incoming data      
-  subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);        
-
   //set up the data
   std::string datadir;
   std::string filename;
@@ -455,16 +465,14 @@ INT begin_of_run(INT run_number, char *error)
 
   cm_msg(MLOG, "begin of run", "Completed successfully");
 
+  std::cout << "Finished begin of run routine" << std::endl;
+
   return SUCCESS;
 }
 
 //--- End of Run -------------------------------------------------------------//
 INT end_of_run(INT run_number, char *error)
 {
-  //Disconnect the sockets. Necessary so that next run starts properly
-  publisher.disconnect("tcp://127.0.0.1:5550");
-  subscriber.disconnect("tcp://127.0.0.1:5551");
-  
   // Make sure we write the ROOT data.       
   if (run_in_progress && write_root) {
 
@@ -478,6 +486,7 @@ INT end_of_run(INT run_number, char *error)
 
   run_in_progress = false;
 
+  std::cout << "Finished end of run routine" << std::endl;
   cm_msg(MLOG, "end_of_run","Completed successfully");
   return SUCCESS;
 }
@@ -546,7 +555,6 @@ INT interrupt_configure(INT cmd, INT source, PTYPE adr)
 //--- Event Readout ----------------------------------------------------------//
 INT read_surface_coils(char *pevent, INT c)
 {
-  //std::cout << "Made it into readout routine" << std::endl;
   static unsigned long long num_events;
   static unsigned long long events_written;
 
@@ -578,13 +586,24 @@ INT read_surface_coils(char *pevent, INT c)
 
   while (!st) {
    try {
-    st = subscriber.recv(&bbVals);
+     if (!subscriber.recv(&bbVals)) {
+       //std::cout << "timeout" << std::endl;
+       return 0;
+     } else {
+       st = true;
+     }
    } catch (zmq::error_t& err) {
     if (err.num() != EINTR) {
       throw;
     }
-   }	
+    std::cout << "interrupted by midas, or something else" << std::endl;
+   }
   }
+  //   //    break;
+  //   std::cout << "no message, returning" << std::endl;
+  //   return 0;
+  //  }	
+  // }
 
   string s(static_cast<char*>(bbVals.data()));
   s.resize(bbVals.size());
