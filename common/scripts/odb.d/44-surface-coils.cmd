@@ -21,14 +21,10 @@ cd
 mkdir "/Equipment/Surface Coils/Settings/Monitoring"
 cd "/Equipment/Surface Coils/Settings/Monitoring"
 
-create BOOL "Bot. Currents Health"
-set "Bot. Currents Health" true
-create BOOL "Top Currents Health"
-set "Top Currents Health" true
-create BOOL "Bot. Temp Health"
-set "Bot. Temp Health" true
-create BOOL "Top Temp Health"
-set "Top Temp Health" true
+create BOOL "Current Health"
+set "Current Health" true
+create BOOL "Temp Health"
+set "Temp Health" true
 create STRING "Problem Channel"
 
 cd
