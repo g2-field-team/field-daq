@@ -27,6 +27,9 @@ set event_rate_limit 10
 create BOOL simulation_mode
 set simulation_mode false
 
+create BOOL recrunch_in_fe
+set recrunch_in_fe false
+
 mkdir output
 cd output
 
