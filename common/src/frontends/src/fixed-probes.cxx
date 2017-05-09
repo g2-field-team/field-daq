@@ -118,8 +118,7 @@ bool write_full_waveforms = false;
 int full_waveform_subsampling = 1;
 
 bool simulation_mode = false;
-bool use_stepper = true;
-bool ino_stepper_type = false;
+bool recrunch_in_fe = false;
 
 TFile *pf;
 TTree *pt_shim;
@@ -345,7 +344,8 @@ INT begin_of_run(INT run_number, char *error)
 
   // HW part
   event_rate_limit = conf.get<double>("event_rate_limit");
-  simulation_mode = conf.get<bool>("simulation_mode");
+  simulation_mode = conf.get<bool>("simulation_mode", simulation_mode);
+  recrunch_in_fe = conf.get<bool>("recrunch_in_fe", recrunch_in_fe);
 
   event_number = 0;
   run_in_progress = true;
@@ -574,28 +574,31 @@ INT read_fixed_probe_event(char *pevent, INT off)
 	data.trace[idx][n] = wf[n];
       }
 
-      fid::Fid myfid(wf, tm);
+      if (recrunch_in_fe) {
+	
+	fid::Fid myfid(wf, tm);
       
-      // Make sure we got an FID signal
-      if (myfid.isgood()) {
-	
-	data.freq[idx] = myfid.CalcPhaseFreq();
-	data.ferr[idx] = myfid.freq_err();
-	data.fid_amp[idx] = myfid.amp();
-	data.fid_snr[idx] = myfid.snr();
-	data.fid_len[idx] = myfid.fid_time();
-	
-      } else {
-	
-	myfid.DiagnosticInfo();
-	data.freq[idx] = -1.0;
-	data.ferr[idx] = -1.0;
-	data.fid_amp[idx] = -1.0;
-	data.fid_snr[idx] = -1.0;
-	data.fid_len[idx] = -1.0;
+	// Make sure we got an FID signal
+	if (myfid.isgood()) {
+	  
+	  data.freq[idx] = myfid.CalcPhaseFreq();
+	  data.ferr[idx] = myfid.freq_err();
+	  data.fid_amp[idx] = myfid.amp();
+	  data.fid_snr[idx] = myfid.snr();
+	  data.fid_len[idx] = myfid.fid_time();
+	  
+	} else {
+	  
+	  myfid.DiagnosticInfo();
+	  data.freq[idx] = -1.0;
+	  data.ferr[idx] = -1.0;
+	  data.fid_amp[idx] = -1.0;
+	  data.fid_snr[idx] = -1.0;
+	  data.fid_len[idx] = -1.0;
+	}
       }
     }
-    
+
     data_mutex.unlock();
   }
 
