@@ -112,10 +112,12 @@ bool write_root = false;
 bool write_full_waveform = false;
 int full_waveform_subsampling = 1;
 bool simulation_mode = false;
+bool recrunch_in_fe = false;
 
 boost::property_tree::ptree conf;
 std::string nmr_sequence_conf_file;
 std::atomic<bool> run_in_progress;
+std::mutex data_mutex;
 
 // Data variables
 TFile *pf;
@@ -336,7 +338,7 @@ INT begin_of_run(INT run_number, char *error)
   // Get the parameters for root output.
   write_root = conf.get<bool>("output.write_root", false);
   write_full_waveform = conf.get<bool>("output.write_full_waveform");
-  full_waveform_subsampling = conf.get<bool>("output.write_full_waveform");
+  full_waveform_subsampling = conf.get<int>("output.full_waveform_subsampling");
 
   cm_msg(MINFO, "fixed-probes", "loading root file");
   // Set up the ROOT data output.
@@ -349,21 +351,23 @@ INT begin_of_run(INT run_number, char *error)
 
     std::string br_name("fixed");
 
-    pt->Branch(br_name.c_str(), &data.sys_clock[0], g2field::fixed_str);
+    pt->Branch(br_name.c_str(), &data.clock_sys_ns[0], g2field::fixed_str);
 
     if (write_full_waveform) {
       std::string br_name("full_fixed");
+
       pt_full->SetAutoSave(5);
       pt_full->SetAutoFlush(20);
-
       pt_full->Branch(br_name.c_str(),
-                      &full_data.sys_clock[0],
+                      &full_data.clock_sys_ns[0],
                       g2field::online_fixed_str);
     }
   }
 
   // HW part
-  simulation_mode = conf.get<bool>("simulation_mode");
+  simulation_mode = conf.get<bool>("simulation_mode", simulation_mode);
+  recrunch_in_fe = conf.get<bool>("recrunch_in_fe", recrunch_in_fe);
+
   run_in_progress = true;
 
   cm_msg(MLOG, "begin_of_run", "Completed successfully");
@@ -495,8 +499,8 @@ INT read_fixed_probe_event(char *pevent, INT off)
 
     auto fp_data = event_manager->GetCurrentEvent();
 
-    if ((fp_data.sys_clock[0] == 0) && 
-	(fp_data.sys_clock[nprobes-1] == 0)) {
+    if ((fp_data.clock_sys_ns[0] == 0) && 
+	(fp_data.clock_sys_ns[nprobes-1] == 0)) {
 
       event_manager->PopCurrentEvent();
       triggered = false;
@@ -505,91 +509,75 @@ INT read_fixed_probe_event(char *pevent, INT off)
 
     // Set the time vector.
     if (tm.size() == 0) {
-      
       tm.resize(g2field::kNmrFidLengthRecord);
       wf.resize(g2field::kNmrFidLengthRecord);
-      
-      for (int n = 0; n < g2field::kNmrFidLengthRecord; ++n) {
-	tm[n] = 0.001 * n;
-      }
     }
 
-    for (int idx = 0; idx < nprobes; ++idx) {
+    data_mutex.lock();
+
+    cm_msg(MINFO, frontend_name, "copying the data from event");
+    std::copy(fp_data.clock_sys_ns.begin(),
+	      fp_data.clock_sys_ns.begin() + nprobes,
+	      &data.clock_sys_ns[0]);
     
+    std::copy(fp_data.clock_gps_ns.begin(),
+	      fp_data.clock_gps_ns.begin() + nprobes,
+	      &data.clock_gps_ns[0]);
+    
+    std::copy(fp_data.device_clock.begin(),
+	      fp_data.device_clock.begin() + nprobes,
+	      &data.device_clock[0]);
+
+    std::copy(fp_data.device_rate_mhz.begin(),
+	      fp_data.device_rate_mhz.begin() + nprobes,
+	      &data.device_rate_mhz[0]);
+
+    std::copy(fp_data.device_gain_vpp.begin(),
+	      fp_data.device_gain_vpp.begin() + nprobes,
+	      &data.device_gain_vpp[0]);
+    
+    std::copy(fp_data.fid_snr.begin(),
+	      fp_data.fid_snr.begin() + nprobes,
+	      &data.fid_snr[0]);
+    
+    std::copy(fp_data.fid_len.begin(),
+	      fp_data.fid_len.begin() + nprobes,
+	      &data.fid_len[0]);
+
+    for (int idx = 0; idx < nprobes; ++idx) {
+      
       for (int n = 0; n < g2field::kNmrFidLengthRecord; ++n) {
 	wf[n] = fp_data.trace[idx][n*10 + 1]; // Offset avoids wfd spikes
+	tm[n] = 0.1 * n / fp_data.device_rate_mhz[idx];
 	data.trace[idx][n] = wf[n];
       }
 
-      fid::FastFid myfid(wf, tm);
+      if (recrunch_in_fe) {
+	
+	fid::Fid myfid(wf, tm);
       
-      // Make sure we got an FID signal
-      if (myfid.isgood()) {
-	
-	//data.freq[idx] = myfid.CalcPhaseFreq();
-	data.freq[idx] = myfid.CalcFreq();
-	data.ferr[idx] = myfid.freq_err();
-	data.snr[idx] = myfid.snr();
-	data.len[idx] = myfid.fid_time();
-	
-      } else {
-	
-	myfid.DiagnosticInfo();
-	data.freq[idx] = -1.0;
-	data.ferr[idx] = -1.0;
-	data.snr[idx] = -1.0;
-	data.len[idx] = -1.0;
+	// Make sure we got an FID signal
+	if (myfid.isgood()) {
+	  
+	  data.freq[idx] = myfid.CalcPhaseFreq();
+	  data.ferr[idx] = myfid.freq_err();
+	  data.fid_amp[idx] = myfid.amp();
+	  data.fid_snr[idx] = myfid.snr();
+	  data.fid_len[idx] = myfid.fid_time();
+	  
+	} else {
+	  
+	  myfid.DiagnosticInfo();
+	  data.freq[idx] = -1.0;
+	  data.ferr[idx] = -1.0;
+	  data.fid_amp[idx] = -1.0;
+	  data.fid_snr[idx] = -1.0;
+	  data.fid_len[idx] = -1.0;
+	}
       }
     }
 
-    cm_msg(MINFO, frontend_name, "copying the data from event");
-    std::copy(fp_data.sys_clock.begin(),
-	      fp_data.sys_clock.begin() + nprobes,
-	      &data.sys_clock[0]);
-    
-    std::copy(fp_data.gps_clock.begin(),
-	      fp_data.gps_clock.begin() + nprobes,
-	      &data.gps_clock[0]);
-    
-    std::copy(fp_data.dev_clock.begin(),
-	      fp_data.dev_clock.begin() + nprobes,
-	      &data.dev_clock[0]);
-    
-    std::copy(fp_data.snr.begin(),
-	      fp_data.snr.begin() + nprobes,
-	      &data.snr[0]);
-    
-    std::copy(fp_data.len.begin(),
-	      fp_data.len.begin() + nprobes,
-	      &data.len[0]);
-    
-    std::copy(fp_data.freq.begin(),
-	      fp_data.freq.begin() + nprobes,
-	      &data.freq[0]);
-    
-    std::copy(fp_data.ferr.begin(),
-	      fp_data.ferr.begin() + nprobes,
-	      &data.ferr[0]);
-    
-    std::copy(fp_data.freq_zc.begin(),
-	      fp_data.freq_zc.begin() + nprobes,
-	      &data.freq_zc[0]);
-    
-    std::copy(fp_data.ferr_zc.begin(),
-	      fp_data.ferr_zc.begin() + nprobes,
-	      &data.ferr_zc[0]);
-    
-    std::copy(fp_data.method.begin(),
-	      fp_data.method.begin() + nprobes,
-	      &data.method[0]);
-    
-    std::copy(fp_data.health.begin(),
-	      fp_data.health.begin() + nprobes,
-	      &data.health[0]);
-    
-    // Pop the event now that we are done copying it.
-    cm_msg(MINFO, "read_fixed_event", "Copied event, popping from queue");
-    event_manager->PopCurrentEvent();
+    data_mutex.unlock();
   }
 
   if (write_root && run_in_progress) {
@@ -679,8 +667,8 @@ INT simulate_fixed_probe_event()
       data.freq_zc[idx] = myfid.GetFreq();
       data.ferr_zc[idx] = myfid.freq_err();
 
-      data.snr[idx] = myfid.snr();
-      data.len[idx] = myfid.fid_time();
+      data.fid_snr[idx] = myfid.snr();
+      data.fid_len[idx] = myfid.fid_time();
 
     } else {
 
@@ -691,13 +679,13 @@ INT simulate_fixed_probe_event()
       data.freq_zc[idx] = -1.0;
       data.ferr_zc[idx] = -1.0;
 
-      data.snr[idx] = -1.0;
-      data.len[idx] = -1.0;
+      data.fid_snr[idx] = -1.0;
+      data.fid_len[idx] = -1.0;
     }
 
-    data.sys_clock[idx] = hw::systime_us();
-    data.gps_clock[idx] = 0;
-    data.dev_clock[idx] = 0;
+    data.clock_sys_ns[idx] = hw::systime_us() * 1000;
+    data.clock_gps_ns[idx] = 0;
+    data.device_clock[idx] = 0;
   }
 
   // Pop the event now that we are done copying it.
