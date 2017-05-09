@@ -512,34 +512,6 @@ INT read_fixed_probe_event(char *pevent, INT off)
     }
 
     data_mutex.lock();
-    
-    for (int idx = 0; idx < nprobes; ++idx) {
-    
-      for (int n = 0; n < g2field::kNmrFidLengthRecord; ++n) {
-	wf[n] = shim_data.trace[idx][n*10 + 1]; // Offset avoids wfd spikes
-	tm[n] = 0.1 * n / shim_data.device_rate_mhz[idx];
-	data.trace[idx][n] = wf[n];
-      }
-
-      fid::Fid myfid(wf, tm);
-      
-      // Make sure we got an FID signal
-      if (myfid.isgood()) {
-	
-	data.freq[idx] = myfid.CalcPhaseFreq();
-	data.ferr[idx] = myfid.freq_err();
-	data.fid_snr[idx] = myfid.snr();
-	data.fid_len[idx] = myfid.fid_time();
-	
-      } else {
-	
-	myfid.DiagnosticInfo();
-	data.freq[idx] = -1.0;
-	data.ferr[idx] = -1.0;
-	data.fid_snr[idx] = -1.0;
-	data.fid_len[idx] = -1.0;
-      }
-    }
 
     cm_msg(MINFO, frontend_name, "copying the data from event");
     std::copy(shim_data.clock_sys_ns.begin(),
@@ -593,6 +565,36 @@ INT read_fixed_probe_event(char *pevent, INT off)
     std::copy(shim_data.health.begin(),
 	      shim_data.health.begin() + nprobes,
 	      &data.health[0]);
+    
+    for (int idx = 0; idx < nprobes; ++idx) {
+      
+      for (int n = 0; n < g2field::kNmrFidLengthRecord; ++n) {
+	wf[n] = shim_data.trace[idx][n*10 + 1]; // Offset avoids wfd spikes
+	tm[n] = 0.1 * n / shim_data.device_rate_mhz[idx];
+	data.trace[idx][n] = wf[n];
+      }
+
+      fid::Fid myfid(wf, tm);
+      
+      // Make sure we got an FID signal
+      if (myfid.isgood()) {
+	
+	data.freq[idx] = myfid.CalcPhaseFreq();
+	data.ferr[idx] = myfid.freq_err();
+	data.fid_amp[idx] = myfid.amp();
+	data.fid_snr[idx] = myfid.snr();
+	data.fid_len[idx] = myfid.fid_time();
+	
+      } else {
+	
+	myfid.DiagnosticInfo();
+	data.freq[idx] = -1.0;
+	data.ferr[idx] = -1.0;
+	data.fid_amp[idx] = -1.0;
+	data.fid_snr[idx] = -1.0;
+	data.fid_len[idx] = -1.0;
+      }
+    }
     
     data_mutex.unlock();
   }
