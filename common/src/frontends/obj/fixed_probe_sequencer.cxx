@@ -531,12 +531,13 @@ void FixedProbeSequencer::BuilderLoop()
                   // Make sure we got an FID signal
                   if (myfid.isgood()) {
 
+                    bundle.fid_amp[idx] = myfid.amp();
                     bundle.fid_snr[idx] = myfid.snr();
                     bundle.fid_len[idx] = myfid.fid_time();
                     bundle.freq[idx] = myfid.CalcFreq();
                     bundle.ferr[idx] = myfid.freq_err();
                     bundle.method[idx] = (ushort)fid::Method::ZC;
-                    bundle.health[idx] = myfid.isgood();
+                    bundle.health[idx] = myfid.health();
                     bundle.freq_zc[idx] = myfid.CalcFreq();
                     bundle.ferr_zc[idx] = myfid.freq_err();
 
@@ -547,10 +548,10 @@ void FixedProbeSequencer::BuilderLoop()
                     bundle.fid_len[idx] = 0.0;
                     bundle.freq[idx] = 0.0;
                     bundle.ferr[idx] = 0.0;
-                    bundle.method[idx] = (ushort)fid::Method::ZC;
-                    bundle.health[idx] = myfid.isgood();
                     bundle.freq_zc[idx] = 0.0;
                     bundle.ferr_zc[idx] = 0.0;
+                    bundle.method[idx] = (ushort)fid::Method::ZC;
+                    bundle.health[idx] = myfid.health();
                   }
 
                 } else {
@@ -560,40 +561,43 @@ void FixedProbeSequencer::BuilderLoop()
                   // Make sure we got an FID signal
                   if (myfid.isgood()) {
 
+                    bundle.fid_amp[idx] = myfid.amp();
                     bundle.fid_snr[idx] = myfid.snr();
                     bundle.fid_len[idx] = myfid.fid_time();
                     bundle.freq[idx] = myfid.CalcPhaseFreq();
                     bundle.ferr[idx] = myfid.freq_err();
-                    bundle.method[idx] = (ushort)fid::Method::PH;
-                    bundle.health[idx] = myfid.isgood();
                     bundle.freq_zc[idx] = myfid.CalcZeroCountFreq();
                     bundle.ferr_zc[idx] = myfid.freq_err();
+                    bundle.method[idx] = (ushort)fid::Method::PH;
+                    bundle.health[idx] = myfid.health();
 
                   } else {
 
                     myfid.DiagnosticInfo();
+                    bundle.fid_amp[idx] = 0.0;
                     bundle.fid_snr[idx] = 0.0;
                     bundle.fid_len[idx] = 0.0;
                     bundle.freq[idx] = 0.0;
                     bundle.ferr[idx] = 0.0;
-                    bundle.method[idx] = (ushort)fid::Method::PH;
-                    bundle.health[idx] = myfid.isgood();
                     bundle.freq_zc[idx] = 0.0;
                     bundle.ferr_zc[idx] = 0.0;
+                    bundle.method[idx] = (ushort)fid::Method::PH;
+                    bundle.health[idx] = myfid.health();
                   }
                 }
               } else {
 
                 LogDebug("BuilderLoop: skipping analysis");
 
+                bundle.fid_amp[idx] = 0.0;
                 bundle.fid_snr[idx] = 0.0;
                 bundle.fid_len[idx] = 0.0;
                 bundle.freq[idx] = 0.0;
                 bundle.ferr[idx] = 0.0;
-                bundle.method[idx] = (ushort)fid::Method::PH;
-                bundle.health[idx] = 0;
                 bundle.freq_zc[idx] = 0.0;
                 bundle.ferr_zc[idx] = 0.0;
+                bundle.method[idx] = (ushort)fid::Method::PH;
+                bundle.health[idx] = 0;
               }
             } // next pair
 
