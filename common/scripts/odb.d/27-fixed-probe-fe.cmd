@@ -60,6 +60,24 @@ set simulation_mode false
 create BOOL generate_software_triggers
 set generate_software_triggers false
 
+create BOOL recrunch_in_fe
+set recrunch_in_fe false
+
+mkdir output
+cd output
+
+create BOOL write_midas
+set write_midas y
+
+create BOOL write_root
+set write_root y
+
+create STRING root_path
+set root_path "/home/newg2/Applications/field-daq/resources/root"
+
+create STRING root_file
+set root_file "fixed_probe_run_%05i.root"
+
 create STRING logfile
 set logfile "/var/log/g2field/fixed-probes.log"
 

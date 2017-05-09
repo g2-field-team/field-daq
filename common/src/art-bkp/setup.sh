@@ -12,7 +12,7 @@ cd $(dirname $(readlink -f $0))
 
 # Now proceed with setting up gm2 packages via UPS.
 source /cvmfs/gm2.opensciencegrid.org/prod7/g-2/setup
-setup gm2 v7_05_00 -q prof
+setup gm2 v7_03_01 -q prof
 
 # And initialize a new development space.
 mrb newDev -f
@@ -24,5 +24,9 @@ mrb g -b feature/tier0v7-field gm2unpackers
 mrb g -b feature/tier0v7-field gm2dqm
 mrb g -b develop gm2midastoart
 mrb g -b develop gm2field
+
+# MIDAS (create UPS product stub)
+GM2MIDAS_DIR=/home/newg2/Packages/gm2midas
+product-stub gm2midas v0_00_01 $GM2MIDAS_DIR $MRB_INSTALL
 
 # End script

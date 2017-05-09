@@ -1,0 +1,85 @@
+// Fill an art file with MIDAS data
+process_name : fpsunpacker
+
+source : {
+
+  module_type : MidasBankInput
+
+  // Parameters parsed by the art::Source class template.
+  fileNames   : [ "/dev/null" ]
+  maxEvents   : -1
+
+  //Parameters parsed by the detail class
+  detail : {
+   online : false
+   requestedBanks : ['FXPR'] 
+   eventIDMask: 1
+   midasTriggerMask: 1
+ }
+
+}
+
+services : { 
+
+ message : {
+
+   debugModules : ["*"]
+   suppressInfo : []
+
+   destinations : {
+     LogToConsole : {
+       type      : "cout"
+       threshold : "INFO"
+     }
+
+     LogToFile : {
+      type : "file"
+      filename : "/var/log/g2field/art_fixed_probe_unpacker.log"
+      append : true
+      threshold : "INFO"
+    }
+   }
+
+  }//message
+
+}
+
+physics : {
+
+  producers: {
+
+  unpacker: {
+     module_type : FixedProbeUnpacker
+     recrunchData : true
+     freqMethod : CN
+  }
+
+  } // producers
+
+  analyzers:{
+
+  } // analyzers
+
+
+  // Define paths/streams
+  unpacker_path   : [unpacker]
+
+  data_output_path : [outfile]
+
+  // List trigger (producer/filter) and end (analyzer/output) paths
+
+  trigger_paths : [unpacker_path]
+
+  end_paths     : [data_output_path]
+
+}
+
+outputs: {
+
+  outfile: {
+    module_type: RootOutput
+    fileName: "fps_unpacker.root"
+    outputCommands : [ "keep *_*_*_*", "drop *_MidasBankInput_*_*"]
+  }
+}
+
