@@ -258,8 +258,6 @@ INT frontend_init()
   db_get_data(hDB, hkey, &top_slopes, &top_sl_size, TID_DOUBLE);
 
 
-
-
   run_in_progress = false;
   
   cm_msg(MINFO, "init","Surface Coils initialization complete");
