@@ -191,6 +191,13 @@ INT frontend_init()
   int size_Bool = sizeof(SimSwitch);
   db_get_value(hDB,0,"/Equipment/TrolleyInterface/Settings/Simulation Switch",&SimSwitch,&size_Bool,TID_BOOL,0);
 
+	//Change the status color
+	char odbColour[32]; 
+	int size = sizeof(odbColour);
+	db_get_value(hDB,0,"/Equipment/TrolleyInterface/Common/Status Color",&odbColour,&size,TID_STRING,FALSE);
+	strcpy(odbColour, "#8A2BE2");
+	db_set_value(hDB,0,"/Equipment/TrolleyInterface/Common/Status Color",&odbColour,size,1,TID_STRING);
+
   if (SimSwitch){
     //Connect to fake trolley interface
     char filename[500];
@@ -256,6 +263,9 @@ INT frontend_init()
     //Enable RF On sg382
     EnableRF();*/
     
+		db_get_value(hDB,0,"/Equipment/TrolleyInterface/Common/Status Color",&odbColour,&size,TID_STRING,FALSE);
+		strcpy(odbColour, "#0000FF");
+		db_set_value(hDB,0,"/Equipment/TrolleyInterface/Common/Status Color",&odbColour,size,1,TID_STRING);
     //Temp: diable V/I protection
     DeviceWrite(reg_power_control,0x00010000);
 
@@ -305,6 +315,9 @@ INT frontend_init()
   //Start read thread
   read_thread = thread(ReadFromDevice);
 
+	db_get_value(hDB,0,"/Equipment/TrolleyInterface/Common/Status Color",&odbColour,&size,TID_STRING,FALSE);
+	strcpy(odbColour, "greenLight");
+	db_set_value(hDB,0,"/Equipment/TrolleyInterface/Common/Status Color",&odbColour,size,1,TID_STRING);
   return SUCCESS;
 }
 
@@ -1051,18 +1064,18 @@ void ReadFromDevice(){
       TrolleyPowerProtectionTripOld = TrolleyPowerProtectionTrip;
       TrolleyPowerStatusOld = TrolleyPowerStatus;
 
-      ldo_temp_monitor_min = float(FrameB[20])/128.0;
-      ldo_temp_monitor_max = float(FrameB[21])/128.0;
-      v_15neg_min = float(FrameB[22])/65535.0*20.0;
-      v_15neg_max = float(FrameB[23])/65535.0*20.0;
-      v_15pos_min = float(FrameB[24])/65535.0*20.0;
-      v_15pos_max = float(FrameB[25])/65535.0*20.0;
-      v_5_min = float(FrameB[26])/65535.0*10.0;
-      v_5_max = float(FrameB[27])/65535.0*10.0;
+      ldo_temp_monitor_min = float(FrameB[20])/327675.0;
+      ldo_temp_monitor_max = float(FrameB[21])/327675.0;
+      v_15neg_min = -float(FrameB[22])/65535.0*18.7;
+      v_15neg_max = -float(FrameB[23])/65535.0*18.7;
+      v_15pos_min = float(FrameB[24])/65535.0*18.7;
+      v_15pos_max = float(FrameB[25])/65535.0*18.7;
+      v_5_min = float(FrameB[26])/65535.0*6.25;
+      v_5_max = float(FrameB[27])/65535.0*6.25;
       v_33_min = float(FrameB[28])/65535.0*5.0;
       v_33_max = float(FrameB[29])/65535.0*5.0;
-      v_monitor = float(FrameB[36])/65535.0*10.0;
-      i_monitor = float(FrameB[36+FrameB[4]])/65535.0*10.0;
+      v_monitor = float(FrameB[36])/65535.0*15.0;
+      i_monitor = float(FrameB[36+FrameB[4]])/131070.0;
 
       TrolleyPowerProtectionTrip = BOOL(FrameB[5]);
       TrolleyPowerStatus = BOOL(FrameB[6]);
@@ -1075,8 +1088,8 @@ void ReadFromDevice(){
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/Interface RF0",&(TrlyInterfaceDataUnit->rf_power0),sizeof(TrlyInterfaceDataUnit->rf_power0), 1 ,TID_INT);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/Interface RF1",&(TrlyInterfaceDataUnit->rf_power1),sizeof(TrlyInterfaceDataUnit->rf_power1), 1 ,TID_INT);
 
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/ldo_temp_monitor_min",&(ldo_temp_monitor_min),sizeof(ldo_temp_monitor_min), 1 ,TID_FLOAT);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/ldo_temp_monitor_max",&(ldo_temp_monitor_max),sizeof(ldo_temp_monitor_max), 1 ,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/ldo Temp Monitors Min",&(ldo_temp_monitor_min),sizeof(ldo_temp_monitor_min), 1 ,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/ldo Temp Monitors Max",&(ldo_temp_monitor_max),sizeof(ldo_temp_monitor_max), 1 ,TID_FLOAT);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V15neg Min",&(v_15neg_min),sizeof(v_15neg_min), 1 ,TID_FLOAT);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V15neg Max",&(v_15neg_max),sizeof(v_15neg_max), 1 ,TID_FLOAT);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V15pos Min",&(v_15pos_min),sizeof(v_15pos_min), 1 ,TID_FLOAT);
@@ -1085,8 +1098,8 @@ void ReadFromDevice(){
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V5 Max",&(v_5_max),sizeof(v_5_max), 1 ,TID_FLOAT);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V33 Min",&(v_33_min),sizeof(v_33_min), 1 ,TID_FLOAT);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V33 Max",&(v_33_max),sizeof(v_33_max), 1 ,TID_FLOAT);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V Monitor",&(v_monitor),sizeof(v_monitor), 1 ,TID_FLOAT);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/I Monitor",&(i_monitor),sizeof(i_monitor), 1 ,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V Monitors",&(v_monitor),sizeof(v_monitor), 1 ,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/I Monitors",&(i_monitor),sizeof(i_monitor), 1 ,TID_FLOAT);
 
       if(TrolleyPowerProtectionTrip && (!TrolleyPowerProtectionTripOld))cm_msg(MERROR,"ReadFromDevice","Message from trolley interface: Trolley Power Tripped. At iteration %d",i);
 
