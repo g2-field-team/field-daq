@@ -1075,8 +1075,8 @@ void ReadFromDevice(){
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/Interface RF0",&(TrlyInterfaceDataUnit->rf_power0),sizeof(TrlyInterfaceDataUnit->rf_power0), 1 ,TID_INT);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/Interface RF1",&(TrlyInterfaceDataUnit->rf_power1),sizeof(TrlyInterfaceDataUnit->rf_power1), 1 ,TID_INT);
 
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/ldo temp monitor min",&(ldo_temp_monitor_min),sizeof(ldo_temp_monitor_min), 1 ,TID_FLOAT);
-      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/ldo temp monitor max",&(ldo_temp_monitor_max),sizeof(ldo_temp_monitor_max), 1 ,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/ldo Temp Monitors Min",&(ldo_temp_monitor_min),sizeof(ldo_temp_monitor_min), 1 ,TID_FLOAT);
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/ldo Temp Monitors Max",&(ldo_temp_monitor_max),sizeof(ldo_temp_monitor_max), 1 ,TID_FLOAT);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V15neg Min",&(v_15neg_min),sizeof(v_15neg_min), 1 ,TID_FLOAT);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V15neg Max",&(v_15neg_max),sizeof(v_15neg_max), 1 ,TID_FLOAT);
       db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Interface/V15pos Min",&(v_15pos_min),sizeof(v_15pos_min), 1 ,TID_FLOAT);
