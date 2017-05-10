@@ -24,9 +24,6 @@ FixedProbeSequencer::~FixedProbeSequencer()
 
 int FixedProbeSequencer::Init()
 {
-  DWORD time;
-  cm_synchronize(&time);
-
   go_time_ = false;
   thread_live_ = false;
 
@@ -46,6 +43,11 @@ int FixedProbeSequencer::Init()
 
 int FixedProbeSequencer::BeginOfRun()
 {
+  // Synchronize with g2field-be.
+  DWORD time;
+  cm_synchronize(&time);
+
+  // Open the config property tree.
   boost::property_tree::ptree conf;
   boost::property_tree::read_json(conf_file_, conf);
 
@@ -390,55 +392,42 @@ void FixedProbeSequencer::TriggerLoop()
       	  LogDebug("TriggerLoop: muxes are configured for this round");
           usleep(mux_switch_time_);
 
-	  // LogDebug("Generated DIO triggers");
-	  // for (auto &trg : dio_triggers_) {
-	  //   trg->FireTriggers();
-	  // }
+	  if (generate_software_triggers_) {
 
-	  // Pause workers.
-	  workers_.StopWorkers();
-	  hw::wait_ns(hw::short_sleep * 2);
+	    // Pause workers.
+	    workers_.StopWorkers();
+	    hw::wait_ns(hw::short_sleep * 2);
+	    
+	    // Fire triggers and get waveforms on 3316.
+	    int idx = sis_idx_map_["sis_3316_0"];
+	    auto wfd_3316 = workers_[idx];
+	    
+	    idx = sis_idx_map_["sis_3302_0"];
+	    auto wfd_3302 = workers_[idx];
 
-	  // Fire triggers and get waveforms on 3316.
-	  int idx = sis_idx_map_["sis_3316_0"];
-	  auto wfd_3316 = workers_[idx];
+	    // Trigger the 3316 and relevant pulser modules.
+	    while (wfd_3316->GenerateTrigger() != 0) usleep(10000);
+	    dio_triggers_[0]->FireTriggers(0xff);
+	    dio_triggers_[1]->FireTriggers(0xff);
 
-	  idx = sis_idx_map_["sis_3302_0"];
-	  auto wfd_3302 = workers_[idx];
+	    // Trigger the 3302 and pulse the relevant NMR pulsers.
+	    while (wfd_3302->GenerateTrigger() != 0) usleep(10000);
+	    hw::wait_ns(0.5e6);
+	    dio_triggers_[2]->FireTriggers(0x0f);
 
-	  while (wfd_3316->GenerateTrigger() != 0) usleep(10000);
-	  dio_triggers_[0]->FireTriggers(0xff);
-	  dio_triggers_[1]->FireTriggers(0xff);
-
-	  // wfd_3316->StartWorker();
-	  // usleep(50e3);
-	  // while(!wfd_3316->DataAvailable()) {
-	  //   usleep(500);
-	  // }
-	  // wfd_3316->StopWorker();
-
-	  // Trigger the 3302 and pulse the relevant NMR pulsers.
-	  while (wfd_3302->GenerateTrigger() != 0) usleep(10000);
-	  hw::wait_ns(0.5e6);
-	  dio_triggers_[2]->FireTriggers(0x0f);
-
-	  // wfd_3302->StartWorker();
-	  // usleep(50e3);
-	  // while(!wfd_3302->DataAvailable()) {
-	  //   usleep(500);
-	  // }
-	  // wfd_3302->StopWorker();
-
-	  // if (generate_software_triggers_) {
-	  //   LogDebug("Generated SW triggers");
-	  //   workers_.SoftwareTriggers();
-	  // }
-
-	  workers_.StartWorkers();
-	  hw::wait_ns(100e6);
+	    workers_.StartWorkers();
+	    hw::wait_ns(100e6);
 	  
-	  while (!workers_.AllWorkersHaveEvent()) usleep(500);
+	    while (!workers_.AllWorkersHaveEvent()) usleep(500);
 
+	  } else {
+	    
+	    LogDebug("Generated DIO triggers");
+	    for (auto &trg : dio_triggers_) {
+	      trg->FireTriggers();
+	    }
+	  }
+	  
 	  hw::event_data_t bundle;
 	  workers_.GetEventData(bundle);
 
@@ -606,10 +595,10 @@ void FixedProbeSequencer::BuilderLoop()
                     bundle.fid_len[idx] = myfid.fid_time();
                     bundle.freq[idx] = myfid.CalcFreq();
                     bundle.ferr[idx] = myfid.freq_err();
-                    bundle.method[idx] = (ushort)fid::Method::ZC;
-                    bundle.health[idx] = myfid.health();
                     bundle.freq_zc[idx] = myfid.CalcFreq();
                     bundle.ferr_zc[idx] = myfid.freq_err();
+                    bundle.method[idx] = (ushort)fid::Method::ZC;
+                    bundle.health[idx] = myfid.health();
 
                   } else {
 
