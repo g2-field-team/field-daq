@@ -263,9 +263,6 @@ INT frontend_init()
     //Enable RF On sg382
     EnableRF();*/
     
-		db_get_value(hDB,0,"/Equipment/TrolleyInterface/Common/Status Color",&odbColour,&size,TID_STRING,FALSE);
-		strcpy(odbColour, "#0000FF");
-		db_set_value(hDB,0,"/Equipment/TrolleyInterface/Common/Status Color",&odbColour,size,1,TID_STRING);
     //Temp: diable V/I protection
     DeviceWrite(reg_power_control,0x00010000);
 
@@ -1064,8 +1061,8 @@ void ReadFromDevice(){
       TrolleyPowerProtectionTripOld = TrolleyPowerProtectionTrip;
       TrolleyPowerStatusOld = TrolleyPowerStatus;
 
-      ldo_temp_monitor_min = float(FrameB[20])/327675.0;
-      ldo_temp_monitor_max = float(FrameB[21])/327675.0;
+      ldo_temp_monitor_min = float(FrameB[20])*125/65535.0;
+      ldo_temp_monitor_max = float(FrameB[21])*125/65535.0;
       v_15neg_min = -float(FrameB[22])/65535.0*18.7;
       v_15neg_max = -float(FrameB[23])/65535.0*18.7;
       v_15pos_min = float(FrameB[24])/65535.0*18.7;

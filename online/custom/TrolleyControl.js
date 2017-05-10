@@ -26,10 +26,10 @@ function load()   {
       document.getElementById("CC").innerHTML = Cs[2]/1000.0;
       var As= String(rpc.result.data[3]);
       As = As.split(',');
-      document.getElementById("TA").innerHTML = As[0]/1000.0;
-      document.getElementById("TB").innerHTML = As[1]/1000.0;
-      document.getElementById("TempA").innerHTML = As[2]/1000.0;
-      document.getElementById("TempB").innerHTML = As[3]/1000.0;
+      document.getElementById("TA").innerHTML = As[0];
+      document.getElementById("TB").innerHTML = As[1];
+      document.getElementById("TempA").innerHTML = As[2];
+      document.getElementById("TempB").innerHTML = As[3];
       var Lf= String(rpc.result.data[4]);
       Lf = Lf.split(',');
       document.getElementById("LFA").innerHTML = Lf[0];
@@ -170,8 +170,8 @@ function SetAutoMotionControl(){
 }
 
 function SetTrolleyRegulation(){
-  var TLow = document.getElementById("TensionLow").value*1000;
-  var THigh = document.getElementById("TensionHigh").value*1000;
+  var TLow = document.getElementById("TensionLow").value;
+  var THigh = document.getElementById("TensionHigh").value;
   var TrolleyV = document.getElementById("TrolleyVelocity").value;
   var GarageV = document.getElementById("GarageVelocity").value;
   mjsonrpc_db_paste(["/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Range Low","/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Range High"],[TLow,THigh]).then(function(rpc){;}).catch(function(error) {

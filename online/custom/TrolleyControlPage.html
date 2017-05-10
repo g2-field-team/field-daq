@@ -206,8 +206,8 @@ Trolley Step Number: <input id="TrolleyStepNumber" type="number" value=0></input
 <tr>
 <td colspan="1" >Tension Range</td>
 <td colspan="2" >
-Low: <input id="TensionLow" type="number" value=0.4></input> <br>
-High: <input id="TensionHigh" type="number" value=0.8></input>
+Low: <input id="TensionLow" type="number" value=300></input> <br>
+High: <input id="TensionHigh" type="number" value=700></input>
 </td>
 </tr>
 <tr>
@@ -375,6 +375,142 @@ High: <input id="TensionHigh" type="number" value=0.8></input>
 </div>
 </td>
 </tr>
+
+<tr>
+<td colspan="4" class="text-center"> Run Mode Config</th>
+</tr>
+
+<tr>
+<td colspan="2" class="text-center"> Continuous Mode</th>
+<td colspan="2" class="text-center"> Interactive Mode</th>
+</tr>
+
+<tr>
+<td colspan="1" >Baseline Cycles</td>
+<td colspan="1" ><input id="BaselineCycles" type="number" value=5></input>
+<p id="ValBaselineCycles">5</p></td>
+<td colspan="1" >Repeat</td>
+<td colspan="1" ><input id="InteractiveRepeat" type="number" value=1></input>
+<p id="ValInteractiveRepeat">1</p>
+<button type="button"  onclick="AbortMotion()" id="InteractiveTrigger">Trigger</button>
+</td>
+</tr>
+<tr>
+<td colspan="2" class="text-center"> Idle Mode</th>
+<td colspan="2" class="text-center"> Sleep Mode</th>
+</tr>
+
+<tr>
+<td colspan="1" >Read Barcode</td>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtnlong" id="IdleReadBarcode">Y</p>
+<div class="dropdown-content">
+<p onclick="DropdownSelectGeneral('IdleReadBarcode','Y')" >Y</p>
+<p onclick="DropdownSelectGeneral('IdleReadBarcode','N')">N</p>
+</div>
+</div>
+</td>
+<td colspan="1" >Power Down</td>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtnlong" id="SleepPowerDown">N</p>
+<div class="dropdown-content">
+<p onclick="DropdownSelectGeneral('SleepPowerDown','Y')" >Y</p>
+<p onclick="DropdownSelectGeneral('SleepPowerDown','N')">N</p>
+</div>
+</div>
+</td>
+</tr>
+<tr>
+<td colspan="4" class="text-center"> Probe Config
+<button type="button"  onclick="AbortMotion()" id="ProbeUpdate">Update</button>
+</th>
+</tr>
+
+<tr>
+<td colspan="1" >Probe Select</td>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtnlong" id="ProbeSelect">All</p>
+<div class="dropdown-content">
+<p onclick="DropdownSelectGeneral('ProbeSelect','All')" >All</p>
+<p onclick="DropdownSelectGeneral('ProbeSelect','1')">1</p>
+<p onclick="DropdownSelectGeneral('ProbeSelect','2')">2</p>
+<p onclick="DropdownSelectGeneral('ProbeSelect','3')">3</p>
+<p onclick="DropdownSelectGeneral('ProbeSelect','4')">4</p>
+<p onclick="DropdownSelectGeneral('ProbeSelect','5')">5</p>
+<p onclick="DropdownSelectGeneral('ProbeSelect','6')">6</p>
+<p onclick="DropdownSelectGeneral('ProbeSelect','7')">7</p>
+<p onclick="DropdownSelectGeneral('ProbeSelect','8')">8</p>
+<p onclick="DropdownSelectGeneral('ProbeSelect','9')">9</p>
+<p onclick="DropdownSelectGeneral('ProbeSelect','10')">10</p>
+<p onclick="DropdownSelectGeneral('ProbeSelect','11')">11</p>
+<p onclick="DropdownSelectGeneral('ProbeSelect','12')">12</p>
+<p onclick="DropdownSelectGeneral('ProbeSelect','13')">13</p>
+<p onclick="DropdownSelectGeneral('ProbeSelect','14')">14</p>
+<p onclick="DropdownSelectGeneral('ProbeSelect','15')">15</p>
+<p onclick="DropdownSelectGeneral('ProbeSelect','16')">16</p>
+<p onclick="DropdownSelectGeneral('ProbeSelect','17')">17</p>
+</div>
+</div>
+</td>
+<td colspan="1" >Source</td>
+<td colspan="1" >
+<div class="dropdown">
+<p class="dropbtnlong" id="ProbeSourceSelect">Odb</p>
+<div class="dropdown-content">
+<p onclick="DropdownSelectGeneral('ProbeSourceSelect','Odb')" >Odb</p>
+<p onclick="DropdownSelectGeneral('ProbeSourceSelect','Script')">Script</p>
+</div>
+</div>
+</td>
+</tr>
+
+<tr>
+<td colspan="1" >Probe Enable</td>
+<td colspan="1" ><input id="ProbeEnable" type="number" value=1></input>
+<p id="ValProbeEnable">1</p></td>
+<td colspan="1" >Pream Delay</td>
+<td colspan="1" ><input id="PreampDelay" type="number" value=373></input>
+<p id="ValPreampDelay">373</p></td>
+</tr>
+
+<tr>
+<td colspan="1" >Pream Period</td>
+<td colspan="1" ><input id="PreampPeriod" type="number" value=14000></input>
+<p id="ValPreampPeriod">14000</p></td>
+<td colspan="1" >ADC Gate Delay</td>
+<td colspan="1" ><input id="ADCGateDelay" type="number" value=0></input>
+<p id="ValADCGateDelay">0</p></td>
+</tr>
+
+<tr>
+<td colspan="1" >ADC Gate Offset</td>
+<td colspan="1" ><input id="ADCGateOffset" type="number" value=0></input>
+<p id="ValADCGateOffset">0</p></td>
+<td colspan="1" >ADC Gate Period</td>
+<td colspan="1" ><input id="ADCGatePeriod" type="number" value=15000></input>
+<p id="ValADCGatePeriod">15000</p></td>
+</tr>
+
+<tr>
+<td colspan="1" >TX Delay</td>
+<td colspan="1" ><input id="TXDelay" type="number" value=300></input>
+<p id="ValTXDelay">300</p></td>
+<td colspan="1" >TX Period</td>
+<td colspan="1" ><input id="TXPeriod" type="number" value=450></input>
+<p id="ValTXPeriod">450</p></td>
+</tr>
+
+<tr>
+<td colspan="1" >User Data</td>
+<td colspan="1" ><input id="UserData" type="number" value=8606></input>
+<p id="ValUserData">8606</p></td>
+<td colspan="1" ></td>
+<td colspan="1" ></td>
+</tr>
+
 </table>
 
 <br>
