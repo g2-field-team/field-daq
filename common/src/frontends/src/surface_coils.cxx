@@ -419,16 +419,14 @@ INT begin_of_run(INT run_number, char *error)
   }
 
   // Get the data directory from the ODB. 
-  /*snprintf(str, sizeof(str), "/Logger/Data dir");
+  snprintf(str, sizeof(str), "/Equipment/Surface Coils/Settings/Root Directory");
   db_find_key(hDB, 0, str, &hkey);
 
   if (hkey) {
     size = sizeof(str);
     db_get_data(hDB, hkey, str, &size, TID_STRING);
     datadir = std::string(str);
-    }*/
-
-  datadir = "/home/newg2/Applications/field-daq/resources/";
+    }
 
   // Set the filename       
   snprintf(str, sizeof(str), "Root/surface_coil_run_%05d.root", runinfo.run_number);
@@ -437,7 +435,7 @@ INT begin_of_run(INT run_number, char *error)
   filename = (filesystem::path(datadir) / filesystem::path(str)).string();
 
   // Get the parameter for root output.  
-  db_find_key(hDB, 0, "/Experiment/Run Parameters/Root Output", &hkey);
+  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Root Output", &hkey);
 
   if (hkey) {
     size = sizeof(flag);
