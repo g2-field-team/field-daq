@@ -712,12 +712,15 @@ void update_feedback_params()
 
   // Create all the keys if not.
   if (!hkey) {
-
+    
     snprintf(str, sizeof(str), "%s/uniform_mean_nmr_freq", stub);
     db_create_key(hDB, 0, str, TID_DOUBLE);
 
     snprintf(str, sizeof(str), "%s/weighted_mean_nmr_freq", stub);
     db_create_key(hDB, 0, str, TID_DOUBLE);
+
+    snprintf(str, sizeof(str), "%s/using_freq_zc", stub);
+    db_create_key(hDB, 0, str, TID_BOOL);
 
     snprintf(str, sizeof(str), "%s/nmr_freq_array", stub);
     db_create_key(hDB, 0, str, TID_DOUBLE);
@@ -732,10 +735,27 @@ void update_feedback_params()
 		 sizeof(ferr), TID_DOUBLE);
   }
 
+  // See if we need to use the zero count freqs.
+  BOOL use_zc = false;
+  if (freq[0] > 0.0) {
+    use_zc = true;
+  }
+
+  snprintf(str, sizeof(str), "%s/using_freq_zc", stub);
+  db_set_value(hDB, 0, str, &use_zc, sizeof(use_zc), 1, TID_BOOL);
+  
   double w_sum = 0.0;
   for (int i = 0; i < nprobes; ++i) {
-    freq[i] = data.freq[i];
-    ferr[i] = data.ferr[i];
+    
+    if (use_zc) {
+      freq[i] = data.freq_zc[i];
+      ferr[i] = data.ferr_zc[i];
+
+    } else {
+
+      freq[i] = data.freq[i];
+      ferr[i] = data.ferr[i];
+    }
 
     uniform_mean_freq += freq[i];
     weighted_mean_freq += freq[i] / (ferr[i] + 0.001);
