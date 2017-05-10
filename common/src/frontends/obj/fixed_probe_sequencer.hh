@@ -141,6 +141,17 @@ private:
 
   // Builds the event by selecting the proper data from each round.
   void BuilderLoop();
+
+  // Thread sleep functions.
+  inline void ThreadSleepLong() {
+    auto dt = std::chrono::microseconds(hw::long_sleep);
+    std::this_thread::sleep_for(dt);
+  }
+
+  inline void ThreadSleepShort() {
+    auto dt = std::chrono::microseconds(hw::short_sleep);
+    std::this_thread::sleep_for(dt);
+  }
 };
 
 } // ::daq

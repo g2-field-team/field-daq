@@ -349,13 +349,11 @@ void FixedProbeSequencer::RunLoop()
 
         queue_mutex_.unlock();
       }
-
-      std::this_thread::yield();
-      usleep(hw::short_sleep);
+      
+      ThreadSleepLong();
     }
 
-    std::this_thread::yield();
-    usleep(hw::long_sleep);
+    ThreadSleepLong();
   }
 }
 
@@ -444,8 +442,7 @@ void FixedProbeSequencer::TriggerLoop()
 	  mux_round_configured_ = true;
 	  
 	  while (!got_round_data_ && go_time_) {
-	    std::this_thread::yield();
-	    usleep(hw::short_sleep);
+	    ThreadSleepShort();
 	  }
 	  
 	} // on to the next round
@@ -455,20 +452,17 @@ void FixedProbeSequencer::TriggerLoop()
 
 	LogDebug("TriggerLoop: waiting for builder to finish");
 	while (!builder_has_finished_ && go_time_) {
-	  std::this_thread::yield();
-	  usleep(hw::short_sleep);
+	  ThreadSleepShort();
 	};
 
 	LogDebug("TriggerLoop: builder finished packing event");
 
       } // done with trigger sequence
 
-      std::this_thread::yield();
-      usleep(hw::short_sleep);
+      ThreadSleepShort();
     }
 
-    std::this_thread::yield();
-    usleep(hw::long_sleep);
+    ThreadSleepLong();
   }
 }
 
@@ -664,8 +658,7 @@ void FixedProbeSequencer::BuilderLoop()
 	  }
         } // next round
 
-        std::this_thread::yield();
-        usleep(hw::short_sleep);
+	ThreadSleepShort();
       }
 
       // Sequence finished.
@@ -685,12 +678,10 @@ void FixedProbeSequencer::BuilderLoop()
         queue_mutex_.unlock();
       }
 
-      std::this_thread::yield();
-      usleep(hw::long_sleep);
+      ThreadSleepLong();
     } // go_time_
 
-    std::this_thread::yield();
-    usleep(hw::long_sleep);
+    ThreadSleepLong();
   } // thread_live_
 }
 
@@ -711,12 +702,10 @@ void FixedProbeSequencer::StarterLoop()
 	LogDebug("StarterLoop: Got software trigger");
       }
 
-      std::this_thread::yield();
-      usleep(hw::long_sleep);
+      ThreadSleepLong();
     }
 
-    std::this_thread::yield();
-    usleep(hw::long_sleep);
+    ThreadSleepLong();
   }
 }
 
