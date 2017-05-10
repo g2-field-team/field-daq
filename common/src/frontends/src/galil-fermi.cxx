@@ -26,6 +26,8 @@ $Id$
 #include <sstream>
 #include <thread>
 #include <mutex>
+#include <memory>
+#include <pqxx/pqxx>
 #include "g2field/core/field_constants.hh"
 #include "g2field/core/field_structs.hh"
 #include "TTree.h"
@@ -176,6 +178,8 @@ int ReadGroupSize = 50;
 
 GCon g = 0; //var used to refer to a unique connection. A valid connection is nonzero.
 
+std::unique_ptr<pqxx::connection> psql_con; //PSQL connection handle
+
 /********************************************************************\
   Callback routines for system transitions
 
@@ -223,6 +227,22 @@ INT frontend_init()
   }
   GTimeout(g,5000);//adjust timeout
 
+  //Initialize data base connection
+  const char * host = "g2db-priv";
+  const char * dbname = "test";
+  const char * user = "daq";
+  const char * password = "";
+  const char * port = "5432";
+  std::string psql_con_str = std::string("host=") + std::string(host) + std::string(" dbname=")\
+			     + std::string(dbname) + std::string(" user=") + std::string(user) \
+			     + std::string(" password=") + std::string(password) + std::string(" port=")\
+			     + std::string(port);
+//  psql_con = std::make_unique<pqxx::connection>(psql_con_str);
+
+  //Set the motor switch odb values to off as default
+  BOOL MOTOR_OFF = FALSE;
+  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Switch",&MOTOR_OFF,sizeof(MOTOR_OFF), 1 ,TID_BOOL); 
+  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Garage Switch",&MOTOR_OFF,sizeof(MOTOR_OFF), 1 ,TID_BOOL); 
   //Load script
   char ScriptName[500];
   INT ScriptName_size = sizeof(ScriptName);
@@ -232,15 +252,18 @@ INT frontend_init()
   db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Script Directory",DirectName,&DirectName_size,TID_STRING,0);
   string FullScriptName = string(DirectName)+string(ScriptName)+string(".dmc");
   cm_msg(MINFO,"init","Galil Script to load: %s",FullScriptName.c_str());
+  //Clear command
+  INT command=0;
+  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
 
   //Flip the AllStop bit and then motions are allowed
   GCmd(g, "CB 2");
   sleep(1);
   GCmd(g, "SB 2");
 
-  b=GProgramDownload(g,"",0); //to erase prevoius programs
-  b=GProgramDownloadFile(g,FullScriptName.c_str(),0);
-  cm_msg(MINFO,"init","Galil Program Download return code: %d",b);
+//  b=GProgramDownload(g,"",0); //to erase prevoius programs
+//  b=GProgramDownloadFile(g,FullScriptName.c_str(),0);
+//  cm_msg(MINFO,"init","Galil Program Download return code: %d",b);
   b=GCmd(g, "XQ #MNLP,0");
   cm_msg(MINFO,"init","Galil XQ return code: %d",b);
   MonitorActive=true;
@@ -261,6 +284,13 @@ INT frontend_exit()
 {
   mlock.lock();
   GCmd(g,"AB 1");
+  //Set the motor switch odb values to off
+  BOOL MOTOR_OFF = FALSE;
+  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Switch",&MOTOR_OFF,sizeof(MOTOR_OFF), 1 ,TID_BOOL); 
+  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Garage Switch",&MOTOR_OFF,sizeof(MOTOR_OFF), 1 ,TID_BOOL); 
+  //Clear command
+  INT command=0;
+  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
   mlock.unlock();
   cm_msg(MINFO,"end_of_run","Motion aborted.");
 
@@ -839,6 +869,32 @@ void GalilMonitor(const GCon &g){
     db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Velocities",&GalilDataUnit.VelocityArray,sizeof(GalilDataUnit.VelocityArray), 6 ,TID_INT); 
     mlock.unlock();
 
+    //Load to Data base
+/*    mlock.lock();
+    std::unique_ptr<pqxx::work> txnp;
+    try {
+      txnp = std::make_unique<pqxx::work>(*psql_con);
+    } catch (const pqxx::broken_connection& bc) {
+      txnp.reset();
+      cm_msg(MERROR, __FILE__, "broken connection exception %s!", bc.what());
+      // for now I will throw an exception.
+      // In future, handle this through alarm system
+      cm_yield(0);
+      throw;
+    }
+    if (txnp) {
+      // form query
+      std::string query_str =
+	"INSERT into g2field-monitor (name, value, time) VALUES ('";
+      query_str += "Trolley Motor Temperatures";
+      query_str += "', '";
+      query_str += "{20.8,35.9}";
+      query_str += "', now())";
+      txnp->exec(query_str);
+      txnp->commit();
+    }
+    mlock.unlock();
+*/
     //Check emergencies
     //This thread is not blocking
     INT emergency_size = sizeof(emergency);
@@ -847,6 +903,16 @@ void GalilMonitor(const GCon &g){
     if (emergency == 1){
       mlock.lock();
       GCmd(g,"AB 1");
+      //Update finish labels
+      GCmd(g,"tlfinish=1");
+      GCmd(g,"grfinish=1");
+      //Terminate thread
+      GCmd(g,"HX 1");
+      //Set the motor switch odb values to off
+      BOOL MOTOR_OFF = FALSE;
+      db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Switch",&MOTOR_OFF,sizeof(MOTOR_OFF), 1 ,TID_BOOL); 
+      db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Garage Switch",&MOTOR_OFF,sizeof(MOTOR_OFF), 1 ,TID_BOOL); 
+      
 //      INT Finished=2;
 //      db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Finished",&Finished,sizeof(Finished), 1 ,TID_INT);
       mlock.unlock();
@@ -887,6 +953,7 @@ void GalilControl(const GCon &g){
   double thigh = 0.8;
   double ofst1 = 0.0;
   double ofst2 = 0.0;
+  int garage_velocity = 1000;
  
   //Control loop
   int i=0;
@@ -904,12 +971,13 @@ void GalilControl(const GCon &g){
     char CmdBuffer[500];
 
     //For trolley commands, load galil variables first
-    if (command == 1 || command == 2 || command == 3 || command == 4){
+    if (command >= 1 && command <=7){
       INT Vel;
       INT TLow;
       INT THigh;
       INT TOffset1;
       INT TOffset2;
+      INT GarageVel;
       INT Size_Int = sizeof(Vel);
       mlock.lock();
       db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Velocity",&Vel,&Size_Int,TID_INT,0);
@@ -917,8 +985,10 @@ void GalilControl(const GCon &g){
       db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Range High",&THigh,&Size_Int,TID_INT,0);
       db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Offset 1",&TOffset1,&Size_Int,TID_INT,0);
       db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Offset 2",&TOffset2,&Size_Int,TID_INT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Garage Velocity",&GarageVel,&Size_Int,TID_INT,0);
       mlock.unlock();
       velocity = Vel;
+      garage_velocity = GarageVel;
       tlow = static_cast<double>(TLow)/1000.0;
       thigh = static_cast<double>(THigh)/1000.0;
       ofst1 = static_cast<double>(TOffset1)/1000.0;
@@ -935,9 +1005,35 @@ void GalilControl(const GCon &g){
 	GCmd(g,CmdBuffer);
 	sprintf(CmdBuffer,"ofst2=%f",ofst2);
 	GCmd(g,CmdBuffer);
+	sprintf(CmdBuffer,"gvel=%d",garage_velocity);
+	GCmd(g,CmdBuffer);
 	mlock.unlock();
       }else{
 	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
+      }
+      //Do not execute command if corresponding motors are not ON
+      BOOL MotorStatus[6];
+      INT size_MotorStatus = sizeof(MotorStatus);
+      mlock.lock();
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Status",&MotorStatus,&size_MotorStatus,TID_BOOL,0);
+      mlock.unlock();
+      if (MotorStatus[0] == FALSE || MotorStatus[1] == FALSE){
+	if (command == 1 || command == 2 || command == 6 || command == 7){
+	  command = 0;
+	  mlock.lock();
+	  cm_msg(MINFO,"ManualCtrl","This command requires the trolley motors being ON.");
+	  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
+	  mlock.unlock();
+	}
+      }
+      if (MotorStatus[2] == FALSE){
+	if (command == 5 || command == 6 || command == 7){
+	  command = 0;
+	  mlock.lock();
+	  cm_msg(MINFO,"ManualCtrl","This command requires the garage motor being ON.");
+	  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
+	  mlock.unlock();
+	}
       }
     }
     if (command == 1){
@@ -994,13 +1090,13 @@ void GalilControl(const GCon &g){
 	  destiny = CurrentPos[0]+RelPos;
 	  sprintf(CmdBuffer,"destiny=%d",destiny);
 	  GCmd(g,CmdBuffer);
-	  GCmd(g,"tlcomplete=0");
+	  GCmd(g,"tlfinish=0");
 	  GCmd(g,"XQ #FDMTN,1");
 	}else{
 	  destiny = CurrentPos[1]-RelPos;
 	  sprintf(CmdBuffer,"destiny=%d",destiny);
 	  GCmd(g,CmdBuffer);
-	  GCmd(g,"tlcomplete=0");
+	  GCmd(g,"tlfinish=0");
 	  GCmd(g,"XQ #BKMTN,1");
 	}
 	mlock.unlock();
@@ -1070,6 +1166,92 @@ void GalilControl(const GCon &g){
       command=0;
       mlock.lock();
       db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
+      mlock.unlock();
+    }else if (command == 5){
+      INT RelPos;
+      INT Size_Int = sizeof(RelPos);
+      mlock.lock();
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Garage Rel Pos",&RelPos,&Size_Int,TID_INT,0);
+      mlock.unlock();
+      sprintf(CmdBuffer,"PRC=%d",RelPos);
+      if (!PreventManualCtrl){
+	mlock.lock();
+	GCmd(g,"KPC=100");
+	GCmd(g,CmdBuffer);
+	GCmd(g,"BGC");
+	mlock.unlock();
+      }else{
+	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
+      }
+
+      //Block before the motion is done
+      INT CurrentVelocities[6];
+      INT CurrentVelocities_size = sizeof(CurrentVelocities);
+
+      while(1){
+	sleep(1);
+	db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Velocities",CurrentVelocities,&CurrentVelocities_size,TID_INT,0);
+	if (CurrentVelocities[2]==0)break;
+      }
+
+      command=0;
+      mlock.lock();
+      GCmd(g,"KPC=0");
+      db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
+      mlock.unlock();
+    }else if (command == 6){
+      if (!PreventManualCtrl){
+	mlock.lock();
+	sprintf(CmdBuffer,"gipos=%d",100);
+	GCmd(g,CmdBuffer);
+	GCmd(g,"grfinish=0");
+	GCmd(g,"XQ #GRIN,1");
+	mlock.unlock();
+      }else{
+	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
+      }
+      //Block before the motion is done
+      while(1){
+	int garage_complete = 0;
+	mlock.lock();
+	GCmdI(g,"grfinish=?",&garage_complete);
+	mlock.unlock();
+	if (garage_complete==1){
+	  break;
+	}
+	sleep(1);
+      }
+
+      command=0;
+      mlock.lock();
+      db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT);
+      mlock.unlock();
+    }else if (command == 7){
+      if (!PreventManualCtrl){
+	mlock.lock();
+	sprintf(CmdBuffer,"gopos=%d",1010000);
+	GCmd(g,CmdBuffer);
+	GCmd(g,"grfinish=0");
+	GCmd(g,"XQ #GROUT,1");
+	mlock.unlock();
+      }else{
+	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
+      }
+      //Block before the motion is done
+      while(1){
+	int garage_complete = 0;
+	mlock.lock();
+	GCmdI(g,"grfinish=?",&garage_complete);
+	mlock.unlock();
+	if (garage_complete==1){
+	  break;
+	}
+	sleep(1);
+      }
+
+      command=0;
+      mlock.lock();
+      db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT);
       mlock.unlock();
     }
     i++;

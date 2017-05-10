@@ -2,14 +2,6 @@
 
 namespace g2field {
 
-FixedProbeSequencer::FixedProbeSequencer(int num_probes) : EventManagerBase()
-{
-  conf_file_ = std::string("config/fe_vme_shimming.json");
-  num_probes_ = num_probes;
-
-  Init();
-}
-
 FixedProbeSequencer::FixedProbeSequencer(std::string conf_file, int num_probes) :
   EventManagerBase()
 {
@@ -22,11 +14,11 @@ FixedProbeSequencer::FixedProbeSequencer(std::string conf_file, int num_probes) 
 FixedProbeSequencer::~FixedProbeSequencer()
 {
   for (auto &val : mux_boards_) {
-    delete val;
+     delete val;
   }
 
-  if (nmr_pulser_trg_ != nullptr) {
-    delete nmr_pulser_trg_;
+  for (auto &val : dio_triggers_) {
+     delete val;
   }
 }
 
@@ -40,8 +32,8 @@ int FixedProbeSequencer::Init()
   mux_round_configured_ = false;
   analyze_fids_online_ = false;
   use_fast_fids_class_ = false;
-
-  nmr_pulser_trg_ = nullptr;
+  got_software_trg_ = false;
+  got_start_trg_ = false;
 
   // Change the logfile if there is one in the config.
   boost::property_tree::ptree conf;
@@ -51,6 +43,11 @@ int FixedProbeSequencer::Init()
 
 int FixedProbeSequencer::BeginOfRun()
 {
+  // Synchronize with g2field-be.
+  DWORD time;
+  cm_synchronize(&time);
+
+  // Open the config property tree.
   boost::property_tree::ptree conf;
   boost::property_tree::read_json(conf_file_, conf);
 
@@ -58,18 +55,21 @@ int FixedProbeSequencer::BeginOfRun()
 
   // First set the config-dir if there is one.
   hw::conf_dir = conf.get<std::string>("config_dir", hw::conf_dir);
-  fid_conf_file_ = conf.get<std::string>("fid_conf_file", "");
+  fid_analysis_ = conf.get<std::string>("config.fid_analysis", "");
   analyze_fids_online_ = conf.get<bool>("analyze_fids_online", false);
   use_fast_fids_class_ = conf.get<bool>("use_fast_fids_class", false);
 
-  if (fid_conf_file_ != std::string("")) {
+  generate_software_triggers_ = 
+    conf.get<bool>("generate_software_triggers", false);
 
-    if ((fid_conf_file_[0] != '/') && (fid_conf_file_[0] != '\\')) {
-      fid::load_params(hw::conf_dir + fid_conf_file_);
+  if (fid_analysis_ != std::string("")) {
+
+    if ((fid_analysis_[0] != '/') && (fid_analysis_[0] != '\\')) {
+      fid::load_params(hw::conf_dir + fid_analysis_);
 
     } else {
 
-      fid::load_params(fid_conf_file_);
+      fid::load_params(fid_analysis_);
     }
   }
 
@@ -87,8 +87,8 @@ int FixedProbeSequencer::BeginOfRun()
 
     LogDebug("loading hw: %s, %s", name.c_str(), dev_conf_file.c_str());
     workers_.PushBack(new hw::Sis3302(name, 
-				      dev_conf_file, 
-				      NMR_FID_LENGTH_ONLINE));
+  				      dev_conf_file, 
+  				      NMR_FID_LENGTH_ONLINE));
   }
 
   for (auto &v : conf.get_child("devices.sis_3316")) {
@@ -108,71 +108,70 @@ int FixedProbeSequencer::BeginOfRun()
    				      NMR_FID_LENGTH_ONLINE));
   }
 
-  sis_idx = 0;
-  // for (auto &v : conf.get_child("devices.sis_3350")) {
+  workers_[0]->SetVerbosity(4);
 
-  //   std::string name(v.first);
-  //   std::string dev_conf_file = std::string(v.second.data());
+  // Set up the NMR pulser triggers
+  dio_triggers_.resize(0);
 
-  //   if (dev_conf_file[0] != '/') {
-  //     dev_conf_file = hw::conf_dir + std::string(v.second.data());
-  //   }
+  for (auto &v : conf.get_child("devices.dio_triggers")) {
+    
+    char bid = v.second.get<char>("dio_board_id");
+    int port = v.second.get<int>("dio_port_num");
+    int trg_mask = v.second.get<int>("dio_trg_mask");
 
-  //   sis_idx_map_[name] = sis_idx++;
+    switch (bid) {
+      case 'a':
+	LogDebug("setting NMR pulser trigger on dio board A, port %i", port);
+	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_A, port));
+	break;
+	
+      case 'b':
+	LogDebug("setting NMR pulser trigger on dio board B, port %i", port);
+	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_B, port));
+	break;
+      
+      case 'c':
+	LogDebug("setting NMR pulser trigger on dio board C, port %i", port);
+	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_C, port));
+	break;
 
-  //   LogDebug("loading hw: %s, %s", name.c_str(), dev_conf_file.c_str());
-  //   workers_.PushBack(new hw::Sis3350(name, dev_conf_file));
-  // }
+      default:
+	LogDebug("setting NMR pulser trigger on dio board D, port %i", port);
+	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_D, port));
+	break;
+    }
 
-  // Set up the NMR pulser trigger.
-  char bid = conf.get<char>("devices.nmr_pulser.dio_board_id");
-  int port = conf.get<int>("devices.nmr_pulser.dio_port_num");
-  nmr_trg_mask_ = conf.get<int>("devices.nmr_pulser.dio_trg_mask");
-
-  switch (bid) {
-    case 'a':
-      LogDebug("setting NMR pulser trigger on dio board A, port %i", port);
-      nmr_pulser_trg_ = new hw::DioTriggerBoard(0x0, hw::BOARD_A, port);
-      break;
-
-    case 'b':
-      LogDebug("setting NMR pulser trigger on dio board B, port %i", port);
-      nmr_pulser_trg_ = new hw::DioTriggerBoard(0x0, hw::BOARD_B, port);
-      break;
-
-    case 'c':
-      LogDebug("setting NMR pulser trigger on dio board C, port %i", port);
-      nmr_pulser_trg_ = new hw::DioTriggerBoard(0x0, hw::BOARD_C, port);
-      break;
-
-    default:
-      LogDebug("setting NMR pulser trigger on dio board D, port %i", port);
-      nmr_pulser_trg_ = new hw::DioTriggerBoard(0x0, hw::BOARD_D, port);
-      break;
+    // Set the trigger mask.
+    (*(dio_triggers_.end() - 1))->SetTriggerMask(trg_mask);
   }
 
-  max_event_time_ = conf.get<int>("max_event_time", 1000);
+  min_event_time_ = conf.get<int>("min_event_time", 1000);
+  max_event_time_ = conf.get<int>("max_event_time", 10000);
   mux_switch_time_ = conf.get<int>("mux_switch_time", 10000);
 
-  trg_seq_file_ = conf.get<std::string>("trg_seq_file");
+  mux_sequence_ = conf.get<std::string>("config.mux_sequence");
 
-  if (trg_seq_file_[0] != '/') {
-    trg_seq_file_ = hw::conf_dir + conf.get<std::string>("trg_seq_file");
+  if (mux_sequence_[0] != '/') {
+    mux_sequence_ = hw::conf_dir + 
+      conf.get<std::string>("config.mux_sequence");
   }
 
-  mux_conf_file_ = conf.get<std::string>("mux_conf_file");
+  mux_connections_ = conf.get<std::string>("config.mux_connections");
 
-  if (mux_conf_file_[0] != '/') {
-    mux_conf_file_ = hw::conf_dir + conf.get<std::string>("mux_conf_file");
+  if (mux_connections_[0] != '/') {
+    mux_connections_ = hw::conf_dir + 
+      conf.get<std::string>("config.mux_connections");
   }
 
   // Load trigger sequence
-  LogMessage("loading trigger sequence from %s", trg_seq_file_.c_str());
-  boost::property_tree::read_json(trg_seq_file_, conf);
+  LogMessage("loading trigger sequence from %s", mux_sequence_.c_str());
+  boost::property_tree::read_json(mux_sequence_, conf);
 
   for (auto &mux : conf) {
 
     int count = 0;
+    std::cout << "load mux: " << mux.first << ", " << std::endl;
+    boost::property_tree::write_json(std::cout, mux.second);
     for (auto &chan : mux.second) {
 
       // If we are adding a new mux, resize.
@@ -181,23 +180,22 @@ int FixedProbeSequencer::BeginOfRun()
       }
 
       // Map the multiplexer configuration.
-      std::pair<std::string, int> trg(mux.first, std::stoi(chan.first));
+      int ch = std::stoi(chan.first.substr(3)); // skip 'ch_'
+      std::pair<std::string, int> trg(mux.first, ch);
       trg_seq_[count++].push_back(trg);
 
       // Map the data type and array index.
-      for (auto &data : chan.second) {
-	int idx = std::stoi(data.second.data());
-	std::pair<std::string, int> loc(data.first, idx);
-	data_out_[trg] = loc;
-      }
+      int idx = std::stoi(chan.second.data());
+      std::pair<std::string, int> loc(chan.first, idx);
+      data_out_[trg] = loc;
     }
   }
 
   mux_boards_.resize(0);
-  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_A, false));
-  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_B, false));
-  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_C, false));
-  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_D, false));
+  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_A, true));
+  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_B, true));
+  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_C, true));
+  mux_boards_.push_back(new hw::DioMuxController(0x0, hw::BOARD_D, true));
 
   std::map<char, int> bid_map;
   bid_map['a'] = 0;
@@ -206,14 +204,14 @@ int FixedProbeSequencer::BeginOfRun()
   bid_map['d'] = 3;
 
   // Load the data channel/mux maps
-  boost::property_tree::read_json(mux_conf_file_, conf);
+  boost::property_tree::read_json(mux_connections_, conf);
   for (auto &mux : conf) {
     char bid = mux.second.get<char>("dio_board_id");
     std::string mux_name(mux.first);
     int port = mux.second.get<int>("dio_port_num");
 
     mux_idx_map_[mux_name] = bid_map[bid];
-    mux_boards_[mux_idx_map_[mux_name]]->AddMux(mux_name, port);
+    mux_boards_[mux_idx_map_[mux_name]]->AddMux(mux_name, port, false);
 
     std::string wfd_name(mux.second.get<std::string>("wfd_name"));
     int wfd_chan(mux.second.get<int>("wfd_chan"));
@@ -300,16 +298,28 @@ void FixedProbeSequencer::RunLoop()
 {
   while (thread_live_) {
 
-    workers_.FlushEventData();
-
-    while (go_time_) {
+    while (false & go_time_) {
 
       if (workers_.AnyWorkersHaveEvent()) {
 
         LogDebug("RunLoop: got potential event");
 
         // Wait to be sure the others have events too.
-        usleep(max_event_time_);
+	int count = 0;
+
+	while (count++ * 500 < min_event_time_) {
+	  usleep(500);
+	}
+	
+	LogDebug("RunLoop: slept minimum");
+
+	while (!workers_.AllWorkersHaveEvent() &&
+	       (count++ * 500 < max_event_time_)) {
+	  usleep(500);
+	  LogDebug("RunLoop: sleep check");
+	}
+	
+	LogDebug("RunLoop: slept max");
 
         if (!workers_.AllWorkersHaveEvent()) {
 
@@ -327,6 +337,8 @@ void FixedProbeSequencer::RunLoop()
         hw::event_data_t bundle;
         workers_.GetEventData(bundle);
 
+	LogDebug("RunLoop: copying data bundle");
+
         queue_mutex_.lock();
         if (data_queue_.size() <= kMaxQueueSize) {
           data_queue_.push(bundle);
@@ -336,15 +348,12 @@ void FixedProbeSequencer::RunLoop()
         }
 
         queue_mutex_.unlock();
-        workers_.FlushEventData();
       }
-
-      std::this_thread::yield();
-      usleep(hw::short_sleep);
+      
+      ThreadSleepLong();
     }
 
-    std::this_thread::yield();
-    usleep(hw::long_sleep);
+    ThreadSleepLong();
   }
 }
 
@@ -380,37 +389,80 @@ void FixedProbeSequencer::TriggerLoop()
 
       	  LogDebug("TriggerLoop: muxes are configured for this round");
           usleep(mux_switch_time_);
-      	  nmr_pulser_trg_->FireTriggers(nmr_trg_mask_);
 
-    	   LogDebug("TriggerLoop: muxes configure, triggers fired");
-	       mux_round_configured_ = true;
+	  if (generate_software_triggers_) {
 
-         while (!got_round_data_ && go_time_) {
-	    std::this_thread::yield();
-	    usleep(hw::short_sleep);
+	    // Pause workers.
+	    workers_.StopWorkers();
+	    hw::wait_ns(hw::short_sleep * 2);
+	    
+	    // Fire triggers and get waveforms on 3316.
+	    int idx = sis_idx_map_["sis_3316_0"];
+	    auto wfd_3316 = workers_[idx];
+	    
+	    idx = sis_idx_map_["sis_3302_0"];
+	    auto wfd_3302 = workers_[idx];
+
+	    // Trigger the 3316 and relevant pulser modules.
+	    while (wfd_3316->GenerateTrigger() != 0) usleep(10000);
+	    dio_triggers_[0]->FireTriggers(0xff);
+	    dio_triggers_[1]->FireTriggers(0xff);
+
+	    // Trigger the 3302 and pulse the relevant NMR pulsers.
+	    while (wfd_3302->GenerateTrigger() != 0) usleep(10000);
+	    hw::wait_ns(0.5e6);
+	    dio_triggers_[2]->FireTriggers(0x0f);
+
+	    workers_.StartWorkers();
+	    hw::wait_ns(100e6);
+	  
+	    while (!workers_.AllWorkersHaveEvent()) usleep(500);
+
+	  } else {
+	    
+	    LogDebug("Generated DIO triggers");
+	    for (auto &trg : dio_triggers_) {
+	      trg->FireTriggers();
+	    }
 	  }
+	  
+	  hw::event_data_t bundle;
+	  workers_.GetEventData(bundle);
 
+	  queue_mutex_.lock();
+	  if (data_queue_.size() <= kMaxQueueSize) {
+	    data_queue_.push(bundle);
+	    
+	    LogDebug("RunLoop: Got data. Data queue now: %i",
+		     data_queue_.size());
+	  }
+	  queue_mutex_.unlock();
+
+	  LogDebug("TriggerLoop: muxes configure, triggers fired");
+	  mux_round_configured_ = true;
+	  
+	  while (!got_round_data_ && go_time_) {
+	    ThreadSleepShort();
+	  }
+	  
 	} // on to the next round
 
 	sequence_in_progress_ = false;
 	got_start_trg_ = false;
 
-  LogDebug("TriggerLoop: waiting for builder to finish");
+	LogDebug("TriggerLoop: waiting for builder to finish");
 	while (!builder_has_finished_ && go_time_) {
-	  std::this_thread::yield();
-	  usleep(hw::short_sleep);
+	  ThreadSleepShort();
 	};
 
-  LogDebug("TriggerLoop: builder finished packing event");
+	LogDebug("TriggerLoop: builder finished packing event");
 
       } // done with trigger sequence
 
-      std::this_thread::yield();
-      usleep(hw::short_sleep);
+      ThreadSleepShort();
     }
 
-    std::this_thread::yield();
-    usleep(hw::long_sleep);
+    ThreadSleepLong();
   }
 }
 
@@ -471,9 +523,6 @@ void FixedProbeSequencer::BuilderLoop()
               int sis_idx = sis_idx_map_[sis_name];
               int trace_idx = data_in_[pair.first].second;
 
-              LogDebug("BuilderLoop: copying %s, ch %i",
-                       sis_name.c_str(), trace_idx);
-
               int idx = 0;
               ULong64_t clock = 0;
 
@@ -498,6 +547,10 @@ void FixedProbeSequencer::BuilderLoop()
               auto arr_ptr = &bundle.trace[idx][0];
               auto trace = data[sis_idx].trace[trace_idx];
               auto size = data[sis_idx].trace[trace_idx].size();
+
+              LogDebug("BuilderLoop: round %i, copying %s, ch %i -> %i",
+                       seq_index, sis_name.c_str(), trace_idx, idx);
+
               std::copy(&trace[0], &trace[0] + size, arr_ptr);
               
               // Save the index for analysis after copying
@@ -515,7 +568,7 @@ void FixedProbeSequencer::BuilderLoop()
               // Get the timestamp
               bundle.clock_sys_ns[idx] = hw::systime_us() * 1000;
 
-              if (analyze_fids_online_ || (idx == 0)) {
+              if (analyze_fids_online_) {
 
                 LogDebug("BuilderLoop: analyzing FID %i", idx);
 
@@ -531,14 +584,15 @@ void FixedProbeSequencer::BuilderLoop()
                   // Make sure we got an FID signal
                   if (myfid.isgood()) {
 
+                    bundle.fid_amp[idx] = myfid.amp();
                     bundle.fid_snr[idx] = myfid.snr();
                     bundle.fid_len[idx] = myfid.fid_time();
                     bundle.freq[idx] = myfid.CalcFreq();
                     bundle.ferr[idx] = myfid.freq_err();
-                    bundle.method[idx] = (ushort)fid::Method::ZC;
-                    bundle.health[idx] = myfid.isgood();
                     bundle.freq_zc[idx] = myfid.CalcFreq();
                     bundle.ferr_zc[idx] = myfid.freq_err();
+                    bundle.method[idx] = (ushort)fid::Method::ZC;
+                    bundle.health[idx] = myfid.health();
 
                   } else {
 
@@ -547,10 +601,10 @@ void FixedProbeSequencer::BuilderLoop()
                     bundle.fid_len[idx] = 0.0;
                     bundle.freq[idx] = 0.0;
                     bundle.ferr[idx] = 0.0;
-                    bundle.method[idx] = (ushort)fid::Method::ZC;
-                    bundle.health[idx] = myfid.isgood();
                     bundle.freq_zc[idx] = 0.0;
                     bundle.ferr_zc[idx] = 0.0;
+                    bundle.method[idx] = (ushort)fid::Method::ZC;
+                    bundle.health[idx] = myfid.health();
                   }
 
                 } else {
@@ -560,40 +614,43 @@ void FixedProbeSequencer::BuilderLoop()
                   // Make sure we got an FID signal
                   if (myfid.isgood()) {
 
+                    bundle.fid_amp[idx] = myfid.amp();
                     bundle.fid_snr[idx] = myfid.snr();
                     bundle.fid_len[idx] = myfid.fid_time();
                     bundle.freq[idx] = myfid.CalcPhaseFreq();
                     bundle.ferr[idx] = myfid.freq_err();
-                    bundle.method[idx] = (ushort)fid::Method::PH;
-                    bundle.health[idx] = myfid.isgood();
                     bundle.freq_zc[idx] = myfid.CalcZeroCountFreq();
                     bundle.ferr_zc[idx] = myfid.freq_err();
+                    bundle.method[idx] = (ushort)fid::Method::PH;
+                    bundle.health[idx] = myfid.health();
 
                   } else {
 
                     myfid.DiagnosticInfo();
+                    bundle.fid_amp[idx] = 0.0;
                     bundle.fid_snr[idx] = 0.0;
                     bundle.fid_len[idx] = 0.0;
                     bundle.freq[idx] = 0.0;
                     bundle.ferr[idx] = 0.0;
-                    bundle.method[idx] = (ushort)fid::Method::PH;
-                    bundle.health[idx] = myfid.isgood();
                     bundle.freq_zc[idx] = 0.0;
                     bundle.ferr_zc[idx] = 0.0;
+                    bundle.method[idx] = (ushort)fid::Method::PH;
+                    bundle.health[idx] = myfid.health();
                   }
                 }
               } else {
 
                 LogDebug("BuilderLoop: skipping analysis");
 
+                bundle.fid_amp[idx] = 0.0;
                 bundle.fid_snr[idx] = 0.0;
                 bundle.fid_len[idx] = 0.0;
                 bundle.freq[idx] = 0.0;
                 bundle.ferr[idx] = 0.0;
-                bundle.method[idx] = (ushort)fid::Method::PH;
-                bundle.health[idx] = 0;
                 bundle.freq_zc[idx] = 0.0;
                 bundle.ferr_zc[idx] = 0.0;
+                bundle.method[idx] = (ushort)fid::Method::PH;
+                bundle.health[idx] = 0;
               }
             } // next pair
 
@@ -601,8 +658,7 @@ void FixedProbeSequencer::BuilderLoop()
 	  }
         } // next round
 
-        std::this_thread::yield();
-        usleep(hw::short_sleep);
+	ThreadSleepShort();
       }
 
       // Sequence finished.
@@ -614,7 +670,7 @@ void FixedProbeSequencer::BuilderLoop()
         queue_mutex_.lock();
         run_queue_.push(bundle);
 
-        LogDebug("BuilderLoop: Size of run_queue_ = ", run_queue_.size());
+        LogDebug("BuilderLoop: Size of run_queue_ = %i", run_queue_.size());
 
         has_event_ = true;
         seq_index = 0;
@@ -622,12 +678,10 @@ void FixedProbeSequencer::BuilderLoop()
         queue_mutex_.unlock();
       }
 
-      std::this_thread::yield();
-      usleep(hw::long_sleep);
+      ThreadSleepLong();
     } // go_time_
 
-    std::this_thread::yield();
-    usleep(hw::long_sleep);
+    ThreadSleepLong();
   } // thread_live_
 }
 
@@ -648,12 +702,10 @@ void FixedProbeSequencer::StarterLoop()
 	LogDebug("StarterLoop: Got software trigger");
       }
 
-      std::this_thread::yield();
-      usleep(hw::long_sleep);
+      ThreadSleepLong();
     }
 
-    std::this_thread::yield();
-    usleep(hw::long_sleep);
+    ThreadSleepLong();
   }
 }
 

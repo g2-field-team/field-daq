@@ -43,7 +43,6 @@ class FixedProbeSequencer: public hw::EventManagerBase {
 public:
 
   //ctor
-  FixedProbeSequencer(int num_probes);
   FixedProbeSequencer(std::string conf_file, int num_probes);
 
   //dtor
@@ -97,23 +96,25 @@ private:
 
   const std::string name_ = "FixedProbeSequencer";
 
+  int min_event_time_;
   int max_event_time_;
   int num_probes_;
   std::atomic<bool> got_software_trg_;
   std::atomic<bool> got_start_trg_;
   std::atomic<bool> got_round_data_;
+  std::atomic<bool> generate_software_triggers_;
   std::atomic<bool> builder_has_finished_;
   std::atomic<bool> sequence_in_progress_;
   std::atomic<bool> mux_round_configured_;
   std::atomic<bool> analyze_fids_online_;
   std::atomic<bool> use_fast_fids_class_;
-  std::string trg_seq_file_;
-  std::string mux_conf_file_;
-  std::string fid_conf_file_;
+  std::string mux_sequence_;
+  std::string mux_connections_;
+  std::string fid_analysis_;
 
   int nmr_trg_mask_;
   int mux_switch_time_;
-  hw::DioTriggerBoard *nmr_pulser_trg_;
+  std::vector<hw::DioTriggerBoard *> dio_triggers_;
   std::vector<hw::DioMuxController *> mux_boards_;
   std::map<std::string, int> mux_idx_map_;
   std::map<std::string, int> sis_idx_map_;
@@ -140,6 +141,17 @@ private:
 
   // Builds the event by selecting the proper data from each round.
   void BuilderLoop();
+
+  // Thread sleep functions.
+  inline void ThreadSleepLong() {
+    auto dt = std::chrono::microseconds(hw::long_sleep);
+    std::this_thread::sleep_for(dt);
+  }
+
+  inline void ThreadSleepShort() {
+    auto dt = std::chrono::microseconds(hw::short_sleep);
+    std::this_thread::sleep_for(dt);
+  }
 };
 
 } // ::daq
