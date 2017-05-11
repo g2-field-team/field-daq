@@ -212,6 +212,13 @@ INT frontend_init()
   
   char buf[1023]; //traffic buffer
   GReturn b = G_NO_ERROR;
+	//Change the status color
+	char odbColour[32];
+	int size = sizeof(odbColour);
+	db_get_value(hDB,0,"/Equipment/GalilFermi/Common/Status Color",&odbColour,&size,TID_STRING,FALSE);
+	strcpy(odbColour, "#8A2BE2");
+	db_set_value(hDB,0,"/Equipment/GalilFermi/Common/Status Color",&odbColour,size,1,TID_STRING);
+
   b=GOpen("192.168.2.13 -s ALL -t 1000 -d",&g);
   GInfo(g, buf, sizeof(buf)); //grab connection string
 //  cout << "connection string is" << " "<<  buf << "\n";
@@ -275,6 +282,9 @@ INT frontend_init()
   //-------------end code to communicate with Galil------------------
   PreventManualCtrl = false;
 
+	db_get_value(hDB,0,"/Equipment/GalilFermi/Common/Status Color",&odbColour,&size,TID_STRING,FALSE);
+	strcpy(odbColour, "greenLight");
+	db_set_value(hDB,0,"/Equipment/GalilFermi/Common/Status Color",&odbColour,size,1,TID_STRING);
   return SUCCESS;
 }
 

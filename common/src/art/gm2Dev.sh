@@ -1,6 +1,6 @@
 #Define basic info
 OFFLINE_DIR=/home/newg2/gm2Dev                          #Root directory for g-2 offline software packages
-VERSION=v7_04_00                                                #g-2 software version
+VERSION=v7_05_00                                                #g-2 software version
 WORKSPACE=$OFFLINE_DIR/gm2Dev_${VERSION}                        #Path to your workspace
 FLAG=prof                                                       #Version flag
 
