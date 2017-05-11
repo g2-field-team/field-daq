@@ -149,10 +149,10 @@ namespace{
   Double_t bot_set_values[nCoils];
   Double_t top_set_values[nCoils];
 
-  Double_t bot_intercepts[nCoils];
+  /*Double_t bot_intercepts[nCoils];
   Double_t top_intercepts[nCoils];
   Double_t bot_slopes[nCoils];
-  Double_t top_slopes[nCoils];
+  Double_t top_slopes[nCoils];*/
 
   Double_t bot_currents[nCoils];
   Double_t top_currents[nCoils];
@@ -218,7 +218,7 @@ INT frontend_init()
     }
   }
  
-  //Get the calibration values (intercepts and slopes)
+  /*  //Get the calibration values (intercepts and slopes)
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Calibration/Bottom Intercepts", &hkey);
  
    if(hkey == NULL){
@@ -256,7 +256,7 @@ INT frontend_init()
   }
 
   int top_sl_size = sizeof(top_slopes);
-  db_get_data(hDB, hkey, &top_slopes, &top_sl_size, TID_DOUBLE);
+  db_get_data(hDB, hkey, &top_slopes, &top_sl_size, TID_DOUBLE);*/
 
   //bind to server                                           
   cm_msg(MINFO, "init", "Binding to server");
@@ -355,6 +355,7 @@ INT begin_of_run(INT run_number, char *error)
   db_get_data(hDB, hkey, &high_temp, &temp_size, TID_DOUBLE);
 
   //Now that we have the current set points, package them into json object
+  request["000"] = setPoint;
   if(coil_map.size()!=200) cm_msg(MERROR, "begin_of_run", "Coil map is of wrong size");
   for(int i=1;i<nCoils+1;i++){
     string coilNum;
@@ -364,14 +365,17 @@ INT begin_of_run(INT run_number, char *error)
     string topString = "T-"+coilNum;
     string botString = "B-"+coilNum;
 
-    if(bot_slopes[i-1] == 0) bot_slopes[i-1] = 1;
-    if(top_slopes[i-1] == 0) top_slopes[i-1] = 1;
+    //if(bot_slopes[i-1] == 0) bot_slopes[i-1] = 1;
+    //if(top_slopes[i-1] == 0) top_slopes[i-1] = 1;
 
-    Double_t bot_val = (bot_set_values[i-1]-bot_intercepts[i-1])/bot_slopes[i-1];
-    Double_t top_val = (top_set_values[i-1]-top_intercepts[i-1])/top_slopes[i-1];
+    //Double_t bot_val = (bot_set_values[i-1]-bot_intercepts[i-1])/bot_slopes[i-1];
+    //Double_t top_val = (top_set_values[i-1]-top_intercepts[i-1])/top_slopes[i-1];
+    Double_t bot_val = bot_set_values[i-1];
+    Double_t top_val = top_set_values[i-1];
     request[coil_map[botString]] = bot_val;
     request[coil_map[topString]] = top_val;
   }
+
 
   /*
   //send data to driver boards             
