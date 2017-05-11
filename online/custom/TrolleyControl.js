@@ -3,11 +3,13 @@ var updateTimerId = 0;
 
 function update()  {
   clearTimeout(updateTimerId);
-  load();
+  loadGalil();
+  loadTrolley();
   if (updatePeriod > 0)
     updateTimerId = setTimeout('update()', updatePeriod);
 }
-function load()   {
+
+function loadGalil()   {
   mjsonrpc_db_get_values(["/Equipment/GalilFermi/Monitors/Positions","/Equipment/GalilFermi/Monitors/Velocities","/Equipment/GalilFermi/Monitors/Control Voltages","/Equipment/GalilFermi/Monitors/Analogs","/Equipment/GalilFermi/Monitors/Limit Switches Forward","/Equipment/GalilFermi/Monitors/Limit Switches Reverse","/Equipment/GalilFermi/Monitors/Motor Status"]).then(function(rpc) {
       var Ps= String(rpc.result.data[0]);
       Ps = Ps.split(',');
@@ -48,6 +50,54 @@ function load()   {
       else document.getElementById("MOB").innerHTML = "ON";
       if (MO[2]=="false")document.getElementById("MOC").innerHTML = "OFF";
       else document.getElementById("MOC").innerHTML = "ON";
+      }).catch(function(error) {
+	mjsonrpc_error_alert(error);
+	});
+} 
+
+function loadTrolley()   {
+  mjsonrpc_db_get_values(["/Equipment/TrolleyInterface/Monitors/Interface/Trolley Power Protection Trip","/Equipment/TrolleyInterface/Monitors/Interface/Trolley Power Status","/Equipment/TrolleyInterface/Monitors/Interface/Interface RF0","/Equipment/TrolleyInterface/Monitors/Interface/Interface RF1","/Equipment/TrolleyInterface/Monitors/Interface/ldo Temp Monitors Min","/Equipment/TrolleyInterface/Monitors/Interface/ldo Temp Monitors Max"]).then(function(rpc) {
+			var PowerTrip= String(rpc.result.data[0]);
+			if (PowerTrip=="false")document.getElementById("InterfacePWTrip").innerHTML = "N";
+			else document.getElementById("InterfacePWTrip").innerHTML = "Y";
+			var PowerStatus= String(rpc.result.data[1]);
+			document.getElementById("InterfacePWStatus").innerHTML = PowerStatus;
+			if (PowerStatus=="false")document.getElementById("InterfacePWStatus").innerHTML = "OFF";
+			else document.getElementById("InterfacePWStatus").innerHTML = "ON";
+			var RF0= Number(rpc.result.data[2]);
+			document.getElementById("InterfaceRF0").innerHTML = RF0;
+			var RF1= Number(rpc.result.data[3]);
+			document.getElementById("InterfaceRF1").innerHTML = RF1;
+			var TempMin= Number(rpc.result.data[4]);
+			document.getElementById("InterfaceTempMin").innerHTML = TempMin;
+			var TempMax= Number(rpc.result.data[5]);
+			document.getElementById("InterfaceTempMax").innerHTML = TempMax;
+      }).catch(function(error) {
+	mjsonrpc_error_alert(error);
+	});
+  mjsonrpc_db_get_values(["/Equipment/TrolleyInterface/Monitors/Interface/V15neg Min","/Equipment/TrolleyInterface/Monitors/Interface/V15neg Max","/Equipment/TrolleyInterface/Monitors/Interface/V15pos Min","/Equipment/TrolleyInterface/Monitors/Interface/V15pos Max","/Equipment/TrolleyInterface/Monitors/Interface/v5 Min","/Equipment/TrolleyInterface/Monitors/Interface/v5 Max","/Equipment/TrolleyInterface/Monitors/Interface/v33 Min","/Equipment/TrolleyInterface/Monitors/Interface/v33 Max","/Equipment/TrolleyInterface/Monitors/Interface/V Monitors","/Equipment/TrolleyInterface/Monitors/Interface/I Monitors"]).then(function(rpc) {
+			var V15negMin= Number(rpc.result.data[0]);
+			var V15negMax= Number(rpc.result.data[1]);
+			document.getElementById("Interface15VNeg").innerHTML = (V15negMin+V15negMax)/2.0;
+
+			var V15posMin= Number(rpc.result.data[2]);
+			var V15posMax= Number(rpc.result.data[3]);
+			document.getElementById("Interface15VPos").innerHTML = (V15posMin+V15posMax)/2.0;
+			
+			var V5Min= Number(rpc.result.data[4]);
+			var V5Max= Number(rpc.result.data[5]);
+			document.getElementById("Interface5V").innerHTML = (V5Min+V5Max)/2.0;
+			
+			var V33Min= Number(rpc.result.data[6]);
+			var V33Max= Number(rpc.result.data[7]);
+			document.getElementById("Interface33V").innerHTML = (V33Min+V33Max)/2.0;
+
+			var TLV= Number(rpc.result.data[8]);
+			document.getElementById("InterfaceTLV").innerHTML = TLV;
+			
+			var TLI= Number(rpc.result.data[9]);
+			document.getElementById("InterfaceTLI").innerHTML = TLI;
+
       }).catch(function(error) {
 	mjsonrpc_error_alert(error);
 	});
