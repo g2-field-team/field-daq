@@ -2,7 +2,7 @@ cd "/Equipment/Surface Coils/Settings"
 create BOOL "Root Output"
 set "Root Output" false
 create STRING "Root Directory[1][256]"
-set "Root Dir" "/home/newg2/Applications/field-daq/resources/"
+set "Root Directory" "/home/newg2/Applications/field-daq/resources/"
 
 cd
 mkdir "/Equipment/Surface Coils/Settings/Set Points"
@@ -14,15 +14,6 @@ create DOUBLE "Allowed Temperature"
 set "Allowed Temperature" 50.0
 create DOUBLE "Bottom Set Currents[100]"
 create DOUBLE "Top Set Currents[100]"
-
-cd
-mkdir "/Equipment/Surface Coils/Settings/Calibration"
-cd "/Equipment/Surface Coils/Settings/Calibration"
-
-create DOUBLE "Bottom Intercepts[100]"
-create DOUBLE "Top Intercepts[100]"
-create DOUBLE "Bottom Slopes[100]"
-create DOUBLE "Top Slopes[100]"
 
 cd
 mkdir "/Equipment/Surface Coils/Settings/Monitoring"
