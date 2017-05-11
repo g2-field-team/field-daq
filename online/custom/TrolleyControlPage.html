@@ -326,14 +326,14 @@ High: <input id="TensionHigh" type="number" value=700></input>
 <tr>
 <td colspan="1" class="text-center">FrameA size</td>
 <td colspan="1" class="ODB-Monitor" id="FrontendASize">0</td>
-<td colspan="1" class="text-center">Monitor thread</td>
+<td colspan="1" class="text-center">FrameB size</td>
 <td colspan="1" class="ODB-Monitor" id="FrontendBSize">0</td>
 </tr>
 <tr>
 <td colspan="1" class="text-center">Buffer Load</td>
 <td colspan="1" class="ODB-Monitor" id="FrontendBufferLoad">0</td>
 <td colspan="1" class="text-center">Current Mode</td>
-<td colspan="1" class="ODB-Monitor" id="FrontendBSize">-</td>
+<td colspan="1" class="ODB-Monitor" id="FrontendCurrentMode">-</td>
 </tr>
 </table>
 
@@ -341,7 +341,7 @@ High: <input id="TensionHigh" type="number" value=700></input>
 
 <table class="table-fill" id="TrolleySetting">
 <th colspan="4"> Trolley Setting
-<button type="button" class="HeaderButtons" onclick="AbortMotion()" id="TrolleySetBtn">Set</button>
+<button type="button" class="HeaderButtons" onclick="TrolleySetCommand()" id="TrolleySetBtn">Set</button>
 </th>
 <tr>
 <td colspan="1" >Trolley Power</td>
@@ -392,7 +392,7 @@ High: <input id="TensionHigh" type="number" value=700></input>
 <td colspan="1" >Repeat</td>
 <td colspan="1" ><input id="InteractiveRepeat" type="number" value=1></input>
 <p id="ValInteractiveRepeat">1</p>
-<button type="button"  onclick="AbortMotion()" id="InteractiveTrigger">Trigger</button>
+<button type="button"  onclick="TrolleyInteractiveTrigger()" id="InteractiveTrigger">Trigger</button>
 </td>
 </tr>
 <tr>
@@ -424,7 +424,7 @@ High: <input id="TensionHigh" type="number" value=700></input>
 </tr>
 <tr>
 <td colspan="4" class="text-center"> Probe Config
-<button type="button"  onclick="AbortMotion()" id="ProbeUpdate">Update</button>
+<button type="button"  onclick="UpdateTrolleyProbes()" id="ProbeUpdate">Update</button>
 </th>
 </tr>
 
@@ -469,44 +469,35 @@ High: <input id="TensionHigh" type="number" value=700></input>
 
 <tr>
 <td colspan="1" >Probe Enable</td>
-<td colspan="1" ><input id="ProbeEnable" type="number" value=1></input>
-<p id="ValProbeEnable">1</p></td>
+<td colspan="1" ><input id="ProbeEnable" type="number" value=1></input></td>
 <td colspan="1" >Pream Delay</td>
-<td colspan="1" ><input id="PreampDelay" type="number" value=373></input>
-<p id="ValPreampDelay">373</p></td>
+<td colspan="1" ><input id="PreampDelay" type="number" value=373></input></td>
 </tr>
 
 <tr>
 <td colspan="1" >Pream Period</td>
-<td colspan="1" ><input id="PreampPeriod" type="number" value=14000></input>
-<p id="ValPreampPeriod">14000</p></td>
+<td colspan="1" ><input id="PreampPeriod" type="number" value=14000></input></td>
 <td colspan="1" >ADC Gate Delay</td>
-<td colspan="1" ><input id="ADCGateDelay" type="number" value=0></input>
-<p id="ValADCGateDelay">0</p></td>
+<td colspan="1" ><input id="ADCGateDelay" type="number" value=0></input></td>
 </tr>
 
 <tr>
 <td colspan="1" >ADC Gate Offset</td>
-<td colspan="1" ><input id="ADCGateOffset" type="number" value=0></input>
-<p id="ValADCGateOffset">0</p></td>
+<td colspan="1" ><input id="ADCGateOffset" type="number" value=0></input></td>
 <td colspan="1" >ADC Gate Period</td>
-<td colspan="1" ><input id="ADCGatePeriod" type="number" value=15000></input>
-<p id="ValADCGatePeriod">15000</p></td>
+<td colspan="1" ><input id="ADCGatePeriod" type="number" value=15000></input></td>
 </tr>
 
 <tr>
 <td colspan="1" >TX Delay</td>
-<td colspan="1" ><input id="TXDelay" type="number" value=300></input>
-<p id="ValTXDelay">300</p></td>
+<td colspan="1" ><input id="TXDelay" type="number" value=300></input></td>
 <td colspan="1" >TX Period</td>
-<td colspan="1" ><input id="TXPeriod" type="number" value=450></input>
-<p id="ValTXPeriod">450</p></td>
+<td colspan="1" ><input id="TXPeriod" type="number" value=450></input></td>
 </tr>
 
 <tr>
 <td colspan="1" >User Data</td>
-<td colspan="1" ><input id="UserData" type="number" value=8606></input>
-<p id="ValUserData">8606</p></td>
+<td colspan="1" ><input id="UserData" type="number" value=8606></input></td>
 <td colspan="1" ></td>
 <td colspan="1" ></td>
 </tr>
