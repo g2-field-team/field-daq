@@ -577,10 +577,10 @@ INT read_surface_coils(char *pevent, INT c)
 
   //reset arrays to hold data sent from beaglebones
   for(int i=0;i<nCoils;i++){
-    bot_currents[i]=0;
-    top_currents[i]=0;
-    bot_temps[i] = 0;
-    top_temps[i] = 0;
+    bot_currents[i] = 0.0;
+    top_currents[i] = 0.0;
+    bot_temps[i] = 0.0;
+    top_temps[i] = 0.0;
   }
 
   //Receive values from beaglebones
@@ -603,26 +603,22 @@ INT read_surface_coils(char *pevent, INT c)
     std::cout << "interrupted by midas, or something else" << std::endl;
    }
   }
-  //   //    break;
-  //   std::cout << "no message, returning" << std::endl;
-  //   return 0;
-  //  }	
-  // }
 
   string s(static_cast<char*>(bbVals.data()));
   s.resize(bbVals.size());
-  //std::cout << s << std::endl;
+  std::cout << s << std::endl;
   json reply_data = json::parse(s);
+  std::cout << "NOW JSON" << std::endl;
+  std::cout << reply_data.dump() << std::endl;
   dataVector.push_back(reply_data);
 	
   //cm_msg(MINFO, "read_surface_coils", "Received reply from beaglebones");
- 
+
   //Process the data in the vector. Loops through all json objects. 
   //In the end, only most recent data is stored in array
   for (auto &reply_data : dataVector) { 
 
     for(json::iterator it = reply_data.begin(); it != reply_data.end(); ++it){
-
       //loop through all entries in json object
       //First need to turn hw_id into sc_id 
       //Get element index (get ###-1 from A-### where A = T or B)
@@ -630,7 +626,7 @@ INT read_surface_coils(char *pevent, INT c)
       string coil_id = rev_coil_map[it.key()];
       int coil_index = stoi(coil_id.substr(2,3).erase(0,coil_id.substr(2,3).find_first_not_of('0')))-1; //Get coil index without leading zeros
       string tb = coil_id.substr(0,1); //Top or bottom?
-     
+      
       if(tb == "B"){
 	bot_currents[coil_index] = it.value()[0];
 	bot_temps[coil_index] = it.value()[1];
@@ -644,7 +640,7 @@ INT read_surface_coils(char *pevent, INT c)
       }
 
     }
- 
+
   //Get data ready for midas banks
   for(int idx = 0; idx < nCoils; ++idx){
     data.bot_sys_clock[idx] = hw::systime_us();
@@ -653,19 +649,17 @@ INT read_surface_coils(char *pevent, INT c)
     data.top_coil_currents[idx] = top_currents[idx];
     data.bot_coil_temps[idx] = bot_temps[idx];
     data.top_coil_temps[idx] = top_temps[idx];
-    data.bot_coil_temps[idx] = 27.0;
-    data.top_coil_temps[idx] = 27.0;
-  }
+   }
 
   //write root output
   if (write_root && run_in_progress) {
-    cm_msg(MINFO, "read_fixed_event", "Filling TTree");
+    //cm_msg(MINFO, "read_fixed_event", "Filling TTree");
     // Now that we have a copy of the latest event, fill the tree. 
     pt_norm->Fill();
     num_events++;
 
     if (num_events % 10 == 1) {
-      cm_msg(MINFO, frontend_name, "flushing TTree.");
+      //cm_msg(MINFO, frontend_name, "flushing TTree.");
       pt_norm->AutoSave("SaveSelf,FlushBaskets");
       pf->Flush();
     }
@@ -725,7 +719,7 @@ INT read_surface_coils(char *pevent, INT c)
     }
   }
   
-  cm_msg(MINFO, "read_surface_coils", "Finished generating event");
+  //cm_msg(MINFO, "read_surface_coils", "Finished generating event");
   return bk_size(pevent);
 
 }
