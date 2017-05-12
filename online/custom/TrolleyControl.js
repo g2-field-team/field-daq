@@ -26,12 +26,6 @@ function loadGalil()   {
       document.getElementById("CA").innerHTML = Cs[0]/1000.0;
       document.getElementById("CB").innerHTML = Cs[1]/1000.0;
       document.getElementById("CC").innerHTML = Cs[2]/1000.0;
-      var As= String(rpc.result.data[3]);
-      As = As.split(',');
-      document.getElementById("TA").innerHTML = As[0];
-      document.getElementById("TB").innerHTML = As[1];
-      document.getElementById("TempA").innerHTML = As[2];
-      document.getElementById("TempB").innerHTML = As[3];
       var Lf= String(rpc.result.data[4]);
       Lf = Lf.split(',');
       document.getElementById("LFA").innerHTML = Lf[0];
@@ -54,14 +48,14 @@ function loadGalil()   {
 	mjsonrpc_error_alert(error);
 	});
   mjsonrpc_db_get_values(["/Equipment/GalilFermi/Monitors/Motor Temperature Fish","/Equipment/GalilFermi/Monitors/Motor Temperature Sig","/Equipment/GalilFermi/Monitors/Motor Tension Fish","/Equipment/GalilFermi/Monitors/Motor Tension Sig"]).then(function(rpc) {
-      var Temp1= String(rpc.result.data[0]);
-      var Temp2= String(rpc.result.data[1]);
-      var Tension1= String(rpc.result.data[2]);
-      var Tension2= String(rpc.result.data[3]);
-      document.getElementById("TA").innerHTML = Tension1;
-      document.getElementById("TB").innerHTML = Tension2;
-      document.getElementById("TempA").innerHTML = Temp1;
-      document.getElementById("TempB").innerHTML = Temp2;
+      var Temp1= Number(rpc.result.data[0]);
+      var Temp2= Number(rpc.result.data[1]);
+      var Tension1= Number(rpc.result.data[2]);
+      var Tension2= Number(rpc.result.data[3]);
+      document.getElementById("TA").innerHTML = Tension1.toFixed(3);
+      document.getElementById("TB").innerHTML = Tension2.toFixed(3);
+      document.getElementById("TempA").innerHTML = Temp1.toFixed(3);
+      document.getElementById("TempB").innerHTML = Temp2.toFixed(3);
       }).catch(function(error) {
 	mjsonrpc_error_alert(error);
 	});
