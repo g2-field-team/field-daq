@@ -74,38 +74,38 @@ function loadTrolley()   {
       var RF1= Number(rpc.result.data[3]);
       document.getElementById("InterfaceRF1").innerHTML = RF1;
       var TempMin= Number(rpc.result.data[4]);
-      document.getElementById("InterfaceTempMin").innerHTML = TempMin.toFixed(4);
+      document.getElementById("InterfaceTempMin").innerHTML = TempMin.toFixed(3);
       var TempMax= Number(rpc.result.data[5]);
-      document.getElementById("InterfaceTempMax").innerHTML = TempMax.toFixed(4);
+      document.getElementById("InterfaceTempMax").innerHTML = TempMax.toFixed(3);
       }).catch(function(error) {
 	mjsonrpc_error_alert(error);
 	});
   mjsonrpc_db_get_values(["/Equipment/TrolleyInterface/Monitors/Interface/V15neg Min","/Equipment/TrolleyInterface/Monitors/Interface/V15neg Max","/Equipment/TrolleyInterface/Monitors/Interface/V15pos Min","/Equipment/TrolleyInterface/Monitors/Interface/V15pos Max","/Equipment/TrolleyInterface/Monitors/Interface/v5 Min","/Equipment/TrolleyInterface/Monitors/Interface/v5 Max","/Equipment/TrolleyInterface/Monitors/Interface/v33 Min","/Equipment/TrolleyInterface/Monitors/Interface/v33 Max","/Equipment/TrolleyInterface/Monitors/Interface/V Monitors","/Equipment/TrolleyInterface/Monitors/Interface/I Monitors"]).then(function(rpc) {
       var V15negMin= Number(rpc.result.data[0]);
       var V15negMax= Number(rpc.result.data[1]);
-      var avg15neg = (V15negMin+V15negMax)/2.0;
-      document.getElementById("Interface15VNeg").innerHTML = avg15neg.toFixed(4);
+      document.getElementById("Interface15VNegMin").innerHTML = V15negMin.toFixed(3);
+      document.getElementById("Interface15VNegMax").innerHTML = V15negMax.toFixed(3);
 
       var V15posMin= Number(rpc.result.data[2]);
       var V15posMax= Number(rpc.result.data[3]);
-      var avg15pos = (V15posMin+V15posMax)/2.0;
-      document.getElementById("Interface15VPos").innerHTML = avg15pos.toFixed(4);
+      document.getElementById("Interface15VPosMin").innerHTML = V15posMin.toFixed(3);
+      document.getElementById("Interface15VPosMax").innerHTML = V15posMax.toFixed(3);
 
       var V5Min= Number(rpc.result.data[4]);
       var V5Max= Number(rpc.result.data[5]);
-      var avgV5 = (V5Min+V5Max)/2.0;
-      document.getElementById("Interface5V").innerHTML = avgV5.toFixed(4);
+      document.getElementById("Interface5VMin").innerHTML = V5Min.toFixed(3);
+      document.getElementById("Interface5VMax").innerHTML = V5Max.toFixed(3);
 
       var V33Min= Number(rpc.result.data[6]);
       var V33Max= Number(rpc.result.data[7]);
-      var avgV33 = (V33Min+V33Max)/2.0;
-      document.getElementById("Interface33V").innerHTML = avgV33.toFixed(4);
+      document.getElementById("Interface33VMin").innerHTML = V33Min.toFixed(3);
+      document.getElementById("Interface33VMax").innerHTML = V33Max.toFixed(3);
 
       var TLV= Number(rpc.result.data[8]);
-      document.getElementById("InterfaceTLV").innerHTML = TLV.toFixed(4);
+      document.getElementById("InterfaceTLV").innerHTML = TLV.toFixed(3);
 
       var TLI= Number(rpc.result.data[9]);
-      document.getElementById("InterfaceTLI").innerHTML = TLI.toFixed(4);
+      document.getElementById("InterfaceTLI").innerHTML = TLI.toFixed(3);
 
   }).catch(function(error) {
     mjsonrpc_error_alert(error);
@@ -132,31 +132,34 @@ function loadTrolley()   {
       }).catch(function(error) {
 	mjsonrpc_error_alert(error);
 	});
-  mjsonrpc_db_get_values(["/Equipment/TrolleyInterface/Monitors/Trolley/Power Factor","/Equipment/TrolleyInterface/Monitors/Trolley/Pressure","/Equipment/TrolleyInterface/Monitors/Trolley/Temperature In","/Equipment/TrolleyInterface/Monitors/Trolley/Temperature Ext1","/Equipment/TrolleyInterface/Monitors/Trolley/Vmin 1","/Equipment/TrolleyInterface/Monitors/Trolley/Vmax 1","/Equipment/TrolleyInterface/Monitors/Trolley/Vmin 2","/Equipment/TrolleyInterface/Monitors/Trolley/Vmax 2","/Equipment/TrolleyInterface/Monitors/Trolley/LED Voltage"]).then(function(rpc) {
+  mjsonrpc_db_get_values(["/Equipment/TrolleyInterface/Monitors/Trolley/Power Factor","/Equipment/TrolleyInterface/Monitors/Trolley/Pressure","/Equipment/TrolleyInterface/Monitors/Trolley/Pressure Temperature","/Equipment/TrolleyInterface/Monitors/Trolley/Temperature In","/Equipment/TrolleyInterface/Monitors/Trolley/Temperature Ext1","/Equipment/TrolleyInterface/Monitors/Trolley/Vmin 1","/Equipment/TrolleyInterface/Monitors/Trolley/Vmax 1","/Equipment/TrolleyInterface/Monitors/Trolley/Vmin 2","/Equipment/TrolleyInterface/Monitors/Trolley/Vmax 2","/Equipment/TrolleyInterface/Monitors/Trolley/LED Voltage"]).then(function(rpc) {
       var PowerFactor= Number(rpc.result.data[0]);
-      document.getElementById("TrolleyPWFactor").innerHTML = PowerFactor.toFixed(4);
+      document.getElementById("TrolleyPWFactor").innerHTML = PowerFactor.toFixed(3);
 
       var Pressure= Number(rpc.result.data[1]);
-      document.getElementById("TrolleyPressure").innerHTML = Pressure.toFixed(4);
+      document.getElementById("TrolleyPressure").innerHTML = Pressure.toFixed(3);
 
-      var TIn = Number(rpc.result.data[2]);
-      document.getElementById("TrolleyTempIn").innerHTML = TIn.toFixed(4);
+      var PressureTemp= Number(rpc.result.data[2]);
+      document.getElementById("TrolleyTempP").innerHTML = PressureTemp.toFixed(3);
 
-      var TExt = Number(rpc.result.data[3]);
-      document.getElementById("TrolleyTempExt").innerHTML = TExt.toFixed(4);
+      var TIn = Number(rpc.result.data[3]);
+      document.getElementById("TrolleyTempIn").innerHTML = TIn.toFixed(3);
 
-      var V6Min= Number(rpc.result.data[4]);
-      var V6Max= Number(rpc.result.data[5]);
-      var avgV6 = (V6Min+V6Max)/2.0;
-      document.getElementById("TrolleyV1").innerHTML = avgV6.toFixed(4);
+      var TExt = Number(rpc.result.data[4]);
+      document.getElementById("TrolleyTempExt").innerHTML = TExt.toFixed(3);
 
-      var V4Min= Number(rpc.result.data[6]);
-      var V4Max= Number(rpc.result.data[7]);
-      var avgV4 = (V4Min+V4Max)/2.0;
-      document.getElementById("TrolleyV2").innerHTML = avgV4.toFixed(4);
+      var V6Min= Number(rpc.result.data[5]);
+      var V6Max= Number(rpc.result.data[6]);
+      document.getElementById("TrolleyV1Max").innerHTML = V6Max.toFixed(3);
+      document.getElementById("TrolleyV1Min").innerHTML = V6Min.toFixed(3);
 
-      var VLED= Number(rpc.result.data[8]);
-      document.getElementById("TrolleyLEDV").innerHTML = VLED.toFixed(4);
+      var V4Min= Number(rpc.result.data[7]);
+      var V4Max= Number(rpc.result.data[8]);
+      document.getElementById("TrolleyV2Max").innerHTML = V4Max.toFixed(3);
+      document.getElementById("TrolleyV2Min").innerHTML = V4Min.toFixed(3);
+
+      var VLED= Number(rpc.result.data[9]);
+      document.getElementById("TrolleyLEDV").innerHTML = VLED.toFixed(3);
   }).catch(function(error) {
     mjsonrpc_error_alert(error);
     });

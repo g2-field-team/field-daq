@@ -258,16 +258,28 @@ High: <input id="TensionHigh" type="number" value=2.0 step="0.01"></input>
 <td colspan="1" class="ODB-Monitor" id="InterfaceTempMax">000</td>
 </tr>
 <tr>
-<td colspan="1" class="text-center">+15V</td>
-<td colspan="1" class="ODB-Monitor" id="Interface15VNeg">000</td>
-<td colspan="1" class="text-center">-15V</td>
-<td colspan="1" class="ODB-Monitor" id="Interface15VPos">000</td>
+<td colspan="1" class="text-center">+15V Max</td>
+<td colspan="1" class="ODB-Monitor" id="Interface15VNegMax">000</td>
+<td colspan="1" class="text-center">-15V Max</td>
+<td colspan="1" class="ODB-Monitor" id="Interface15VPosMax">000</td>
+<tr>
+<td colspan="1" class="text-center">+15V Min</td>
+<td colspan="1" class="ODB-Monitor" id="Interface15VNegMin">000</td>
+<td colspan="1" class="text-center">-15V Min</td>
+<td colspan="1" class="ODB-Monitor" id="Interface15VPosMin">000</td>
+</tr>
 </tr>
 <tr>
-<td colspan="1" class="text-center">5V</td>
-<td colspan="1" class="ODB-Monitor" id="Interface5V">000</td>
-<td colspan="1" class="text-center">3.3V</td>
-<td colspan="1" class="ODB-Monitor" id="Interface33V">000</td>
+<td colspan="1" class="text-center">5V Max</td>
+<td colspan="1" class="ODB-Monitor" id="Interface5VMax">000</td>
+<td colspan="1" class="text-center">3.3V Max</td>
+<td colspan="1" class="ODB-Monitor" id="Interface33VMax">000</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">5V Min</td>
+<td colspan="1" class="ODB-Monitor" id="Interface5VMin">000</td>
+<td colspan="1" class="text-center">3.3V Min</td>
+<td colspan="1" class="ODB-Monitor" id="Interface33VMin">000</td>
 </tr>
 <tr>
 <td colspan="1" class="text-center">Trolley V</td>
@@ -293,8 +305,8 @@ High: <input id="TensionHigh" type="number" value=2.0 step="0.01"></input>
 <tr>
 <td colspan="1" class="text-center">Power Factor</td>
 <td colspan="1" class="ODB-Monitor" id="TrolleyPWFactor">0</td>
-<td colspan="1" class="text-center">Pressure</td>
-<td colspan="1" class="ODB-Monitor" id="TrolleyPressure">0</td>
+<td colspan="1" class="text-center">LED Voltage</td>
+<td colspan="1" class="ODB-Monitor" id="TrolleyLEDV">0</td>
 </tr>
 <tr>
 <td colspan="1" class="text-center">Temperature In</td>
@@ -303,16 +315,22 @@ High: <input id="TensionHigh" type="number" value=2.0 step="0.01"></input>
 <td colspan="1" class="ODB-Monitor" id="TrolleyTempExt">0</td>
 </tr>
 <tr>
-<td colspan="1" class="text-center">6V</td>
-<td colspan="1" class="ODB-Monitor" id="TrolleyV1">0</td>
-<td colspan="1" class="text-center">4V</td>
-<td colspan="1" class="ODB-Monitor" id="TrolleyV2">0</td>
+<td colspan="1" class="text-center">Pressure (mBar)</td>
+<td colspan="1" class="ODB-Monitor" id="TrolleyPressure">0</td>
+<td colspan="1" class="text-center">Temperature P</td>
+<td colspan="1" class="ODB-Monitor" id="TrolleyTempP">0</td>
 </tr>
 <tr>
-<td colspan="1" class="text-center">LED Voltage</td>
-<td colspan="1" class="ODB-Monitor" id="TrolleyLEDV">0</td>
-<td colspan="1" class="text-center"></td>
-<td colspan="1" class="ODB-Monitor"></td>
+<td colspan="1" class="text-center">6V Max</td>
+<td colspan="1" class="ODB-Monitor" id="TrolleyV1Max">0</td>
+<td colspan="1" class="text-center">4V Max</td>
+<td colspan="1" class="ODB-Monitor" id="TrolleyV2Max">0</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">6V Min</td>
+<td colspan="1" class="ODB-Monitor" id="TrolleyV1Min">0</td>
+<td colspan="1" class="text-center">4V Min</td>
+<td colspan="1" class="ODB-Monitor" id="TrolleyV2Min">0</td>
 </tr>
 <tr>
 <td colspan="4" class="text-center"> Front end</th>
@@ -476,7 +494,7 @@ High: <input id="TensionHigh" type="number" value=2.0 step="0.01"></input>
 
 <tr>
 <td colspan="1" >Pream Period</td>
-<td colspan="1" ><input id="PreampPeriod" type="number" value=14000></input></td>
+<td colspan="1" ><input id="PreampPeriod" type="number" value=14000 style="width: 6em;"></input></td>
 <td colspan="1" >ADC Gate Delay</td>
 <td colspan="1" ><input id="ADCGateDelay" type="number" value=0></input></td>
 </tr>
@@ -485,7 +503,7 @@ High: <input id="TensionHigh" type="number" value=2.0 step="0.01"></input>
 <td colspan="1" >ADC Gate Offset</td>
 <td colspan="1" ><input id="ADCGateOffset" type="number" value=0></input></td>
 <td colspan="1" >ADC Gate Period</td>
-<td colspan="1" ><input id="ADCGatePeriod" type="number" value=15000></input></td>
+<td colspan="1" ><input id="ADCGatePeriod" type="number" value=15000 style="width: 6em;"></input></td>
 </tr>
 
 <tr>
