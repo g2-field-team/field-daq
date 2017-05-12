@@ -244,7 +244,7 @@ INT frontend_init()
 			     + std::string(dbname) + std::string(" user=") + std::string(user) \
 			     + std::string(" password=") + std::string(password) + std::string(" port=")\
 			     + std::string(port);
-//  psql_con = std::make_unique<pqxx::connection>(psql_con_str);
+  psql_con = std::make_unique<pqxx::connection>(psql_con_str);
 
   //Set the motor switch odb values to off as default
   BOOL MOTOR_OFF = FALSE;
@@ -880,31 +880,36 @@ void GalilMonitor(const GCon &g){
     mlock.unlock();
 
     //Load to Data base
-/*    mlock.lock();
-    std::unique_ptr<pqxx::work> txnp;
-    try {
-      txnp = std::make_unique<pqxx::work>(*psql_con);
-    } catch (const pqxx::broken_connection& bc) {
-      txnp.reset();
-      cm_msg(MERROR, __FILE__, "broken connection exception %s!", bc.what());
-      // for now I will throw an exception.
-      // In future, handle this through alarm system
-      cm_yield(0);
-      throw;
+    if (i%5000==0){
+      mlock.lock();
+      char message_buffer[512];
+      sprintf(message_buffer,"{%f,%f}",GalilDataUnit.AnalogArray[2],GalilDataUnit.AnalogArray[3]);
+
+      std::unique_ptr<pqxx::work> txnp;
+      try {
+	txnp = std::make_unique<pqxx::work>(*psql_con);
+      } catch (const pqxx::broken_connection& bc) {
+	txnp.reset();
+	cm_msg(MERROR, __FILE__, "broken connection exception %s!", bc.what());
+	// for now I will throw an exception.
+	// In future, handle this through alarm system
+	cm_yield(0);
+	throw;
+      }
+      if (txnp) {
+	// form query
+	std::string query_str =
+	  "INSERT into gm2field_monitor (name, value, time) VALUES ('";
+	query_str += "Trolley Motor Temperatures";
+	query_str += "', '";
+	query_str += string(message_buffer);
+	query_str += "', now())";
+	txnp->exec(query_str);
+	txnp->commit();
+      }
+      mlock.unlock();
     }
-    if (txnp) {
-      // form query
-      std::string query_str =
-	"INSERT into g2field-monitor (name, value, time) VALUES ('";
-      query_str += "Trolley Motor Temperatures";
-      query_str += "', '";
-      query_str += "{20.8,35.9}";
-      query_str += "', now())";
-      txnp->exec(query_str);
-      txnp->commit();
-    }
-    mlock.unlock();
-*/
+
     //Check emergencies
     //This thread is not blocking
     INT emergency_size = sizeof(emergency);

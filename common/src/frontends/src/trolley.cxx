@@ -140,6 +140,8 @@ void ReadFromDevice();
 void ControlDevice();
 int RampTrolleyVoltage(int InitialVoltage,int TargetVoltage);
 int LoadProbeSettings();
+float CalculatePressure(unsigned int P,unsigned int T, unsigned short c_value[], float& T_out);
+
 BOOL FrontendActive;
 BOOL RunActiveForRead;
 BOOL RunActiveForControl;
@@ -935,14 +937,12 @@ void ReadFromDevice(){
       memcpy(&(FrameCheckSum),&(FrameA[96+NSamNMR+NSamBarcode+FrameA[13]*2+NFlashWords]),sizeof(int));
 
       for (short ii=0;ii<7;ii++){
-	PressureSensorCal[ii] = FrameA[23+ii];;
+	PressureSensorCal[ii] = FrameA[23+ii];
       }
-      //Set the pressure sensor calibration only once
-      if (i==0){
-	mlock.lock();
-	db_set_value(hDB,0,"/Equipment/TrolleyInterface/Hardware/Pressure Sensor Calibration",&PressureSensorCal,sizeof(PressureSensorCal), 7 ,TID_SHORT);
-	mlock.unlock();
-      }
+
+      mlock.lock();
+      db_set_value(hDB,0,"/Equipment/TrolleyInterface/Hardware/Pressure Sensor Calibration",&PressureSensorCal,sizeof(PressureSensorCal), 7 ,TID_SHORT);
+      mlock.unlock();
 
       //Checking sums
       unsigned int sum1=0;
@@ -982,8 +982,10 @@ void ReadFromDevice(){
 
       TemperatureIn = TrlyMonitorDataUnit->TMonitorIn/128.0;
       Temperature1 = TrlyMonitorDataUnit->TMonitorExt1/128.0;
-      PressureTemperature = TrlyMonitorDataUnit->PMonitorTemp;
-      Pressure = TrlyMonitorDataUnit->PMonitorVal;
+
+      //Calculate Pressure
+      Pressure = CalculatePressure(TrlyMonitorDataUnit->PMonitorVal,TrlyMonitorDataUnit->PMonitorTemp,PressureSensorCal,PressureTemperature);
+
       Vmin1 = TrlyMonitorDataUnit->V1Min/65536.0*10;
       Vmax1 = TrlyMonitorDataUnit->V1Max/65536.0*10;
       Vmin2 = TrlyMonitorDataUnit->V2Min/65536.0*5;
@@ -1722,3 +1724,66 @@ int LoadProbeSettings()
 }
 
 
+float CalculatePressure(unsigned int P,unsigned int T, unsigned short c_value[], float& T_out)
+{
+  double dt_value;
+  double temp_value;
+  double temp_c_value;
+  double off_value;
+  double sens_value;
+  double temp_correction_value;
+  double off_correction_value;
+  double sens_correction_value;
+  double temp_2nd_value;
+  double temp_c_2nd_value;
+  double off_2nd_value;
+  double sens_2nd_value;
+  double p_2nd_value;
+  double pbar_2nd_value;
+
+  unsigned int d_value[3];
+  d_value[1] = P;
+  d_value[2] = T;
+
+  dt_value = d_value[2]-c_value[5]*((double)(1 << 8));
+  temp_value = 2000.0+dt_value*c_value[6]/((double)(1 << 23)); 
+  temp_c_value = temp_value /100.0;
+  off_value = c_value[2]*((double)(1 << 17))+(c_value[4]*dt_value)/((double)(1 << 6)); 
+  sens_value = c_value[1]*((double)(1 << 16))+(c_value[3]*dt_value)/((double)(1 << 7));
+
+  temp_2nd_value = temp_value;
+  off_2nd_value = off_value;
+  sens_2nd_value = sens_value;
+
+  if (temp_c_value >= 20)
+  {
+    temp_correction_value = 5.0 * (dt_value/((double)((unsigned long long int)(1) << 38))) * (dt_value/((double)((unsigned long long int)(1) << 38)));
+    off_correction_value = 0;
+    sens_correction_value = 0;
+  }
+  else if (temp_c_value < -15)
+  {
+    temp_correction_value = 3.0 * (dt_value/((double)((unsigned long long int)(1) << 33))) * (dt_value/((double)((unsigned long long int)(1) << 33)));    
+    off_correction_value = 61.0 * (temp_value-2000.0) * (temp_value-2000.0) / ((double)(1 << 4))+17*(temp_value+1500.0) * (temp_value+1500.0);
+    sens_correction_value = 29.0 * (temp_value-2000.0) * (temp_value-2000.0) / ((double)(1 << 4))+9*(temp_value+1500.0) * (temp_value+1500.0); 
+  }
+  else
+  {
+    temp_correction_value = 3.0 * (dt_value/((double)((unsigned long long int)(1) << 33))) * (dt_value/((double)((unsigned long long int)(1) << 33)));
+    off_correction_value = 61.0 * (temp_value-2000.0) * (temp_value-2000.0) / ((double)(1 << 4));
+    sens_correction_value = 29.0 * (temp_value-2000.0) * (temp_value-2000.0) / ((double)(1 << 4));
+  }
+
+  temp_2nd_value -= temp_correction_value;
+  off_2nd_value -= off_correction_value;
+  sens_2nd_value -= sens_correction_value;
+
+  temp_c_2nd_value = temp_2nd_value / 100.0;
+  p_2nd_value = (d_value[1]*sens_2nd_value/((double)(1 << 21))-off_2nd_value)/((double)(1 << 15));
+  pbar_2nd_value = p_2nd_value / 100.0;
+
+  T_out = static_cast<float>(temp_c_2nd_value);
+  float Pressure = static_cast<float>(pbar_2nd_value);
+
+  return Pressure;
+}
