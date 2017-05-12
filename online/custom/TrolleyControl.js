@@ -53,6 +53,18 @@ function loadGalil()   {
       }).catch(function(error) {
 	mjsonrpc_error_alert(error);
 	});
+  mjsonrpc_db_get_values(["/Equipment/GalilFermi/Monitors/Motor Temperature Fish","/Equipment/GalilFermi/Monitors/Motor Temperature Sig","/Equipment/GalilFermi/Monitors/Motor Tension Fish","/Equipment/GalilFermi/Monitors/Motor Tension Sig"]).then(function(rpc) {
+      var Temp1= String(rpc.result.data[0]);
+      var Temp2= String(rpc.result.data[1]);
+      var Tension1= String(rpc.result.data[2]);
+      var Tension2= String(rpc.result.data[3]);
+      document.getElementById("TA").innerHTML = Tension1;
+      document.getElementById("TB").innerHTML = Tension2;
+      document.getElementById("TempA").innerHTML = Temp1;
+      document.getElementById("TempB").innerHTML = Temp2;
+      }).catch(function(error) {
+	mjsonrpc_error_alert(error);
+	});
 } 
 
 function loadTrolley()   {

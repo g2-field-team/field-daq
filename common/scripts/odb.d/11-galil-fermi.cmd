@@ -33,6 +33,10 @@ create INT "Limit Switches Reverse[6]"
 create BOOL "Motor Status[6]"
 create INT "Auto Motion Finished"
 create INT "Buffer Load"
+create FLOAT "Motor Temperature Fish"
+create FLOAT "Motor Temperature Sig"
+create FLOAT "Motor Tension Fish"
+create FLOAT "Motor Tension Sig"
 set "Auto Motion Finished" 1
 
 mkdir "/Equipment/GalilFermi/Monitors/Trolley"
@@ -55,10 +59,10 @@ create INT "Trolley Rel Pos"
 create INT "Trolley1 Rel Pos"
 create INT "Trolley2 Rel Pos"
 create INT "Trolley Velocity"
-create INT "Tension Range Low"
-create INT "Tension Range High"
-create INT "Tension Offset 1"
-create INT "Tension Offset 2"
+create FLOAT "Tension Range Low"
+create FLOAT "Tension Range High"
+create FLOAT "Tension Offset 1"
+create FLOAT "Tension Offset 2"
 create BOOL "Trolley Switch"
 create INT "Trolley Def Pos1"
 create INT "Trolley Def Pos2"
@@ -66,13 +70,14 @@ create INT "Garage Def Pos"
 set "Garage Switch" false
 set "Trolley Switch" false
 set "Trolley Velocity" 100
-set "Tension Range Low" 400
-set "Tension Range High" 800
-set "Tension Offset 1" 0
-set "Tension Offset 2" 0
+set "Tension Range Low" 0.8
+set "Tension Range High" 2.0
+set "Tension Offset 1" 0.0
+set "Tension Offset 2" 0.18
 set "Trolley Def Pos1" 0
 set "Trolley Def Pos2" 0
 set "Garage Def Pos" 0
+set "Garage Velocity" 1000
 cd "/Equipment/GalilFermi/Settings/Manual Control/Plunging Probe"
 create INT "Plunging Probe Abs Pos[3]"
 create INT "Plunging Probe Rel Pos[3]"

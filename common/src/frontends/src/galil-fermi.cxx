@@ -143,6 +143,8 @@ typedef struct GalilDataStructD{
   double StatusArray[6];
 }GalilDataStructD;
 
+double TempCalCoefficients[6] = {24.9724 , 11.4814 , -0.64452 , 1.35996 , -0.528525 , 0.107673};
+
 INT PlungingProbeStepSize[3];
 INT PlungingProbeStepNumber[3];
 int IX,IY,IZ;
@@ -858,6 +860,13 @@ void GalilMonitor(const GCon &g){
     mlockdata.unlock();
 
     //Update odb for monitoring
+    float T1 = GalilDataUnitD.AnalogArray[2];
+    float T2 = GalilDataUnitD.AnalogArray[3];
+    T1 = TempCalCoefficients[0] + TempCalCoefficients[1]*T1 + TempCalCoefficients[2]*pow(T1,2) + TempCalCoefficients[3]*pow(T1,3) + TempCalCoefficients[4]*pow(T1,4) + TempCalCoefficients[5]*pow(T1,5);
+    T2 = TempCalCoefficients[0] + TempCalCoefficients[1]*T2 + TempCalCoefficients[2]*pow(T2,2) + TempCalCoefficients[3]*pow(T2,3) + TempCalCoefficients[4]*pow(T2,4) + TempCalCoefficients[5]*pow(T2,5);
+    float Tension1 = GalilDataUnitD.AnalogArray[0]*4.0;
+    float Tension2 = (GalilDataUnitD.AnalogArray[1]-0.18)*4.0;
+
     mlock.lock();
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Time Stamp",&GalilDataUnit.TimeStamp,sizeof(GalilDataUnit.TimeStamp), 1 ,TID_INT); 
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Positions",&GalilDataUnit.PositionArray,sizeof(GalilDataUnit.PositionArray), 6 ,TID_INT); 
@@ -868,6 +877,10 @@ void GalilMonitor(const GCon &g){
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Limit Switches Reverse",&GalilDataUnit.LimRArray,sizeof(GalilDataUnit.LimRArray), 6 ,TID_INT);
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Status",&GalilDataUnit.StatusArray,sizeof(GalilDataUnit.StatusArray), 6 ,TID_BOOL);
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Buffer Load",&BufferLoad,sizeof(BufferLoad), 1 ,TID_INT);
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Temperature Fish",&T1,sizeof(T1), 1 ,TID_FLOAT);
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Temperature Sig",&T2,sizeof(T2), 1 ,TID_FLOAT);
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Tension Fish",&Tension1,sizeof(Tension1), 1 ,TID_FLOAT);
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Tension Sig",&Tensions2,sizeof(Tension2), 1 ,TID_FLOAT);
 
     //Add Time, Position and Velocity to TrolleyInterface subtree
     char SourceName[256];
@@ -883,7 +896,7 @@ void GalilMonitor(const GCon &g){
     if (i%5000==0){
       mlock.lock();
       char message_buffer[512];
-      sprintf(message_buffer,"{%f,%f}",GalilDataUnit.AnalogArray[2],GalilDataUnit.AnalogArray[3]);
+      sprintf(message_buffer,"{%f,%f}",T1,T2);
 
       std::unique_ptr<pqxx::work> txnp;
       try {
@@ -964,10 +977,10 @@ void GalilControl(const GCon &g){
   //Variables passed to Galil system
   int destiny = 0;
   int velocity = 100;
-  double tlow = 0.4;
-  double thigh = 0.8;
+  double tlow = 0.2;
+  double thigh = 0.5;
   double ofst1 = 0.0;
-  double ofst2 = 0.0;
+  double ofst2 = 0.18;
   int garage_velocity = 1000;
  
   //Control loop
@@ -988,26 +1001,27 @@ void GalilControl(const GCon &g){
     //For trolley commands, load galil variables first
     if (command >= 1 && command <=7){
       INT Vel;
-      INT TLow;
-      INT THigh;
-      INT TOffset1;
-      INT TOffset2;
+      float TLow;
+      float THigh;
+      float TOffset1;
+      float TOffset2;
       INT GarageVel;
       INT Size_Int = sizeof(Vel);
+      INT Size_float = sizeof(TLow);
       mlock.lock();
       db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Velocity",&Vel,&Size_Int,TID_INT,0);
-      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Range Low",&TLow,&Size_Int,TID_INT,0);
-      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Range High",&THigh,&Size_Int,TID_INT,0);
-      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Offset 1",&TOffset1,&Size_Int,TID_INT,0);
-      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Offset 2",&TOffset2,&Size_Int,TID_INT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Range Low",&TLow,&Size_float,TID_FLOAT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Range High",&THigh,&Size_float,TID_FLOAT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Offset 1",&TOffset1,&Size_float,TID_FLOAT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Offset 2",&TOffset2,&Size_float,TID_FLOAT,0);
       db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Garage Velocity",&GarageVel,&Size_Int,TID_INT,0);
       mlock.unlock();
       velocity = Vel;
       garage_velocity = GarageVel;
-      tlow = static_cast<double>(TLow)/1000.0;
-      thigh = static_cast<double>(THigh)/1000.0;
-      ofst1 = static_cast<double>(TOffset1)/1000.0;
-      ofst2 = static_cast<double>(TOffset2)/1000.0;
+      tlow = static_cast<double>(TLow)/4.0;
+      thigh = static_cast<double>(THigh)/4.0;
+      ofst1 = static_cast<double>(TOffset1);
+      ofst2 = static_cast<double>(TOffset2);
       if (!PreventManualCtrl){
 	mlock.lock();
 	sprintf(CmdBuffer,"velocity=%d",velocity);
