@@ -880,7 +880,7 @@ void GalilMonitor(const GCon &g){
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Temperature Fish",&T1,sizeof(T1), 1 ,TID_FLOAT);
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Temperature Sig",&T2,sizeof(T2), 1 ,TID_FLOAT);
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Tension Fish",&Tension1,sizeof(Tension1), 1 ,TID_FLOAT);
-    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Tension Sig",&Tensions2,sizeof(Tension2), 1 ,TID_FLOAT);
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Tension Sig",&Tension2,sizeof(Tension2), 1 ,TID_FLOAT);
 
     //Add Time, Position and Velocity to TrolleyInterface subtree
     char SourceName[256];
