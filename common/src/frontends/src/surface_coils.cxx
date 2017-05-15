@@ -133,6 +133,7 @@ namespace{
   //for zmq
   zmq::context_t context(1);
   //zmq::socket_t publisher(context, ZMQ_PUB); //for sending set point currents
+  zmq::socket_t requester2(context, ZMQ_REQ);
   zmq::socket_t requester3(context, ZMQ_REQ);
   zmq::socket_t subscriber(context, ZMQ_SUB); //subscribe to data being sent back from beaglebones
 
@@ -217,6 +218,12 @@ INT frontend_init()
  
   //bind to server                                           
   cm_msg(MINFO, "init", "Binding to server");
+  
+  requester2.setsockopt(ZMQ_LINGER, 0);
+  requester2.setsockopt(ZMQ_RCVTIMEO, 2000);
+  //requester2.bind("tcp://127.0.0.1:5550");               
+  requester2.bind("tcp://*:5549");
+
   requester3.setsockopt(ZMQ_LINGER, 0);
   requester3.setsockopt(ZMQ_RCVTIMEO, 2000);
   //requester3.bind("tcp://127.0.0.1:5550");
@@ -242,6 +249,10 @@ INT frontend_init()
 //--- Frontend Exit ---------------------------------------------------------//
 INT frontend_exit()
 {
+  requester2.unbind("tcp://*:5549");
+  requester3.unbind("tcp://*:5550");
+  subscriber.unbind("tcp://*:5551");
+
   run_in_progress = false;
 
   cm_msg(MINFO, "exit", "Surface Coils teardown complete");
@@ -352,6 +363,15 @@ INT begin_of_run(INT run_number, char *error)
   //send data to driver boards
   std::string buffer = request.dump();                                        
   
+  //message 2           
+  zmq::message_t message2 (buffer.size());
+  std::copy(buffer.begin(), buffer.end(), (char *)message2.data());
+  requester2.send(message2);
+  std::cout << "Sent the set points to crate 2" << std::endl;
+  zmq::message_t reply2;
+  if(!requester2.recv(&reply2)) cm_msg(MINFO, "begin_of_run", "Crate 2 never responded");
+  else std::cout << "set Points were received by crate 2" << std::endl;
+
   //message 3
   zmq::message_t message3 (buffer.size());                                     
   std::copy(buffer.begin(), buffer.end(), (char *)message3.data());
@@ -558,7 +578,7 @@ INT read_surface_coils(char *pevent, INT c)
 
   string s(static_cast<char*>(bbVals.data()));
   s.resize(bbVals.size());
-  //std::cout << s << std::endl;
+  std::cout << s << std::endl;
   json reply_data = json::parse(s);
   //std::cout << "NOW JSON" << std::endl;
   //std::cout << reply_data.dump() << std::endl;
