@@ -26,6 +26,8 @@ About: Implements a MIDAS frontend for the surface coils. It checks
 #include <array>
 #include <cmath>
 #include <ctime>
+#include <thread>
+#include <mutex>
 using std::string;
 
 //--- other includes --------------------------------------------------------//
@@ -130,8 +132,8 @@ namespace{
 
   //for zmq
   zmq::context_t context(1);
-  //  zmq::socket_t publisher(context, ZMQ_PUB); //for sending set point currents
-  zmq::socket_t requester(context, ZMQ_REQ);
+  //zmq::socket_t publisher(context, ZMQ_PUB); //for sending set point currents
+  zmq::socket_t requester3(context, ZMQ_REQ);
   zmq::socket_t subscriber(context, ZMQ_SUB); //subscribe to data being sent back from beaglebones
 
   TFile *pf;
@@ -148,11 +150,6 @@ namespace{
 
   Double_t bot_set_values[nCoils];
   Double_t top_set_values[nCoils];
-
-  /*Double_t bot_intercepts[nCoils];
-  Double_t top_intercepts[nCoils];
-  Double_t bot_slopes[nCoils];
-  Double_t top_slopes[nCoils];*/
 
   Double_t bot_currents[nCoils];
   Double_t top_currents[nCoils];
@@ -218,53 +215,12 @@ INT frontend_init()
     }
   }
  
-  /*  //Get the calibration values (intercepts and slopes)
-  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Calibration/Bottom Intercepts", &hkey);
- 
-   if(hkey == NULL){
-    cm_msg(MERROR, "begin_of_run", "unable to find Bottom Intercepts key");
-  }
-
-  int bot_int_size = sizeof(bot_intercepts);
-  db_get_data(hDB, hkey, &bot_intercepts, &bot_int_size, TID_DOUBLE); 
-  
-  ///
-  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Calibration/Top Intercepts", &hkey);
-
-  if(hkey == NULL){
-    cm_msg(MERROR, "begin_of_run", "unable to find Top Intercepts key");
-  }
-
-  int top_int_size = sizeof(top_intercepts);
-  db_get_data(hDB, hkey, &top_intercepts, &top_int_size, TID_DOUBLE);
-
-  ///
-  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Calibration/Bottom Slopes", &hkey);
-
-  if(hkey == NULL){
-    cm_msg(MERROR, "begin_of_run", "unable to find Bottom Slopess key");
-  }
-
-  int bot_sl_size = sizeof(bot_slopes);
-  db_get_data(hDB, hkey, &bot_slopes, &bot_sl_size, TID_DOUBLE);
-
-  ///
-  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Calibration/Top Slopes", &hkey);
-
-  if(hkey == NULL){
-    cm_msg(MERROR, "begin_of_run", "unable to find Top Slopess key");
-  }
-
-  int top_sl_size = sizeof(top_slopes);
-  db_get_data(hDB, hkey, &top_slopes, &top_sl_size, TID_DOUBLE);*/
-
   //bind to server                                           
   cm_msg(MINFO, "init", "Binding to server");
-  //publisher.bind("tcp://127.0.0.1:5550");                              
-  //publisher.setsockopt(ZMQ_LINGER, 0);
-  //publisher.bind("tcp://*:5550");
-  requester.setsockopt(ZMQ_LINGER, 0);
-  requester.bind("tcp://*:5550");
+  requester3.setsockopt(ZMQ_LINGER, 0);
+  requester3.setsockopt(ZMQ_RCVTIMEO, 2000);
+  //requester3.bind("tcp://127.0.0.1:5550");
+  requester3.bind("tcp://*:5550");
 
   //Now bind subscriber to receive data being pushed by beaglebones             
   std::cout << "Binding to subscribe socket" << std::endl;
@@ -313,7 +269,6 @@ INT begin_of_run(INT run_number, char *error)
   db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Current Health", &current_health, sizeof(current_health), 1, TID_BOOL);
   db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Temp Health", &temp_health, sizeof(temp_health), 1, TID_BOOL);
   db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", blank.c_str(), sizeof(blank.c_str()), 1, TID_STRING);
-
 
   //Get bottom set currents                                        
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Bottom Set Currents", &hkey);
@@ -365,11 +320,6 @@ INT begin_of_run(INT run_number, char *error)
     string topString = "T-"+coilNum;
     string botString = "B-"+coilNum;
 
-    //if(bot_slopes[i-1] == 0) bot_slopes[i-1] = 1;
-    //if(top_slopes[i-1] == 0) top_slopes[i-1] = 1;
-
-    //Double_t bot_val = (bot_set_values[i-1]-bot_intercepts[i-1])/bot_slopes[i-1];
-    //Double_t top_val = (top_set_values[i-1]-top_intercepts[i-1])/top_slopes[i-1];
     Double_t bot_val = bot_set_values[i-1];
     Double_t top_val = top_set_values[i-1];
     request[coil_map[botString]] = bot_val;
@@ -401,13 +351,15 @@ INT begin_of_run(INT run_number, char *error)
 
   //send data to driver boards
   std::string buffer = request.dump();                                        
-  zmq::message_t message (buffer.size());                                     
-  std::copy(buffer.begin(), buffer.end(), (char *)message.data());
-  requester.send(message);
-  std::cout << "Sent the set points" << std::endl;
-  zmq::message_t reply;
-  requester.recv (&reply);
-  std::cout << "set Points were received" << std::endl;
+  
+  //message 3
+  zmq::message_t message3 (buffer.size());                                     
+  std::copy(buffer.begin(), buffer.end(), (char *)message3.data());
+  requester3.send(message3);
+  std::cout << "Sent the set points to crate 3" << std::endl;
+  zmq::message_t reply3;
+  if(!requester3.recv(&reply3)) cm_msg(MINFO, "begin_of_run", "Crate 3 never responded");
+  else std::cout << "set Points were received by crate 3" << std::endl;
 
   cm_msg(MINFO, "begin_of_run", "Current values sent to beaglebones"); 
  
@@ -585,7 +537,7 @@ INT read_surface_coils(char *pevent, INT c)
 
   //Receive values from beaglebones
   std::vector<json> dataVector;
-  bool st = false; //status of request/reply
+  bool st = false; //status of receiving data
   zmq::message_t bbVals;
 
   while (!st) {
@@ -606,10 +558,10 @@ INT read_surface_coils(char *pevent, INT c)
 
   string s(static_cast<char*>(bbVals.data()));
   s.resize(bbVals.size());
-  std::cout << s << std::endl;
+  //std::cout << s << std::endl;
   json reply_data = json::parse(s);
-  std::cout << "NOW JSON" << std::endl;
-  std::cout << reply_data.dump() << std::endl;
+  //std::cout << "NOW JSON" << std::endl;
+  //std::cout << reply_data.dump() << std::endl;
   dataVector.push_back(reply_data);
 	
   //cm_msg(MINFO, "read_surface_coils", "Received reply from beaglebones");
