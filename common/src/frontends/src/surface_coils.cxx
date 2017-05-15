@@ -90,7 +90,7 @@ extern "C" {
       {FRONTEND_NAME,  //equipment name
        { EVENTID_SURFACE_COIL, 0,         //event ID, trigger mask
 	 "SYSTEM",     //event bugger (use to be SYSTEM)
-	 EQ_PERIODIC,  //equipment type
+	 EQ_POLLED,  //equipment type
 	 0,            //not used
 	 "MIDAS",      //format
 	 TRUE,         //enabled
@@ -109,6 +109,8 @@ extern "C" {
 } //extern C
 
 RUNINFO runinfo;
+
+void ReadCurrents(); //Function for thread
 
 std::string coil_string(string loc, int i);
 std::string coil_string(string loc, int i){
@@ -133,8 +135,15 @@ namespace{
   //for zmq
   zmq::context_t context(1);
   //zmq::socket_t publisher(context, ZMQ_PUB); //for sending set point currents
+  zmq::socket_t requester2(context, ZMQ_REQ);
   zmq::socket_t requester3(context, ZMQ_REQ);
   zmq::socket_t subscriber(context, ZMQ_SUB); //subscribe to data being sent back from beaglebones
+
+  thread read_thread;
+  mutex mlock;
+  BOOL FrontendActive;
+
+  std::vector<json> dataVector;
 
   TFile *pf;
   TTree * pt_norm;
@@ -150,6 +159,8 @@ namespace{
 
   Double_t bot_set_values[nCoils];
   Double_t top_set_values[nCoils];
+  Double_t bot_comp_values[nCoils]; //for comparison with set points
+  Double_t top_comp_values[nCoils]; //for comparison with set points
 
   Double_t bot_currents[nCoils];
   Double_t top_currents[nCoils];
@@ -215,7 +226,72 @@ INT frontend_init()
     }
   }
  
-  //bind to server                                           
+  //Get bottom set currents           
+  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Bottom Set Cu
+rrents", &hkey);                                                                 
+  if(hkey == NULL){      
+    cm_msg(MERROR, "begin_of_run", "unable to find Bottom Set Currents key"); 
+  }                 
+
+  for(int i=0;i<nCoils;i++){                                                     
+    bot_set_values[i] = 0;                                                       
+    top_set_values[i] = 0;                  
+  }
+                                                                               
+  int bot_size = sizeof(bot_set_values);           
+  
+  db_get_data(hDB, hkey, &bot_set_values, &bot_size, TID_DOUBLE); 
+
+  //Top set currents                         
+  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Top Set Currents", &hkey);                                   
+                                              
+  if(hkey == NULL){            
+    cm_msg(MERROR, "begin_of_run", "unable to find Top Set Currents key");
+  }                                      
+                                                      
+  int top_size = sizeof(top_set_values);                 
+                                                                     
+  db_get_data(hDB, hkey, &top_set_values, &top_size, TID_DOUBLE); 
+                                                              
+  //Get the allowable difference 
+  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Allowed Difference", &hkey);                                                                  
+  setPoint = 0;                                                                  
+  int setpt_size = sizeof(setPoint);                                             
+  db_get_data(hDB, hkey, &setPoint, &setpt_size, TID_DOUBLE);                   
+                                            
+  //Get the highest allowed temp       
+  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Allowed Temperature", &hkey);       
+  high_temp = 0;                                                                 
+  int temp_size = sizeof(high_temp);                                             
+  db_get_data(hDB, hkey, &high_temp, &temp_size, TID_DOUBLE);
+
+  //Now that we have the current set points, package them into json object  
+  request["000"] = setPoint;            
+  if(coil_map.size()!=200) cm_msg(MERROR, "begin_of_run", "Coil map is of wrong size");                                                                           
+  for(int i=1;i<nCoils+1;i++){                                
+
+    string coilNum;                                                             
+    if(i >= 0 && i <= 9) coilNum = "00" + std::to_string(i);        
+    if(i > 9 && i <= 99) coilNum = "0" + std::to_string(i);               
+    if(i==100) coilNum = std::to_string(i);                        
+ 
+    string topString = "T-"+coilNum;                           
+    string botString = "B-"+coilNum;                                 
+                              
+    Double_t bot_val = bot_set_values[i-1];                     
+    Double_t top_val = top_set_values[i-1];                         
+
+    request[coil_map[botString]] = bot_val;                           
+    request[coil_map[topString]] = top_val;         
+
+  }  
+
+  //bind to server 
+  requester2.setsockopt(ZMQ_LINGER, 0);
+  requester2.setsockopt(ZMQ_RCVTIMEO, 2000);
+  //requester3.bind("tcp://127.0.0.1:5550");              
+  requester2.bind("tcp://*:5550");
+                                          
   cm_msg(MINFO, "init", "Binding to server");
   requester3.setsockopt(ZMQ_LINGER, 0);
   requester3.setsockopt(ZMQ_RCVTIMEO, 2000);
@@ -232,6 +308,44 @@ INT frontend_init()
   subscriber.bind("tcp://*:5551");
   std::cout << "Bound to subscribe socket" << std::endl;
 
+  //send data to driver boards                                                   
+  std::string buffer = request.dump();                                           
+           
+  //message 3
+  zmq::message_t message2 (buffer.size());
+  std::copy(buffer.begin(), buffer.end(), (char *)message2.data());
+  requester2.send(message2);
+  std::cout << "Sent the set points to crate 2" << std::endl;
+
+  zmq::message_t reply2;
+  if(!requester2.recv(&reply2)){
+    cm_msg(MINFO, "frontend_init", "Crate 2 never responded");
+    return FE_ERR_HW;
+  }
+  else std::cout << "set Points were received by crate 2" << std::endl;
+                                                 
+  zmq::message_t message3 (buffer.size());                   
+  std::copy(buffer.begin(), buffer.end(), (char *)message3.data());      
+  requester3.send(message3);                  
+  std::cout << "Sent the set points to crate 3" << std::endl;                    
+ 
+  zmq::message_t reply3;                   
+  if(!requester3.recv(&reply3)){
+    cm_msg(MINFO, "frontend_init", "Crate 3 never responded");
+    return FE_ERR_HW;
+   }                                                  
+  else std::cout << "set Points were received by crate 3" << std::endl;      
+
+  cm_msg(MINFO, "begin_of_run", "Currents all set");
+  
+  //Set FrontendActive to True
+  mlock.lock();
+  FrontendActive = true;
+  mlock.unlock();
+
+  //Start the read thread
+  read_thread = thread(ReadCurrents);
+
   run_in_progress = false;
   
   cm_msg(MINFO, "init","Surface Coils initialization complete");
@@ -242,6 +356,20 @@ INT frontend_init()
 //--- Frontend Exit ---------------------------------------------------------//
 INT frontend_exit()
 {
+  //Set FrontendActive to False. Will stop the thread
+  mlock.lock();
+  FrontendActive = false;
+  mlock.unlock();
+
+  //Join the thread
+  read_thread.join();
+  cm_msg(MINFO,"exit","Thread joined.");
+  
+  //unbind the sockets
+  requester2.unbind("tcp://*:5550");
+  requester3.unbind("tcp://*:5550");
+  subscriber.unbind("tcp://*:5551");
+
   run_in_progress = false;
 
   cm_msg(MINFO, "exit", "Surface Coils teardown complete");
@@ -270,99 +398,6 @@ INT begin_of_run(INT run_number, char *error)
   db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Temp Health", &temp_health, sizeof(temp_health), 1, TID_BOOL);
   db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", blank.c_str(), sizeof(blank.c_str()), 1, TID_STRING);
 
-  //Get bottom set currents                                        
-  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Bottom Set Currents", &hkey);
-
-  if(hkey == NULL){
-    cm_msg(MERROR, "begin_of_run", "unable to find Bottom Set Currents key");
-  }
-
-  for(int i=0;i<nCoils;i++){
-    bot_set_values[i] = 0;
-    top_set_values[i] = 0;
-  }
-
-  int bot_size = sizeof(bot_set_values);
-
-  db_get_data(hDB, hkey, &bot_set_values, &bot_size, TID_DOUBLE);
-
-  //Top set currents        
-  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Top Set Currents", &hkey);
-
-  if(hkey == NULL){
-    cm_msg(MERROR, "begin_of_run", "unable to find Top Set Currents key");
-  }
-
-  int top_size = sizeof(top_set_values);
-
-  db_get_data(hDB, hkey, &top_set_values, &top_size, TID_DOUBLE);
-
-  //Get the allowable difference     
-  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Allowed Difference", &hkey);
-  setPoint = 0;
-  int setpt_size = sizeof(setPoint);
-  db_get_data(hDB, hkey, &setPoint, &setpt_size, TID_DOUBLE);
-
-  //Get the highest allowed temp
-  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Allowed Temperature", &hkey);
-  high_temp = 0;
-  int temp_size = sizeof(high_temp);
-  db_get_data(hDB, hkey, &high_temp, &temp_size, TID_DOUBLE);
-
-  //Now that we have the current set points, package them into json object
-  request["000"] = setPoint;
-  if(coil_map.size()!=200) cm_msg(MERROR, "begin_of_run", "Coil map is of wrong size");
-  for(int i=1;i<nCoils+1;i++){
-    string coilNum;
-    if(i >= 0 && i <= 9) coilNum = "00" + std::to_string(i);
-    if(i > 9 && i <= 99) coilNum = "0" + std::to_string(i);
-    if(i==100) coilNum = std::to_string(i);
-    string topString = "T-"+coilNum;
-    string botString = "B-"+coilNum;
-
-    Double_t bot_val = bot_set_values[i-1];
-    Double_t top_val = top_set_values[i-1];
-    request[coil_map[botString]] = bot_val;
-    request[coil_map[topString]] = top_val;
-  }
-
-
-  /*
-  //send data to driver boards             
-  for(int i=0;i<5;i++){
-    std::string buffer = request.dump();
-    zmq::message_t message (buffer.size());
-    std::copy(buffer.begin(), buffer.end(), (char *)message.data());
-  
-    bool st = false; //status of publishing
-
-    while(!st){
-     try{
-      st = publisher.send(message, ZMQ_DONTWAIT);
-      usleep(200);
-      std::cout << "Sent a message" << std::endl;	
-     } catch(zmq::error_t &err){
-	if(err.num() != EINTR) throw;	
-       }	
-    }
-    usleep(500000);
-  }//end for loop
-  */
-
-  //send data to driver boards
-  std::string buffer = request.dump();                                        
-  
-  //message 3
-  zmq::message_t message3 (buffer.size());                                     
-  std::copy(buffer.begin(), buffer.end(), (char *)message3.data());
-  requester3.send(message3);
-  std::cout << "Sent the set points to crate 3" << std::endl;
-  zmq::message_t reply3;
-  if(!requester3.recv(&reply3)) cm_msg(MINFO, "begin_of_run", "Crate 3 never responded");
-  else std::cout << "set Points were received by crate 3" << std::endl;
-
-  cm_msg(MINFO, "begin_of_run", "Current values sent to beaglebones"); 
- 
   //set up the data
   std::string datadir;
   std::string filename;
@@ -478,7 +513,7 @@ INT frontend_loop()
 //--- Trigger event routines -------------------------------------------------//
 INT poll_event(INT source, INT count, BOOL test)
 {
-  static bool triggered = false;
+  //static bool triggered = false;
 
   //fake calibration
   if(test) {
@@ -488,7 +523,11 @@ INT poll_event(INT source, INT count, BOOL test)
     return 0;
   }
   
-  return 0;
+  mlock.lock();
+  BOOL check = dataVector.size()>0;
+  mlock.unlock();
+  if(check) return1;
+  else return 0;
 }
 
 //--- Interrupt configuration ------------------------------------------------//
@@ -536,7 +575,6 @@ INT read_surface_coils(char *pevent, INT c)
   }
 
   //Receive values from beaglebones
-  std::vector<json> dataVector;
   bool st = false; //status of receiving data
   zmq::message_t bbVals;
 
@@ -558,7 +596,7 @@ INT read_surface_coils(char *pevent, INT c)
 
   string s(static_cast<char*>(bbVals.data()));
   s.resize(bbVals.size());
-  //std::cout << s << std::endl;
+  std::cout << s << std::endl;
   json reply_data = json::parse(s);
   //std::cout << "NOW JSON" << std::endl;
   //std::cout << reply_data.dump() << std::endl;
@@ -672,6 +710,8 @@ INT read_surface_coils(char *pevent, INT c)
   }
   
   //cm_msg(MINFO, "read_surface_coils", "Finished generating event");
+  
+  dataVector.clear(); //Empty the dataVector
   return bk_size(pevent);
 
 }
