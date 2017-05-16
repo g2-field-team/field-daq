@@ -328,8 +328,9 @@ INT read_fluxgate_event(char *pevent, INT off){
 	bool32 fillMode = DAQmx_Val_GroupByChannel; //no interleaving
 	uInt32 arraySizeInSamps = sampsPerChanToAcquire*numChannels;
 	int32 sampsRead;
-	DAQerr = DAQmxBaseReadAnalogF64(taskHandle,numSampsPerChan,timeout,fillMode,data,arraySizeInSamps,&sampsRead,NULL);
-	cout << "event readout DAQerr is " << DAQerr <<endl;
+	//DAQerr = DAQmxBaseReadAnalogF64(taskHandle,numSampsPerChan,timeout,fillMode,data,arraySizeInSamps,&sampsRead,NULL);
+	float64 data2[24];
+	DAQerr = DAQmxBaseReadAnalogF64(taskHandle,1,timeout,fillMode,data2,24,&sampsRead,NULL);
 	if( DAQmxFailed(DAQerr) ) {
 		DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
 		cm_msg(MERROR,"read_fluxgate_event","error reading fluxgate event");
