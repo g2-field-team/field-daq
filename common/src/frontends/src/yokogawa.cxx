@@ -24,8 +24,6 @@ $Id$
 #include <thread>
 #include <mutex>
 
-#undef RPC_SUCCESS
-#undef SUCCESS
 #include "g2field/YokogawaInterface.hh"
 #include "g2field/core/field_structs.hh"
 #include "g2field/core/field_constants.hh"
@@ -90,7 +88,7 @@ extern "C" {
 
 
     {"Yokogawa",                  /* equipment name */
-      {1, 0,                      /* event ID, trigger mask */
+      {EVENTID_YOKOGAWA, 0,       /* event ID, trigger mask */
 	"SYSTEM",                 /* event buffer */
 	EQ_PERIODIC,              /* equipment type; periodic readout */ 
 	0,                        /* interrupt source */
@@ -183,24 +181,23 @@ INT frontend_init(){
    char *ip_addr_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
    sprintf(ip_addr_path,"%s/IP address",SETTINGS_DIR); 
 
-   string ip_addr,ip_str;
-   // char ip_str[SIZE+1];
+   char ip_addr[256];
+
    int ip_addr_size = sizeof(ip_addr);
 
    int rc=0;
    if (!gSimMode) {
       // taking real data, grab the IP address  
       db_get_value(hDB,0,ip_addr_path,&ip_addr,&ip_addr_size,TID_STRING,0);
-      // ip_addr = string(ip_str);
       // connect to the yokogawa
-      rc = yokogawa_interface::open_connection( ip_addr.c_str() );  
+      rc = yokogawa_interface::open_connection( ip_addr);  
       if (rc==0) {
          cm_msg(MINFO,"init","Yokogawa is connected.");
          rc = yokogawa_interface::set_mode(yokogawa_interface::kCURRENT); 
          cm_msg(MINFO,"init","Yokogawa set to CURRENT mode.");
          rc = yokogawa_interface::set_range_max(); 
          cm_msg(MINFO,"init","Yokogawa set to maximum range.");
-         rc = yokogawa_interface::set_level(0.0); 
+         rc = yokogawa_interface::set_level(0.002); 
          cm_msg(MINFO,"init","Yokogawa current set to 0 mA.");
          rc = yokogawa_interface::set_output_state(yokogawa_interface::kENABLED); 
          cm_msg(MINFO,"init","Yokogawa output ENABLED.");
@@ -319,6 +316,7 @@ INT end_of_run(INT run_number, char *error){
    }
 
    int rc=0; 
+
  
    if (!gSimMode) { 
       // set to zero mA 
@@ -333,6 +331,8 @@ INT end_of_run(INT run_number, char *error){
 	 cm_msg(MERROR,"exit","Cannot disable Yokogawa output!");
       }
       cm_msg(MINFO,"exit","Yokogawa output DISABLED.");
+
+	   ;
    }
 
    return SUCCESS;
@@ -491,6 +491,10 @@ void read_from_device(){
       is_enabled = yokogawa_interface::get_output_state(); 
       mode       = yokogawa_interface::get_mode(); 
       lvl        = yokogawa_interface::get_level(); 
+      //For test: message out current
+      cm_msg(MINFO,"read","Yokogawa state is %d",is_enabled);
+      cm_msg(MINFO,"read","Yokogawa mode is %d",mode);
+      cm_msg(MINFO,"read","Yokogawa current reads %f mA, as a test.",lvl);
       // fill the data structure  
       yoko_data->sys_clock  = 0;
       yoko_data->gps_clock  = 0;
@@ -546,9 +550,13 @@ int update_current(){
    //        Currently just looking at difference relative to previous value, scaling by some conversion  
    double sf  = 1; 
    double lvl = (avg_field - gPrevAvgField)/sf;  
- 
+
    if (!gSimMode) { 
       // set the current  
+      //For testing
+	   lvl = 0.002;
+	   cm_msg(MINFO,"update","Yokogawa current set to 2 mA, as a test.");
+ 
       rc = yokogawa_interface::set_level(lvl);
       gPrevAvgField = avg_field;  
    } else {
