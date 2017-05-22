@@ -143,8 +143,6 @@ namespace{
   std::mutex mlock;
   BOOL FrontendActive;
 
-  std::vector<json> dataVector;
-
   TFile *pf;
   TTree * pt_norm;
 
@@ -163,12 +161,15 @@ namespace{
   Double_t bot_comp_values[nCoils]; //for comparison with set points
   Double_t top_comp_values[nCoils]; //for comparison with set points
 
-  Double_t bot_currents[nCoils];
-  Double_t top_currents[nCoils];
+  struct unpacked_data{
+    Double_t bot_currents[nCoils];
+    Double_t top_currents[nCoils];
+    Double_t bot_temps[nCoils];
+    Double_t top_temps[nCoils];
+  };
 
-  Double_t bot_temps[nCoils];
-  Double_t top_temps[nCoils];
-  
+  std::vector<unpacked_data> dataBuffer;
+
   Double_t high_temp;
 
   int current_health;
@@ -197,10 +198,13 @@ INT frontend_init()
   current_health = 1;
   temp_health = 1;
   std::string blank = "";
-  db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Current Health", &current_health, sizeof(current_health), 1, TID_BOOL);
-  db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Temp Health", &temp_health, sizeof(temp_health), 1, TID_BOOL);
-  db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", blank.c_str(), sizeof(blank.c_str()), 1, TID_STRING);
+  mlock.lock();
+  db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Current Health", &current_health, sizeof(current_health), 1, TID_BOOL);
+  db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Temp Health", &temp_health, sizeof(temp_health), 1, TID_BOOL);
+  db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", blank.c_str(), sizeof(blank.c_str()), 1, TID_STRING);
+  mlock.unlock();
 
+  mlock.lock();
   //Get the map from ODB
   for(int i=0;i<2*nCoils;i++){
     string crate_key;
@@ -235,8 +239,10 @@ INT frontend_init()
       }
     }
   }
- 
-  //Get bottom set currents           
+  mlock.unlock();
+
+  //Get bottom set currents
+  mlock.lock();
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Bottom Set Currents", &hkey);      
    
   if(hkey == NULL){      
@@ -251,7 +257,7 @@ INT frontend_init()
   int bot_size = sizeof(bot_set_values);           
   db_get_data(hDB, hkey, &bot_set_values, &bot_size, TID_DOUBLE); 
 
-  //Top set currents                         
+  //Top set currents
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Top Set Currents", &hkey);                                   
                                               
   if(hkey == NULL){            
@@ -260,20 +266,22 @@ INT frontend_init()
                                                       
   int top_size = sizeof(top_set_values);                          
   db_get_data(hDB, hkey, &top_set_values, &top_size, TID_DOUBLE); 
-                                                              
+                                               
   //Get the allowable difference 
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Allowed Difference", &hkey);                                                             
   setPoint = 0;                                                               
   int setpt_size = sizeof(setPoint);                             
   db_get_data(hDB, hkey, &setPoint, &setpt_size, TID_DOUBLE);        
-                                            
+                             
   //Get the highest allowed temp       
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Allowed Temperature", &hkey);       
   high_temp = 0;                                                   
   int temp_size = sizeof(high_temp);                     
   db_get_data(hDB, hkey, &high_temp, &temp_size, TID_DOUBLE);
+  mlock.unlock();
 
   //Now that we have the current set points, package them into json object  
+  mlock.lock();
   request["000"] = setPoint;            
   if(coil_map.size()!=200) cm_msg(MERROR, "begin_of_run", "Coil map is of wrong size");                                                                      
 
@@ -294,6 +302,7 @@ INT frontend_init()
     request[coil_map[topString]] = top_val;         
 
   }  
+  mlock.unlock();
 
   //bind to server 
   //requester2.setsockopt(ZMQ_LINGER, 0);
@@ -376,11 +385,6 @@ INT frontend_exit()
   read_thread.join();
   cm_msg(MINFO,"exit","Thread joined.");
   
-  //unbind the sockets
-  //requester2.unbind("tcp://*:5549");
-  requester3.unbind("tcp://*:5550");
-  subscriber.unbind("tcp://*:5551");
-
   run_in_progress = false;
 
   cm_msg(MINFO, "exit", "Surface Coils teardown complete");
@@ -405,14 +409,17 @@ INT begin_of_run(INT run_number, char *error)
   temp_health = 1;
   std::string blank = "";
 
-  db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Current Health", &current_health, sizeof(current_health), 1, TID_BOOL);
-  db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Temp Health", &temp_health, sizeof(temp_health), 1, TID_BOOL);
-  db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", blank.c_str(), sizeof(blank.c_str()), 1, TID_STRING);
+  mlock.lock();
+  db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Current Health", &current_health, sizeof(current_health), 1, TID_BOOL);
+  db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Temp Health", &temp_health, sizeof(temp_health), 1, TID_BOOL);
+  db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", blank.c_str(), sizeof(blank.c_str()), 1, TID_STRING);
+  mlock.unlock();
 
   //set up the data
   std::string datadir;
   std::string filename;
 
+  mlock.lock();
   // Get the run info out of the ODB.          
   db_find_key(hDB, 0, "/Runinfo", &hkey);
   if (db_open_record(hDB, hkey, &runinfo, sizeof(runinfo), MODE_READ, NULL, NULL) != DB_SUCCESS) {
@@ -429,6 +436,7 @@ INT begin_of_run(INT run_number, char *error)
     db_get_data(hDB, hkey, str, &size, TID_STRING);
     datadir = std::string(str);
     }
+  mlock.unlock();
 
   // Set the filename       
   snprintf(str, sizeof(str), "Root/surface_coil_run_%05d.root", runinfo.run_number);
@@ -437,6 +445,7 @@ INT begin_of_run(INT run_number, char *error)
   filename = (filesystem::path(datadir) / filesystem::path(str)).string();
 
   // Get the parameter for root output.  
+  mlock.lock();
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Root Output", &hkey);
 
   if (hkey) {
@@ -460,15 +469,17 @@ INT begin_of_run(INT run_number, char *error)
 
     pt_norm->Branch(br_name.c_str(), &data.bot_sys_clock[0], g2field::sc_str);
   }
+  mlock.unlock();
 
-
+  mlock.lock();
   event_number = 0;
   run_in_progress = true;
-
+  mlock.unlock();
+  
   cm_msg(MLOG, "begin of run", "Completed successfully");
 
   std::cout << "Finished begin of run routine" << std::endl;
-
+ 
   return SUCCESS;
 }
 
@@ -477,16 +488,19 @@ INT end_of_run(INT run_number, char *error)
 {
   // Make sure we write the ROOT data.       
   if (run_in_progress && write_root) {
-
+    mlock.lock();
     pt_norm->Write();
 
     pf->Write();
     pf->Close();
-
+   
     delete pf;
+    mlock.unlock();
   }
 
+  mlock.lock();
   run_in_progress = false;
+  mlock.unlock();
 
   std::cout << "Finished end of run routine" << std::endl;
   cm_msg(MLOG, "end_of_run","Completed successfully");
@@ -535,7 +549,7 @@ INT poll_event(INT source, INT count, BOOL test)
   }
   
   mlock.lock();
-  BOOL check = dataVector.size()>1;
+  BOOL check = dataBuffer.size()>1;
   mlock.unlock();
   if(check) return 1;
   else return 0;
@@ -578,13 +592,14 @@ INT read_surface_coils(char *pevent, INT c)
   bk_create(pevent, bk_name, TID_DOUBLE, (void **)&pdata);
 
   //Get data ready for midas banks
+  mlock.lock();
   for(int idx = 0; idx < nCoils; ++idx){
     data.bot_sys_clock[idx] = hw::systime_us();
     data.top_sys_clock[idx] = hw::systime_us();
-    data.bot_coil_currents[idx] = bot_currents[idx]; 
-    data.top_coil_currents[idx] = top_currents[idx];
-    data.bot_coil_temps[idx] = bot_temps[idx];
-    data.top_coil_temps[idx] = top_temps[idx];
+    data.bot_coil_currents[idx] = dataBuffer[0].bot_currents[idx]; 
+    data.top_coil_currents[idx] = dataBuffer[0].top_currents[idx];
+    data.bot_coil_temps[idx] = dataBuffer[0].bot_temps[idx];
+    data.top_coil_temps[idx] = dataBuffer[0].top_temps[idx];
    }
 
   //write root output
@@ -608,7 +623,13 @@ INT read_surface_coils(char *pevent, INT c)
 
   bk_close(pevent, pdata);
 
+  mlock.unlock();
+
   event_number++;
+
+  mlock.lock();
+  dataBuffer.erase(dataBuffer.begin());
+  mlock.unlock();
 
   return bk_size(pevent);
 }
@@ -624,7 +645,6 @@ void ReadCurrents(){
   cm_get_experiment_database(&hDB, NULL);
 
   while(1){
-    std::cout << "In the loop" << std::endl;
 
   BOOL localFrontendActive;
   mlock.lock();
@@ -632,6 +652,7 @@ void ReadCurrents(){
   mlock.unlock();
   if(!localFrontendActive) break;
 
+  mlock.lock();
   //Get the current odb values
   //Get bottom set currents
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Bottom Set Currents", &hkey);
@@ -660,6 +681,7 @@ void ReadCurrents(){
   compSetPoint = 0;               
   int compsetpt_size = sizeof(compSetPoint);
   db_get_data(hDB, hkey, &compSetPoint, &compsetpt_size, TID_DOUBLE);
+  mlock.unlock();
 
   //Compare these values to the previous set points. If any 1 current is different, update the actual set point arrays and send the values to the beaglebones
   for(int i=0;i<nCoils;i++){
@@ -695,6 +717,7 @@ void ReadCurrents(){
 
       zmq::message_t message3 (buffer.size());
       std::copy(buffer.begin(), buffer.end(), (char *)message3.data());
+      mlock.lock();
       requester3.send(message3);
       std::cout << "Sent the set points to crate 3" << std::endl;
 
@@ -704,23 +727,28 @@ void ReadCurrents(){
 	return FE_ERR_HW;
       }
       else std::cout << "set Points were received by crate 3" << std::endl;
+      mlock.unlock();
 
       break;
     }
   }
 
+  //make an instance of the struct
+  unpacked_data dataUnit;
+
   //reset arrays to hold data sent from beaglebones                
   for(int i=0;i<nCoils;i++){
-    bot_currents[i] = 0.0;
-    top_currents[i] = 0.0;
-    bot_temps[i] = 0.0;
-    top_temps[i] = 0.0;
+    dataUnit.bot_currents[i] = 0.0;
+    dataUnit.top_currents[i] = 0.0;
+    dataUnit.bot_temps[i] = 0.0;
+    dataUnit.top_temps[i] = 0.0;
   }
   
   //Receive values from beaglebones             
   bool st = false; //status of receiving data             
   zmq::message_t bbVals;
-
+  
+  mlock.lock();
   while (!st) {
     try {
       if (!subscriber.recv(&bbVals)) {
@@ -736,20 +764,18 @@ void ReadCurrents(){
       std::cout << "interrupted by midas, or something else" << std::endl;
     }
   }
+  mlock.unlock();
 
   string s(static_cast<char*>(bbVals.data()));
   s.resize(bbVals.size());
-  std::cout << s << std::endl;
+  //std::cout << s << std::endl;
   json reply_data = json::parse(s);
   //std::cout << "NOW JSON" << std::endl;        
   //std::cout << reply_data.dump() << std::endl;              
-  dataVector.push_back(reply_data);
-
+  
   //Process the data in the vector. Loops through all json objects.   
   //In the end, only most recent data is stored in array           
-  for (auto &reply_data : dataVector) {
-
-    for(json::iterator it = reply_data.begin(); it != reply_data.end(); ++it){
+  for(json::iterator it = reply_data.begin(); it != reply_data.end(); ++it){
       //loop through all entries in json object     
       //First need to turn hw_id into sc_id        
       //Get element index (get ###-1 from A-### where A = T or B)   
@@ -759,65 +785,74 @@ void ReadCurrents(){
       string tb = coil_id.substr(0,1); //Top or bottom?             
 
       if(tb == "B"){
-        bot_currents[coil_index] = it.value()[0];
-        bot_temps[coil_index] = it.value()[1];
+        dataUnit.bot_currents[coil_index] = it.value()[0];
+        dataUnit.bot_temps[coil_index] = it.value()[1];
       }
       else if(tb == "T"){
-        top_currents[coil_index] = it.value()[0];
-        top_temps[coil_index] = it.value()[1];
+        dataUnit.top_currents[coil_index] = it.value()[0];
+        dataUnit.top_temps[coil_index] = it.value()[1];
       }
       else std::cout << "PROBLEM! Neither a T nor a B!" << std::endl;
-    }
   }
+  
+  dataBuffer.push_back(dataUnit);
 
+  mlock.lock();
   //Update values in odb   
-  std::cout << "Updating values in ODB" << std::endl;
-  db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Currents/Bottom Currents", &bot_currents, sizeof(bot_currents), 100, TID_DOUBLE);
-  db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Currents/Top Currents", &top_currents, sizeof(top_currents), 100, TID_DOUBLE);
-  db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Temperatures/Bottom Temps", &bot_temps, sizeof(bot_temps), 100, TID_DOUBLE);
-  db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Temperatures/Top Temps", &top_temps, sizeof(top_temps), 100, TID_DOUBLE);
-  std::cout << "ODB values updated" << std::endl;
-
+  db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Currents/Bottom Currents", &dataUnit.bot_currents, sizeof(dataUnit.bot_currents), 100, TID_DOUBLE);
+  db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Currents/Top Currents", &dataUnit.top_currents, sizeof(dataUnit.top_currents), 100, TID_DOUBLE);
+  db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Temperatures/Bottom Temps", &dataUnit.bot_temps, sizeof(dataUnit.bot_temps), 100, TID_DOUBLE);
+  db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Temperatures/Top Temps", &dataUnit.top_temps, sizeof(dataUnit.top_temps), 100, TID_DOUBLE);
+  mlock.unlock();
+  
   //Check values vs. set points/allowed difference and temperature   
   //Will set alarm if something is bad               
   for(int i=0;i<nCoils;i++){
     //bottom currents            
-    if(std::abs(bot_currents[i]-bot_set_values[i]) >= setPoint){
+    if(std::abs(dataUnit.bot_currents[i]-bot_set_values[i]) >= setPoint){
+      mlock.lock();
       current_health = 0;
       string bad_curr_string = coil_string("bot", i);
       db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Current Health", &current_health, sizeof(current_health), 1, TID_BOOL);
       db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", bad_curr_string.c_str(), sizeof(bad_curr_string.c_str()), 1, TID_STRING);
       cm_msg(MINFO, "read_surface_coils", "Bottom current out of spec");
+      mlock.unlock();
     }
 
     //top currents                
-    if(std::abs(top_currents[i]-top_set_values[i]) >= setPoint){
+    if(std::abs(dataUnit.top_currents[i]-top_set_values[i]) >= setPoint){
+      mlock.lock();
       current_health = 0;
       string bad_curr_string = coil_string("top", i);
       db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Current Health", &current_health, sizeof(current_health), 1, TID_BOOL);
       db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", bad_curr_string.c_str(), sizeof(bad_curr_string.c_str()), 1, TID_STRING);
       cm_msg(MINFO, "read_surface_coils", "Top current out of spec");
+      mlock.unlock();
     }
 
     //bottom temps       
-    if(bot_temps[i] > high_temp){
+    if(dataUnit.bot_temps[i] > high_temp){
+      mlock.lock();
       temp_health = 0;
       string bad_temp_string = coil_string("bot", i);
       db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Temp Health", &temp_health, sizeof(temp_health), 1, TID_BOOL);
       db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", bad_temp_string.c_str(), sizeof(bad_temp_string.c_str()), 1, TID_STRING);
       cm_msg(MINFO, "read_surface_coils", "A bottom temp is too high!");
+      mlock.unlock();
     }
 
     //top temps  
-    if(top_temps[i] > high_temp){
+    if(dataUnit.top_temps[i] > high_temp){
+      mlock.lock();
       temp_health = 0;
       string bad_temp_string = coil_string("top", i);
       db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Temp Health", &temp_health, sizeof(temp_health), 1, TID_BOOL);
       db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", bad_temp_string.c_str(), sizeof(bad_temp_string.c_str()), 1, TID_STRING);
       cm_msg(MINFO, "read_surface_coils", "A top temp is too high!");
+      mlock.unlock();
     }
   }
 
-  dataVector.clear(); //Empty the dataVector
+
   }//end while(1) loop
 }
