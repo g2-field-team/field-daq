@@ -38,7 +38,8 @@ int FixedProbeSequencer::Init()
   // Change the logfile if there is one in the config.
   boost::property_tree::ptree conf;
   boost::property_tree::read_json(conf_file_, conf);
-  SetLogfile(conf.get<std::string>("logfile", logfile_));
+  SetLogfile(conf.get<std::string>("output.logfile", logfile_));
+  SetVerbosity(conf.get<int>("output.verbosity", logging_verbosity_));
 }
 
 int FixedProbeSequencer::BeginOfRun()
@@ -108,8 +109,6 @@ int FixedProbeSequencer::BeginOfRun()
    				      NMR_FID_LENGTH_ONLINE));
   }
 
-  //  workers_[0]->SetVerbosity(4);
-
   // Set up the NMR pulser triggers
   dio_triggers_.resize(0);
 
@@ -122,22 +121,22 @@ int FixedProbeSequencer::BeginOfRun()
     switch (bid) {
       case 'a':
 	LogDebug("setting NMR pulser trigger on dio board A, port %i", port);
-	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_A, port));
+	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_A, port, false));
 	break;
 	
       case 'b':
 	LogDebug("setting NMR pulser trigger on dio board B, port %i", port);
-	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_B, port));
+	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_B, port, false));
 	break;
       
       case 'c':
 	LogDebug("setting NMR pulser trigger on dio board C, port %i", port);
-	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_C, port));
+	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_C, port, false));
 	break;
 
       default:
 	LogDebug("setting NMR pulser trigger on dio board D, port %i", port);
-	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_D, port));
+	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_D, port, false));
 	break;
     }
 
@@ -298,7 +297,7 @@ void FixedProbeSequencer::RunLoop()
 {
   while (thread_live_) {
 
-    while (false & go_time_) {
+    while (go_time_ && !generate_software_triggers_) {
 
       if (workers_.AnyWorkersHaveEvent()) {
 
@@ -316,7 +315,7 @@ void FixedProbeSequencer::RunLoop()
 	while (!workers_.AllWorkersHaveEvent() &&
 	       (count++ * 500 < max_event_time_)) {
 	  usleep(500);
-	  LogDebug("RunLoop: sleep check");
+	  LogDump("RunLoop: sleep check");
 	}
 	
 	LogDebug("RunLoop: slept max");
@@ -369,7 +368,7 @@ void FixedProbeSequencer::TriggerLoop()
 	builder_has_finished_ = false;
 	mux_round_configured_ = false;
 
-	LogMessage("received trigger, sequencing multiplexers");
+	LogMessage("TriggerLoop: received trigger, sequencing multiplexers");
 
 	for (auto &round : trg_seq_) { // {mux_conf_0...mux_conf_n}
 	  if (!go_time_) break;
@@ -420,6 +419,7 @@ void FixedProbeSequencer::TriggerLoop()
 
 	    hw::event_data_t bundle;
 	    workers_.GetEventData(bundle);
+	    hw::wait_ns(hw::short_sleep * 2);
 	    
 	    queue_mutex_.lock();
 	    if (data_queue_.size() <= kMaxQueueSize) {
@@ -433,12 +433,23 @@ void FixedProbeSequencer::TriggerLoop()
 	  } else {
 	    
 	    LogDebug("Generated DIO triggers");
+	    int trg_count = 0;
+
 	    for (auto &trg : dio_triggers_) {
-	      trg->FireTriggers();
+
+	      int rc = trg->FireTriggers();
+	      LogMessage("Trigger %i fired", trg_count);
+
+	      while (rc > 0) {
+		LogError("Trigger %i failed with rc = %i", trg_count, rc);
+		rc = trg->FireTriggers();
+		LogMessage("Trigger %i re-fired", trg_count);
+	      }
+	      ++trg_count;
 	    }
 	  }
 	  
-	  LogDebug("TriggerLoop: muxes configure, triggers fired");
+	  LogDebug("TriggerLoop: muxes configured, triggers fired");
 	  mux_round_configured_ = true;
 	  
 	  while (!got_round_data_ && go_time_) {
@@ -491,7 +502,7 @@ void FixedProbeSequencer::BuilderLoop()
       int seq_index = 0;
 
       if (sequence_in_progress_) {
-        LogMessage("assembling a new event");
+        LogMessage("BuilderLoop: beginning a new event");
       }
 
       while (sequence_in_progress_ && go_time_) {
