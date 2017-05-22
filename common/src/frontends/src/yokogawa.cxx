@@ -24,8 +24,6 @@ $Id$
 #include <thread>
 #include <mutex>
 
-#undef RPC_SUCCESS
-#undef SUCCESS
 #include "g2field/YokogawaInterface.hh"
 #include "g2field/core/field_structs.hh"
 #include "g2field/core/field_constants.hh"
@@ -90,7 +88,7 @@ extern "C" {
 
 
     {"Yokogawa",                  /* equipment name */
-      {1, 0,                      /* event ID, trigger mask */
+      {EVENTID_YOKOGAWA, 0,       /* event ID, trigger mask */
 	"SYSTEM",                 /* event buffer */
 	EQ_PERIODIC,              /* equipment type; periodic readout */ 
 	0,                        /* interrupt source */
@@ -138,7 +136,7 @@ int update_current();                           // update the current on the Yok
 
 const char * const yoko_bank_name = "YOKO";     // 4 letters, try to make sensible
 const char * const SETTINGS_DIR   = "/Equipment/Yokogawa/Settings";
-const char * const MONITOR_DIR    = "/Equipment/Yokogawa/Monitor";
+const char * const MONITORS_DIR    = "/Equipment/Yokogawa/Monitors";
 
 /********************************************************************\
   Callback routines for system transitions
@@ -183,24 +181,23 @@ INT frontend_init(){
    char *ip_addr_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
    sprintf(ip_addr_path,"%s/IP address",SETTINGS_DIR); 
 
-   string ip_addr,ip_str;
-   // char ip_str[SIZE+1];
+   char ip_addr[256];
+
    int ip_addr_size = sizeof(ip_addr);
 
    int rc=0;
    if (!gSimMode) {
       // taking real data, grab the IP address  
       db_get_value(hDB,0,ip_addr_path,&ip_addr,&ip_addr_size,TID_STRING,0);
-      // ip_addr = string(ip_str);
       // connect to the yokogawa
-      rc = yokogawa_interface::open_connection( ip_addr.c_str() );  
+      rc = yokogawa_interface::open_connection( ip_addr);  
       if (rc==0) {
          cm_msg(MINFO,"init","Yokogawa is connected.");
          rc = yokogawa_interface::set_mode(yokogawa_interface::kCURRENT); 
          cm_msg(MINFO,"init","Yokogawa set to CURRENT mode.");
          rc = yokogawa_interface::set_range_max(); 
          cm_msg(MINFO,"init","Yokogawa set to maximum range.");
-         rc = yokogawa_interface::set_level(0.0); 
+         rc = yokogawa_interface::set_level(0.002); 
          cm_msg(MINFO,"init","Yokogawa current set to 0 mA.");
          rc = yokogawa_interface::set_output_state(yokogawa_interface::kENABLED); 
          cm_msg(MINFO,"init","Yokogawa output ENABLED.");
@@ -319,6 +316,7 @@ INT end_of_run(INT run_number, char *error){
    }
 
    int rc=0; 
+
  
    if (!gSimMode) { 
       // set to zero mA 
@@ -333,6 +331,8 @@ INT end_of_run(INT run_number, char *error){
 	 cm_msg(MERROR,"exit","Cannot disable Yokogawa output!");
       }
       cm_msg(MINFO,"exit","Yokogawa output DISABLED.");
+
+	   ;
    }
 
    return SUCCESS;
@@ -394,23 +394,21 @@ INT interrupt_configure(INT cmd, INT source, POINTER_T adr){
 //______________________________________________________________________________
 INT read_yoko_event(char *pevent,INT off){
 
-   cm_msg(MINFO,"read_yoko_event","Trying to read an event...");
-   cm_msg(MINFO,"read_yoko_event","Updating the current...");
+//   cm_msg(MINFO,"read_yoko_event","Trying to read an event...");
+//   cm_msg(MINFO,"read_yoko_event","Updating the current...");
    // first update the current based on the ODB value for the average field  
    int rc = update_current();
-   if (rc==0) { 
-      cm_msg(MINFO,"read_yoko_event","Done.");
-   } else { 
-      cm_msg(MINFO,"read_yoko_event","Cannot update the current!");
+   if (rc!=0) { 
+      cm_msg(MERROR,"read_yoko_event","Cannot update the current!");
    }
 
-   cm_msg(MINFO,"read_yoko_event","Reading data from device...");
+   //cm_msg(MINFO,"read_yoko_event","Reading data from device...");
    // read the current  
    read_from_device(); 
-   cm_msg(MINFO,"read_yoko_event","Done.");
+   //cm_msg(MINFO,"read_yoko_event","Done.");
 
    // now write everything to MIDAS banks 
-   cm_msg(MINFO,"read_yoko_event","Writing to MIDAS bank");
+   //cm_msg(MINFO,"read_yoko_event","Writing to MIDAS bank");
 
    static unsigned int num_events = 0; 
    DWORD *pYokoData; 
@@ -458,7 +456,7 @@ INT read_yoko_event(char *pevent,INT off){
 
    const int SIZE = 200; 
    char *buf_load_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
-   sprintf(buf_load_path,"%s/Buffer Load",MONITOR_DIR); 
+   sprintf(buf_load_path,"%s/Buffer Load",MONITORS_DIR); 
 
    //update buffer load in ODB
    db_set_value(hDB,0,buf_load_path,&BufferLoad,BufferLoad_size,1,TID_INT); 
@@ -475,7 +473,7 @@ void read_from_device(){
 
    const int SIZE = 200; 
    char *read_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
-   sprintf(read_path,"%s/Read Thread Active",MONITOR_DIR); 
+   sprintf(read_path,"%s/Read Thread Active",MONITORS_DIR); 
 
    int ReadThreadActive = 1;
    mlock.lock();
@@ -516,6 +514,13 @@ void read_from_device(){
    mlock_data.lock(); 
    YokoBuffer.push_back(*yoko_data); 
    mlock_data.unlock(); 
+
+   // Update odb
+   char current_read_path[512];
+   sprintf(current_read_path,"%s/Current Value",MONITORS_DIR);
+   double current_val = lvl;
+   db_set_value(hDB,0,current_read_path,&current_val,sizeof(current_val),1,TID_DOUBLE);
+
    // clean up for next read 
    delete yoko_data;
 
@@ -537,16 +542,34 @@ int update_current(){
 
    const int SIZE = 100; 
    char *freq_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
-   sprintf(freq_path,"%s/Average Field",MONITOR_DIR);
+   sprintf(freq_path,"%s/Average Field",MONITORS_DIR);
 
    db_get_value(hDB,0,freq_path,&avg_field,&SIZE_DOUBLE,TID_DOUBLE, 0);
    free(freq_path);
  
+   char current_set_path[512];
+   sprintf(current_set_path,"%s/Current Setpoint",SETTINGS_DIR);
+   double current_set;
+   db_get_value(hDB,0,current_set_path,&current_set,&SIZE_DOUBLE,TID_DOUBLE, 0);
+
+   char switch_path[512];
+   sprintf(switch_path,"%s/Feedback Active",SETTINGS_DIR);
+   BOOL FeedbackOn = FALSE;
+   int SIZE_BOOL = sizeof(FeedbackOn);
+   db_get_value(hDB,0,switch_path,&FeedbackOn,&SIZE_BOOL,TID_BOOL, 0);
+
    // FIXME: Add code to compute proper current level
    //        Currently just looking at difference relative to previous value, scaling by some conversion  
    double sf  = 1; 
-   double lvl = (avg_field - gPrevAvgField)/sf;  
- 
+   double lvl = 0;
+
+   if (FeedbackOn){
+     sf  = 1; 
+     lvl = (avg_field - gPrevAvgField)/sf;  
+   }else{
+     lvl = current_set;
+   }
+
    if (!gSimMode) { 
       // set the current  
       rc = yokogawa_interface::set_level(lvl);

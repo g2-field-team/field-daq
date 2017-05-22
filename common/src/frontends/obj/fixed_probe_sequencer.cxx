@@ -108,7 +108,7 @@ int FixedProbeSequencer::BeginOfRun()
    				      NMR_FID_LENGTH_ONLINE));
   }
 
-  workers_[0]->SetVerbosity(4);
+  //  workers_[0]->SetVerbosity(4);
 
   // Set up the NMR pulser triggers
   dio_triggers_.resize(0);
@@ -418,6 +418,18 @@ void FixedProbeSequencer::TriggerLoop()
 	  
 	    while (!workers_.AllWorkersHaveEvent()) usleep(500);
 
+	    hw::event_data_t bundle;
+	    workers_.GetEventData(bundle);
+	    
+	    queue_mutex_.lock();
+	    if (data_queue_.size() <= kMaxQueueSize) {
+	      data_queue_.push(bundle);
+	      
+	      LogDebug("RunLoop: Got data. Data queue now: %i",
+		       data_queue_.size());
+	    }
+	    queue_mutex_.unlock();
+	    
 	  } else {
 	    
 	    LogDebug("Generated DIO triggers");
@@ -426,18 +438,6 @@ void FixedProbeSequencer::TriggerLoop()
 	    }
 	  }
 	  
-	  hw::event_data_t bundle;
-	  workers_.GetEventData(bundle);
-
-	  queue_mutex_.lock();
-	  if (data_queue_.size() <= kMaxQueueSize) {
-	    data_queue_.push(bundle);
-	    
-	    LogDebug("RunLoop: Got data. Data queue now: %i",
-		     data_queue_.size());
-	  }
-	  queue_mutex_.unlock();
-
 	  LogDebug("TriggerLoop: muxes configure, triggers fired");
 	  mux_round_configured_ = true;
 	  
@@ -582,7 +582,11 @@ void FixedProbeSequencer::BuilderLoop()
                   fid::FastFid myfid(wf, tm);
 
                   // Make sure we got an FID signal
-                  if (myfid.isgood()) {
+                  if (myfid.isgood() && std::isfinite(myfid.CalcFreq())) {
+		    
+		    if (idx == 0) {
+		      std::cout << "probe000: freq = " << myfid.freq() << std::endl;
+		    }
 
                     bundle.fid_amp[idx] = myfid.amp();
                     bundle.fid_snr[idx] = myfid.snr();
@@ -596,7 +600,7 @@ void FixedProbeSequencer::BuilderLoop()
 
                   } else {
 
-                    myfid.DiagnosticInfo();
+                    // myfid.DiagnosticInfo();
                     bundle.fid_snr[idx] = 0.0;
                     bundle.fid_len[idx] = 0.0;
                     bundle.freq[idx] = 0.0;
