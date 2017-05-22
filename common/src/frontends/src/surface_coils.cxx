@@ -133,8 +133,12 @@ namespace{
   //for zmq
   zmq::context_t context(1);
   //zmq::socket_t publisher(context, ZMQ_PUB); //for sending set point currents
+  zmq::socket_t requester1(context, ZMQ_REQ);
   zmq::socket_t requester2(context, ZMQ_REQ);
   zmq::socket_t requester3(context, ZMQ_REQ);
+  zmq::socket_t requester4(context, ZMQ_REQ);
+  zmq::socket_t requester5(context, ZMQ_REQ);
+  zmq::socket_t requester6(context, ZMQ_REQ);
   zmq::socket_t subscriber(context, ZMQ_SUB); //subscribe to data being sent back from beaglebones
 
   TFile *pf;
