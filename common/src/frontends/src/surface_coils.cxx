@@ -133,8 +133,12 @@ namespace{
   //for zmq
   zmq::context_t context(1);
   //zmq::socket_t publisher(context, ZMQ_PUB); //for sending set point currents
+  zmq::socket_t requester1(context, ZMQ_REQ);
   zmq::socket_t requester2(context, ZMQ_REQ);
   zmq::socket_t requester3(context, ZMQ_REQ);
+  zmq::socket_t requester4(context, ZMQ_REQ);
+  zmq::socket_t requester5(context, ZMQ_REQ);
+  zmq::socket_t requester6(context, ZMQ_REQ);
   zmq::socket_t subscriber(context, ZMQ_SUB); //subscribe to data being sent back from beaglebones
 
   TFile *pf;
@@ -175,7 +179,9 @@ INT frontend_init()
   if(rc != SUCCESS){
     return rc;
   }
-  
+ 
+  std::cout << "frontend init" << std::endl;
+ 
   //Get the channel mapping
   HNDLE hDB, hkey;
 
@@ -216,6 +222,8 @@ INT frontend_init()
     }
   }
  
+  std::cout << "Binding to sockets" << std::endl;
+
   //bind to server                                           
   cm_msg(MINFO, "init", "Binding to server");
   
@@ -262,12 +270,12 @@ INT frontend_init()
 //--- Frontend Exit ---------------------------------------------------------//
 INT frontend_exit()
 {
-  requester1.unbind("tcp://*:5551");
-  requester2.unbind("tcp://*:5552");
+  /*  requester1.unbind("tcp://*:5551");
+      requester2.unbind("tcp://*:5552");*/
   requester3.unbind("tcp://*:5553");
-  requester4.unbind("tcp://*:5554");
+  /* requester4.unbind("tcp://*:5554");
   requester5.unbind("tcp://*:5555");
-  requester6.unbind("tcp://*:5556");
+  requester6.unbind("tcp://*:5556");*/
   subscriber.unbind("tcp://*:5550");
 
   run_in_progress = false;
@@ -296,8 +304,9 @@ INT begin_of_run(INT run_number, char *error)
 
   db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Current Health", &current_health, sizeof(current_health), 1, TID_BOOL);
   db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Temp Health", &temp_health, sizeof(temp_health), 1, TID_BOOL);
-  db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", blank.c_str(), sizeof(blank.c_str()), 1, TID_STRING);
-
+  db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Current Channel", blank.c_str(), sizeof(blank.c_str()), 1, TID_STRING);
+  db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Temp Channel", blank.c_str(), sizeof(blank.c_str()), 1, TID_STRING);
+  
   //Get bottom set currents                                        
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Bottom Set Currents", &hkey);
 
@@ -354,7 +363,6 @@ INT begin_of_run(INT run_number, char *error)
     request[coil_map[topString]] = top_val;
   }
 
-
   /*
   //send data to driver boards             
   for(int i=0;i<5;i++){
@@ -381,14 +389,14 @@ INT begin_of_run(INT run_number, char *error)
   std::string buffer = request.dump();                                        
   
   //message 2           
-  zmq::message_t message2 (buffer.size());
+  /* zmq::message_t message2 (buffer.size());
   std::copy(buffer.begin(), buffer.end(), (char *)message2.data());
   requester2.send(message2);
   std::cout << "Sent the set points to crate 2" << std::endl;
   zmq::message_t reply2;
   if(!requester2.recv(&reply2)) cm_msg(MINFO, "begin_of_run", "Crate 2 never responded");
   else std::cout << "set Points were received by crate 2" << std::endl;
-
+  */
   //message 3
   zmq::message_t message3 (buffer.size());                                     
   std::copy(buffer.begin(), buffer.end(), (char *)message3.data());
@@ -670,40 +678,58 @@ INT read_surface_coils(char *pevent, INT c)
   db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Temperatures/Top Temps", &top_temps, sizeof(top_temps), 100, TID_DOUBLE);
 
   //Check values vs. set points/allowed difference and temperature
+  string bad_curr_string = "";
+  string bad_temp_string = "";
   for(int i=0;i<nCoils;i++){
     //bottom currents
     if(std::abs(bot_currents[i]-bot_set_values[i]) >= setPoint){
+      char str[256];
       current_health = 0;
-      string bad_curr_string = coil_string("bot", i);
-      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Current Health", &current_health, sizeof(current_health), 1, TID_BOOL);
-      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", bad_curr_string.c_str(), sizeof(bad_curr_string.c_str()), 1, TID_STRING);
+
+      if(bad_curr_string == ""){ bad_curr_string = coil_string("bot", i);}
+      else {bad_curr_string = bad_curr_string + ", " + coil_string("bot", i);}
+      snprintf(str, 256, "%s", bad_curr_string.c_str());
+
+      db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Current Health", &current_health, sizeof(current_health), 1, TID_BOOL);
+      db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Problem Current Channel", str, sizeof(str), 1, TID_STRING);
       cm_msg(MINFO, "read_surface_coils", "Bottom current out of spec");
     }
     
     //top currents                                                          
     if(std::abs(top_currents[i]-top_set_values[i]) >= setPoint){
+      char str[256];
       current_health = 0;
-      string bad_curr_string = coil_string("top", i);
-      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Current Health", &current_health, sizeof(current_health), 1, TID_BOOL);
-      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", bad_curr_string.c_str(), sizeof(bad_curr_string.c_str()), 1, TID_STRING);
+
+      if(bad_curr_string == ""){ bad_curr_string = coil_string("top", i);}
+      else {bad_curr_string = bad_curr_string + ", " + coil_string("top", i);}
+      snprintf(str, 256, "%s", bad_curr_string.c_str());
+
+      db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Current Health", &current_health, sizeof(current_health), 1, TID_BOOL);
+      db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Problem Current Channel", str, sizeof(str), 1, TID_STRING);
       cm_msg(MINFO, "read_surface_coils", "Top current out of spec");
     }
 
     //bottom temps                                                           
     if(bot_temps[i] > high_temp){
+      char str[256];
       temp_health = 0;
-      string bad_temp_string = coil_string("bot", i);
-      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Temp Health", &temp_health, sizeof(temp_health), 1, TID_BOOL);
-      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", bad_temp_string.c_str(), sizeof(bad_temp_string.c_str()), 1, TID_STRING);
+      if(bad_temp_string == ""){ bad_temp_string = coil_string("bot", i);}
+      else {bad_temp_string = bad_temp_string + ", " + coil_string("bot", i);}
+      snprintf(str, 256, "%s", bad_temp_string.c_str());
+      db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Temp Health", &temp_health, sizeof(temp_health), 1, TID_BOOL);
+      db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Problem Temp Channel", str, sizeof(str), 1, TID_STRING);
       cm_msg(MINFO, "read_surface_coils", "A bottom temp is too high!");
     }
 
     //top temps    
     if(top_temps[i] > high_temp){
+      char str[256];
       temp_health = 0;
-      string bad_temp_string = coil_string("top", i);
-      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Temp Health", &temp_health, sizeof(temp_health), 1, TID_BOOL);
-      db_set_value(hDB, hkey, "/Equipment/Surface Coils/Settings/Monitoring/Problem Channel", bad_temp_string.c_str(), sizeof(bad_temp_string.c_str()), 1, TID_STRING);
+      if(bad_temp_string == ""){ bad_temp_string = coil_string("top", i);}
+      else {bad_temp_string = bad_temp_string + ", " + coil_string("top", i);}
+      snprintf(str, 256, "%s", bad_temp_string.c_str());
+      db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Temp Health", &temp_health, sizeof(temp_health), 1, TID_BOOL);
+      db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Problem Temp Channel", str, sizeof(str), 1, TID_STRING);
       cm_msg(MINFO, "read_surface_coils", "A top temp is too high!");
     }
   }
