@@ -219,24 +219,37 @@ INT frontend_init()
   //bind to server                                           
   cm_msg(MINFO, "init", "Binding to server");
   
+  /* requester1.setsockopt(ZMQ_LINGER, 0);
+  requester1.setsockopt(ZMQ_RCVTIMEO, 2000);
+  requester1.bind("tcp://*:5551");
+
   requester2.setsockopt(ZMQ_LINGER, 0);
   requester2.setsockopt(ZMQ_RCVTIMEO, 2000);
-  //requester2.bind("tcp://127.0.0.1:5550");               
-  requester2.bind("tcp://*:5549");
+  requester2.bind("tcp://*:5552");*/
 
   requester3.setsockopt(ZMQ_LINGER, 0);
   requester3.setsockopt(ZMQ_RCVTIMEO, 2000);
-  //requester3.bind("tcp://127.0.0.1:5550");
-  requester3.bind("tcp://*:5550");
+  requester3.bind("tcp://*:5553");
+
+  /*requester4.setsockopt(ZMQ_LINGER, 0);
+  requester4.setsockopt(ZMQ_RCVTIMEO, 2000);
+  requester4.bind("tcp://*:5554");
+
+  requester5.setsockopt(ZMQ_LINGER, 0);
+  requester5.setsockopt(ZMQ_RCVTIMEO, 2000);
+  requester5.bind("tcp://*:5555");
+
+  requester6.setsockopt(ZMQ_LINGER, 0);
+  requester6.setsockopt(ZMQ_RCVTIMEO, 2000);
+  requester6.bind("tcp://*:5556");*/
 
   //Now bind subscriber to receive data being pushed by beaglebones             
   std::cout << "Binding to subscribe socket" << std::endl;
-  //subscriber.bind("tcp://127.0.0.1:5551");                                    
   //Subscribe to all incoming data                                             
   subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
   subscriber.setsockopt(ZMQ_LINGER, 0);
   subscriber.setsockopt(ZMQ_RCVTIMEO, 5000);
-  subscriber.bind("tcp://*:5551");
+  subscriber.bind("tcp://*:5550");
   std::cout << "Bound to subscribe socket" << std::endl;
 
   run_in_progress = false;
@@ -249,9 +262,13 @@ INT frontend_init()
 //--- Frontend Exit ---------------------------------------------------------//
 INT frontend_exit()
 {
-  requester2.unbind("tcp://*:5549");
-  requester3.unbind("tcp://*:5550");
-  subscriber.unbind("tcp://*:5551");
+  requester1.unbind("tcp://*:5551");
+  requester2.unbind("tcp://*:5552");
+  requester3.unbind("tcp://*:5553");
+  requester4.unbind("tcp://*:5554");
+  requester5.unbind("tcp://*:5555");
+  requester6.unbind("tcp://*:5556");
+  subscriber.unbind("tcp://*:5550");
 
   run_in_progress = false;
 
