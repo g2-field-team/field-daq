@@ -136,7 +136,7 @@ int update_current();                           // update the current on the Yok
 
 const char * const yoko_bank_name = "YOKO";     // 4 letters, try to make sensible
 const char * const SETTINGS_DIR   = "/Equipment/Yokogawa/Settings";
-const char * const MONITORS_DIR    = "/Equipment/Yokogawa/Monitors";
+const char * const MONITORS_DIR   = "/Equipment/Yokogawa/Monitors";
 
 /********************************************************************\
   Callback routines for system transitions
@@ -554,19 +554,19 @@ int update_current(){
 
    char switch_path[512];
    sprintf(switch_path,"%s/Feedback Active",SETTINGS_DIR);
-   BOOL FeedbackOn = FALSE;
-   int SIZE_BOOL = sizeof(FeedbackOn);
-   db_get_value(hDB,0,switch_path,&FeedbackOn,&SIZE_BOOL,TID_BOOL, 0);
+   BOOL IsFeedbackOn = FALSE;
+   int SIZE_BOOL = sizeof(IsFeedbackOn);
+   db_get_value(hDB,0,switch_path,&IsFeedbackOn,&SIZE_BOOL,TID_BOOL, 0);
 
    // FIXME: Add code to compute proper current level
    //        Currently just looking at difference relative to previous value, scaling by some conversion  
    double sf  = 1; 
    double lvl = 0;
 
-   if (FeedbackOn){
+   if (IsFeedbackOn) {
      sf  = 1; 
      lvl = (avg_field - gPrevAvgField)/sf;  
-   }else{
+   } else {
      lvl = current_set;
    }
 
