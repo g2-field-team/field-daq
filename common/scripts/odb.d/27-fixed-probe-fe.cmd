@@ -81,4 +81,7 @@ set root_file "fixed_probe_run_%05i.root"
 create STRING logfile
 set logfile "/var/log/g2field/fixed-probes.log"
 
+create STRING logging_verbosity
+set logging_verbosity "/var/log/g2field/fixed-probes.log"
+
 
