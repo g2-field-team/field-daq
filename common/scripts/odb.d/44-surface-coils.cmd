@@ -1,3 +1,4 @@
+mkdir "/Equipment/Surface Coils/Settings"
 cd "/Equipment/Surface Coils/Settings"
 create BOOL "Root Output"
 set "Root Output" false
@@ -23,7 +24,8 @@ create BOOL "Current Health"
 set "Current Health" true
 create BOOL "Temp Health"
 set "Temp Health" true
-create STRING "Problem Channel"
+create STRING "Problem Current Channel"
+create STRING "Problem Temp Channel"
 
 cd
 mkdir "/Equipment/Surface Coils/Settings/Monitoring/Currents"
