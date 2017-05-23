@@ -31,7 +31,7 @@ $Id$
 #include "TTree.h"
 #include "TFile.h"
 
-#define FRONTEND_NAME "Yokogawa" // Prefer capitalize with spaces
+#define FRONTEND_NAME "PS Feedback" // Prefer capitalize with spaces
 
 using namespace std;
 
@@ -87,7 +87,7 @@ extern "C" {
   EQUIPMENT equipment[] = {
 
 
-    {"Yokogawa",                  /* equipment name */
+    {FRONTEND_NAME,               /* equipment name */
       {EVENTID_YOKOGAWA, 0,       /* event ID, trigger mask */
 	"SYSTEM",                 /* event buffer */
 	EQ_PERIODIC,              /* equipment type; periodic readout */ 
@@ -123,18 +123,44 @@ BOOL RunActive;
 BOOL write_root = false;
 TFile *pf;
 TTree *pt_norm;
-// my data structures 
+// my data structures and variables  
 g2field::yokogawa_t YokoCurrent;            // current value of yokogawa data 
 vector<g2field::yokogawa_t> YokoBuffer;     // vector of yokogawa data 
 BOOL gSimMode = false;
-double gPrevAvgField = 0;  
+// hardware limits 
+double gLowerLimit = -200E-3; 
+double gUpperLimit =  200E-3; 
+// P, I, D coefficients 
+double gP_coeff=0;
+double gI_coeff=0;
+double gD_coeff=0;
+// P, I, D terms 
+double gP_term=0;
+double gI_term=0;
+double gD_term=0;
+// other terms we need to keep track of 
+double gSetpoint=0;
+double gLastErr=0;
+double gIntErr=0;
+double gWindupGuard=20.;  
+double gSampleTime=10E-3; // 10 ms  
+double gScaleFactor=1.0;  // in Amps/Hz 
+// time variables 
+unsigned long gCurrentTime=0;
+unsigned long gLastTime=0; 
 
 // my functions 
-void read_from_device();                        // pull data from the Yokogawa  
+void read_from_device();                               // pull data from the Yokogawa 
+void update_p_term(double err,double dt,double derr);  // update P term 
+void update_i_term(double err,double dt,double derr);  // update I term 
+void update_d_term(double err,double dt,double derr);  // update D term 
 
-int update_current();                           // update the current on the Yokogawa 
+double get_new_current(double meas_value);             // get new current based on PID  
 
-const char * const yoko_bank_name = "YOKO";     // 4 letters, try to make sensible
+int update_current();                                  // update the current on the Yokogawa 
+unsigned long get_utc_time();                          // UTC time in milliseconds 
+
+const char * const yoko_bank_name = "PSFB";     // 4 letters, try to make sensible
 const char * const SETTINGS_DIR   = "/Equipment/Yokogawa/Settings";
 const char * const MONITORS_DIR   = "/Equipment/Yokogawa/Monitors";
 
@@ -190,14 +216,14 @@ INT frontend_init(){
       // taking real data, grab the IP address  
       db_get_value(hDB,0,ip_addr_path,&ip_addr,&ip_addr_size,TID_STRING,0);
       // connect to the yokogawa
-      rc = yokogawa_interface::open_connection( ip_addr);  
+      rc = yokogawa_interface::open_connection(ip_addr);  
       if (rc==0) {
          cm_msg(MINFO,"init","Yokogawa is connected.");
          rc = yokogawa_interface::set_mode(yokogawa_interface::kCURRENT); 
          cm_msg(MINFO,"init","Yokogawa set to CURRENT mode.");
          rc = yokogawa_interface::set_range_max(); 
          cm_msg(MINFO,"init","Yokogawa set to maximum range.");
-         rc = yokogawa_interface::set_level(0.002); 
+         rc = yokogawa_interface::set_level(0.000); 
          cm_msg(MINFO,"init","Yokogawa current set to 0 mA.");
          rc = yokogawa_interface::set_output_state(yokogawa_interface::kENABLED); 
          cm_msg(MINFO,"init","Yokogawa output ENABLED.");
@@ -490,8 +516,8 @@ void read_from_device(){
       mode       = yokogawa_interface::get_mode(); 
       lvl        = yokogawa_interface::get_level(); 
       // fill the data structure  
-      yoko_data->sys_clock  = 0;
-      yoko_data->gps_clock  = 0;
+      yoko_data->sys_clock  = gCurrentTime;  // not sure of the difference here... 
+      yoko_data->gps_clock  = gCurrentTime;  // not sure of the difference here... 
       yoko_data->mode       = mode;  
       yoko_data->is_enabled = is_enabled;  
       if (mode==yokogawa_interface::kVOLTAGE) {
@@ -503,22 +529,22 @@ void read_from_device(){
       }
    } else { 
       // this is a simulation, fill with random numbers
-      yoko_data->sys_clock  = 0;
-      yoko_data->gps_clock  = 0;
+      yoko_data->sys_clock  = gCurrentTime;
+      yoko_data->gps_clock  = gCurrentTime;
       yoko_data->current    = (double)(rand() % 100);   // random number between 0 and 100 
       yoko_data->voltage    = 0.; 
       yoko_data->mode       = -1;  
-      yoko_data->is_enabled = -1;  
+      yoko_data->is_enabled = 0;  
    } 
    // fill buffer 
    mlock_data.lock(); 
    YokoBuffer.push_back(*yoko_data); 
    mlock_data.unlock(); 
 
-   // Update odb
+   // Update ODB
    char current_read_path[512];
-   sprintf(current_read_path,"%s/Current Value",MONITORS_DIR);
-   double current_val = lvl;
+   sprintf(current_read_path,"%s/Current Value (mA)",MONITORS_DIR);
+   double current_val = lvl/1E-3;
    db_set_value(hDB,0,current_read_path,&current_val,sizeof(current_val),1,TID_DOUBLE);
 
    // clean up for next read 
@@ -548,9 +574,10 @@ int update_current(){
    free(freq_path);
  
    char current_set_path[512];
-   sprintf(current_set_path,"%s/Current Setpoint",SETTINGS_DIR);
+   sprintf(current_set_path,"%s/Current Setpoint (mA)",SETTINGS_DIR);
    double current_set;
    db_get_value(hDB,0,current_set_path,&current_set,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   current_set *= 1E-3; // convert to amps! 
 
    char switch_path[512];
    sprintf(switch_path,"%s/Feedback Active",SETTINGS_DIR);
@@ -558,25 +585,102 @@ int update_current(){
    int SIZE_BOOL = sizeof(IsFeedbackOn);
    db_get_value(hDB,0,switch_path,&IsFeedbackOn,&SIZE_BOOL,TID_BOOL, 0);
 
-   // FIXME: Add code to compute proper current level
-   //        Currently just looking at difference relative to previous value, scaling by some conversion  
-   double sf  = 1; 
-   double lvl = 0;
+   char pc_path[512];
+   sprintf(pc_path,"%s/P Coefficient",SETTINGS_DIR);
+   double P_coeff = 0;
+   db_get_value(hDB,0,pc_path,&P_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
+
+   char ic_path[512];
+   sprintf(ic_path,"%s/I Coefficient",SETTINGS_DIR);
+   double I_coeff = 0;
+   db_get_value(hDB,0,ic_path,&I_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
+
+   char dc_path[512];
+   sprintf(dc_path,"%s/D Coefficient",SETTINGS_DIR);
+   double D_coeff = 0;
+   db_get_value(hDB,0,dc_path,&D_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
+
+   char sf_path[512];
+   sprintf(sf_path,"%s/Scale Factor (Amps/Hz)",SETTINGS_DIR);
+   double sf = 0;
+   db_get_value(hDB,0,sf_path,&sf,&SIZE_DOUBLE,TID_DOUBLE, 0);
+
+   // FIXME: 1. get the right time
+   //        2. pass the correct current into the PID loop (based on fixed probe data)     
+   double lvl   = 0;
+   gCurrentTime = get_utc_time();
+
+   gP_coeff     = P_coeff; 
+   gI_coeff     = I_coeff; 
+   gD_coeff     = D_coeff; 
+   gSetpoint    = current_set;
+   gScaleFactor = sf; 
 
    if (IsFeedbackOn) {
-     sf  = 1; 
-     lvl = (avg_field - gPrevAvgField)/sf;  
+     lvl = yokogawa_interface::get_level(); 
+     lvl = get_new_current(lvl);   
    } else {
-     lvl = current_set;
+     lvl = gSetpoint;
    }
 
    if (!gSimMode) { 
-      // set the current  
+      // operational mode, check the level first  
+      if (lvl>gLowerLimit && lvl<gUpperLimit) {  
+        // the value looks good, do nothing 
+      } else {
+        if (lvl<0) lvl = 0.8*gLowerLimit; 
+        if (lvl>0) lvl = 0.8*gUpperLimit; 
+      } 
+      // checks are finished, set the current 
       rc = yokogawa_interface::set_level(lvl);
-      gPrevAvgField = avg_field;  
    } else {
       // simulation, do nothing  
    }
    return rc;  
 }
+//_____________________________________________________________________________
+double get_new_current(double meas_value){ 
+   double err  = gSetpoint - meas_value;
+   double dt   = (double)(gCurrentTime - gLastTime);
+   double derr = err - gLastErr;
+   update_p_term(err,dt,derr);
+   update_i_term(err,dt,derr);
+   update_d_term(err,dt,derr);
+   double output = gScaleFactor*( gP_term + gI_coeff*gI_term + gD_coeff*gD_term );
+   // remember values for next calculation 
+   gLastTime     = gCurrentTime;
+   gLastErr      = err;
+   return output;
+}
+//______________________________________________________________________________
+void update_p_term(double err,double dtime,double derror){
+   if (dtime >= gSampleTime) {
+      gP_term = gP_coeff*err;
+   }
+}
+//______________________________________________________________________________
+void update_i_term(double err,double dtime,double derror){
+   if (dtime >= gSampleTime) {
+      gI_term += err*dtime;
+      if (gI_term< (-1.)*gWindupGuard) {
+         gI_term = (-1.)*gWindupGuard;
+      } else if (gI_term>gWindupGuard) {
+         gI_term = gWindupGuard;
+      }
+   }
+}
+//______________________________________________________________________________
+void update_d_term(double err,double dtime,double derror){
+   gD_term = 0.;
+   if (dtime >= gSampleTime) {
+      if (dtime>0) gD_term = derror/dtime;
+   }
+}
+//______________________________________________________________________________
+unsigned long get_utc_time(){
+   struct timeb now; 
+   int rc = ftime(&now); 
+   unsigned long utc = now.time + now.millitm;
+   return utc; 
+} 
 
