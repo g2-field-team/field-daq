@@ -19,15 +19,24 @@ About:  Addresses NI PCIe daq card, reads multiple channels of data, performs si
 using std::string;
 using namespace std;
 
+//---Run parameters that I don't want editable through the ODB --------------//
+// acquisition parameters
+#define AQ_RATE 2000 // acquisition rate in samples per second per channel
+#define AQ_TIME 10 // acquisiton time in seconds
+#define AQ_TIMEMS 10000 // acquisition time in msec
+#define AQ_SAMPSPERCHAN 120000 // number of samples to aquire per channel, equals AQ_RATE x AQ_TIME
+#define AQ_TOTALCHAN 24 // total channels, including AC and DC channels
+#define AQ_TOTALSAMPS 2880000 // total number of samples, equals AQ_SAMPSPERCHAN x AQ_TOTALCHAN
+// filter parameters
+#define FILT_ROLLOFF 1000 // digital lowpass rolloff in Hz
+#define FILT_BINSIZE 1 // bin size for binning and averaging routine, note rate/binsize should be >= 2x filter rolloff
+
 //--- globals ---------------------------------------------------------------//
 
 #define FRONTEND_NAME "Fluxgate" // Prefer capitalize with spaces
 const char * const bank_name = "FLUX"; // 4 letters, try to make sensible
 
-// Any structs need to be defined. NEED TO ALTER FOR FLUXGATE
-//
-//
-//
+// Any structs need to be defined.
 
 extern "C" {
 	// The frontend name (client name) as seen by other MIDAS clients
@@ -69,7 +78,7 @@ extern "C" {
         "MIDAS",       // format 
         TRUE,          // enabled 
         RO_RUNNING,    // read only when running 
-        60000,           // read every 60 seconds 
+        10000,           // read every 10 seconds 
         0,             // stop run after this event limit 
         0,             // number of sub events 
         1,             // don't log history 
@@ -85,10 +94,6 @@ extern "C" {
 } //end extern "C"
 
 // Put necessary globals in an anonymous namespace here.
-// NEED TO LEARN MORE ABOUT THESE
-//
-//ODB
-//
 namespace {
 	boost::property_tree::ptree conf;
 	boost::property_tree::ptree global_conf;
@@ -111,11 +116,10 @@ namespace {
 	int32 numChannels = 24; //these should go into ODB
 	//--- Channel Parameters ----------------------------------------------------//
 	//--- Timing Parameters -----------------------------------------------------//
-	float64 rate = 2000; //8000 samples per second
-	float64 aqTime = 60; //time to acquire in seconds
-	uInt64 sampsPerChanToAcquire = static_cast<uInt64>(rate*aqTime);
-	size_t dataSize = static_cast<size_t>(sampsPerChanToAcquire*numChannels);
-	float64 data[2880000]; //vector for writing DAQ buffer into, fixing runtime allocation for testing
+	float64 rate = AQ_RATE;
+	float64 aqTime = AQ_TIME;
+	uInt64 sampsPerChanToAcquire = AQ_SAMPSPERCHAN;
+	float64 data[AQ_TOTALSAMPS]; //vector for writing DAQ buffer into, fixing runtime allocation for testing
 	//--- DC Coupled Channels ---------------------------------------------------//
 	const char *physicalChannelDC = "Dev1/ai0:11"; //creates DC AI channels 0-15
 	float64 minVolDC = -10.0;
@@ -124,7 +128,11 @@ namespace {
 	const char *physicalChannelAC = "Dev1/ai12:23"; //creates AC AI channels 16-31
 	float64 minVolAC = -1.0;
 	float64 maxVolAC = 1.0;
-	//
+	//--- Readout Parameters ---------------------------------------//
+	uInt32 arraySizeInSamps = sampsPerChanToAcquire*numChannels;
+	int32 sampsRead = 0;
+	//--- ODB Parameters --------------------------------------------//
+	HNDLE hDB, hkey;
 	//
 	//
 } //end anonymous namespace
@@ -202,7 +210,7 @@ INT begin_of_run(INT run_number, char *err){
 	  
 	//setup channel and timing parameters
 	//create DC channels
-	DAQerr = DAQmxBaseCreateAIVoltageChan(taskHandle,physicalChannelDC,"Voltage",DAQmx_Val_Cfg_Default,minVolDC,maxVolDC,DAQmx_Val_Volts,NULL);
+	DAQerr = DAQmxBaseCreateAIVoltageChan(taskHandle,physicalChannelDC,"Voltage",DAQmx_Val_Cfg_Default,-10,10,DAQmx_Val_Volts,NULL);
 	if( DAQmxFailed(DAQerr) ) {
 		DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
 		cm_msg(MERROR,"begin_of_run","error creating fluxgate DC channels");
@@ -224,7 +232,7 @@ INT begin_of_run(INT run_number, char *err){
 	}
 	
 	//setup timing
-	DAQerr = DAQmxBaseCfgSampClkTiming(taskHandle,"",rate,DAQmx_Val_Rising,DAQmx_Val_ContSamps,sampsPerChanToAcquire);
+	DAQerr = DAQmxBaseCfgSampClkTiming(taskHandle,"",rate,DAQmx_Val_Rising,DAQmx_Val_FiniteSamps,sampsPerChanToAcquire);
 	if( DAQmxFailed(DAQerr) ) {
 		DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
 		cm_msg(MERROR,"begin_of_run","error configuring fluxgate sample clock");
@@ -322,15 +330,8 @@ INT read_fluxgate_event(char *pevent, INT off){
 
 
 	//setup nidaq acquisition
-
-	int32 numSampsPerChan = -1; //reads all available samples
-	float64 timeout = 0; //tries to read samples once, otherwise returns a timeout error
-	bool32 fillMode = DAQmx_Val_GroupByChannel; //no interleaving
-	uInt32 arraySizeInSamps = sampsPerChanToAcquire*numChannels;
-	int32 sampsRead;
 	//DAQerr = DAQmxBaseReadAnalogF64(taskHandle,numSampsPerChan,timeout,fillMode,data,arraySizeInSamps,&sampsRead,NULL);
-	float64 data2[24];
-	DAQerr = DAQmxBaseReadAnalogF64(taskHandle,1,timeout,fillMode,data2,24,&sampsRead,NULL);
+	DAQerr = DAQmxBaseReadAnalogF64(taskHandle,AQ_SAMPSPERCHAN,AQ_TIME + 5,DAQmx_Val_GroupByChannel,data,AQ_TOTALSAMPS,&sampsRead,NULL);
 	if( DAQmxFailed(DAQerr) ) {
 		DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
 		cm_msg(MERROR,"read_fluxgate_event","error reading fluxgate event");
@@ -338,8 +339,23 @@ INT read_fluxgate_event(char *pevent, INT off){
 	} else {
 		cm_msg(MINFO,"read_fluxgate_event","fluxgate DAQ event read");
 	}
+	//restart DAQ task
+	DAQerr = DAQmxBaseStopTask(taskHandle);
+	if( DAQmxFailed(DAQerr) ) {
+		DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
 
-	cm_msg(MINFO,"read_fluxgate_event","boop");
+		cm_msg(MERROR,"read_fluxgate_event","error restarting (stop) fluxgate task");
+		cm_msg(MERROR,"read_fluxgate_event",errBuff);
+	}
+	DAQerr = DAQmxBaseStartTask(taskHandle);
+	if( DAQmxFailed(DAQerr) ) {
+		DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
+
+		cm_msg(MERROR,"read_fluxgate_event","error restarting (start) fluxgate task");
+		cm_msg(MERROR,"read_fluxgate_event",errBuff);
+	}
+
+
 	// And MIDAS output.
 /*
 	bk_init32(pevent);
