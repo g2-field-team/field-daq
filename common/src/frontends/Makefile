@@ -62,14 +62,14 @@ bin/%: src/%.cxx $(MID_LIB)/mfe.o $(OBJECTS)
 #-------------------------------------------------------------------
 #Hear belongs to Ran Hong
 RHLIBS += -L$(MID_LIB) -Lcore/lib -L/usr/lib64/mysql -L/usr/local/lib 
-RHLIBS += -L/usr/lib -L$(BOOST_LIB)
+RHLIBS += -L/usr/lib -L$(BOOST_LIB) -L$(PQXX_LIB)
 RHLIBS += -lmidas-shared  -lmysqlclient -lsqlite3
-RHLIBS += -lboost_system -lboost_filesystem
+RHLIBS += -lboost_system -lboost_filesystem -lpqxx
 RHLIBS += -lm -lz -lpthread -lodbc -lrt
 RHLIBS += -lgclib -lgclibo -ltrolleyinterface -lsg382interface
 RHCPPFLAGS = -fpermissive -O2
 RHCPPFLAGS += -I$(MID_INC) -Icore/include -Iinclude -I/usr/include
-RHCPPFLAGS += -I$(BOOST_INC) -I$(shell echo $(ZMQ_INCLUDE_DIR))
+RHCPPFLAGS += -I$(BOOST_INC) -I$(shell echo $(ZMQ_INCLUDE_DIR)) -I$(PQXX_INC)
 RHCPPFLAGS += -I/usr/local/include/ -I/usr/local/include/g2field
 RHCPPFLAGS += -Wl,-rpath,/usr/local/lib
 
