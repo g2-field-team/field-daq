@@ -520,6 +520,9 @@ void read_from_device(){
       yoko_data->gps_clock  = gCurrentTime;  // not sure of the difference here... 
       yoko_data->mode       = mode;  
       yoko_data->is_enabled = is_enabled;  
+      yoko_data->p_fdbk     = gP_coeff; 
+      yoko_data->i_fdbk     = gI_coeff; 
+      yoko_data->d_fdbk     = gD_coeff; 
       if (mode==yokogawa_interface::kVOLTAGE) {
 	 yoko_data->current = 0.; 
 	 yoko_data->voltage = lvl; 
@@ -532,7 +535,10 @@ void read_from_device(){
       yoko_data->sys_clock  = gCurrentTime;
       yoko_data->gps_clock  = gCurrentTime;
       yoko_data->current    = (double)(rand() % 100);   // random number between 0 and 100 
-      yoko_data->voltage    = 0.; 
+      yoko_data->voltage    = 0.;
+      yoko_data->p_fdbk     = gP_coeff; 
+      yoko_data->i_fdbk     = gI_coeff; 
+      yoko_data->d_fdbk     = gD_coeff; 
       yoko_data->mode       = -1;  
       yoko_data->is_enabled = 0;  
    } 
