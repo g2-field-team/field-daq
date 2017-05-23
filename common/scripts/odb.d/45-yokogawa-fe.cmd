@@ -1,7 +1,7 @@
-mkdir "/Equipment/Yokogawa/Settings"
-mkdir "/Equipment/Yokogawa/Monitors"
+mkdir "/Equipment/PS Feedback/Settings"
+mkdir "/Equipment/PS Feedback/Monitors"
 
-cd "/Equipment/Yokogawa/Settings"
+cd "/Equipment/PS Feedback/Settings"
 
 create STRING "IP address[1][256]"
 set "IP address" "192.168.5.160"
@@ -28,7 +28,7 @@ set "D Coefficient" 0.000
 create DOUBLE "Scale Factor (Amps/Hz)"
 set "Scale Factor (Amps/Hz)" 1.000
 
-cd "/Equipment/Yokogawa/Monitors"
+cd "/Equipment/PS Feedback/Monitors"
 
 create INT "Buffer Load"
 set "Buffer Load" 0
