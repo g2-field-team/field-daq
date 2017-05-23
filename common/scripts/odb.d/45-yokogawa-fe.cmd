@@ -25,8 +25,8 @@ create DOUBLE "I Coefficient"
 set "I Coefficient" 0.000
 create DOUBLE "D Coefficient"
 set "D Coefficient" 0.000
-create DOUBLE "Scale Factor (Amps/Hz)"
-set "Scale Factor (Amps/Hz)" 1.000
+create DOUBLE "Scale Factor (Amps_per_Hz)"
+set "Scale Factor (Amps_per_Hz)" 1.000
 
 cd "/Equipment/PS Feedback/Monitors"
 
