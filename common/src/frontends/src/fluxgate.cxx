@@ -10,6 +10,7 @@ About:  Addresses NI PCIe daq card, reads multiple channels of data, performs si
 #include <stdlib.h>
 #include <string>
 #include <sys/time.h>
+#include <ctime>
 #include "midas.h"
 #include <NIDAQmxBase.h> //NI drivers for daq card
 #include "frontend_utils.hh"
@@ -292,8 +293,7 @@ INT interrupt_configure(INT cmd, INT source, PTYPE adr){
 
 //--- Event readout -------------------------------------------------*/
 INT read_fluxgate_event(char *pevent, INT off){
-	BYTE *pdata;
-	WORD *pfluxdata;
+	DWORD *pdata;
 	// Let MIDAS allocate the struct.
 	//setup nidaq acquisition
 	//DAQerr = DAQmxBaseReadAnalogF64(taskHandle,numSampsPerChan,timeout,fillMode,data,arraySizeInSamps,&sampsRead,NULL);
@@ -330,20 +330,23 @@ INT read_fluxgate_event(char *pevent, INT off){
 	}
 */
 
-	// And MIDAS output.
-/*
+	// MIDAS output.
 	bk_init32(pevent);
-	bk_create(pevent, bank_name, TID_BYTE, (void**)&pdata);
+	bk_create(pevent, bank_name, TID_DOUBLE, (void**)&pdata);
+	// fill fluxgate data structure
+	time(&data.sys_time);
+	time(&data.gps_time); //CHANGE THIS TO GPS TIME
+	for(int ifg = 0; ifg < 8; ++ifg){ //fluxgate positions, needs to be read from odb
+		data.fg_r[ifg] = 0;
+		data.fg_theta[ifg] = 0;
+		data.fg_z[ifg] = 0;}
+	memcpy(data.data,readOut, sizeof(readOut));
 	// Copy the fluxgate data.
-	// THIS IS VERY SIMPLE AND ONLY STORES THE READ DATA. NEEDS TO FILL DATA STRUCT INSTEAD
-	//
-	//memcpy(pfluxdata, &data, sizeof(data));
-	//
-	//
-	pdata += sizeof(data) / sizeof(WORD);
+	memcpy(pdata, &data, sizeof(data));
+	pdata += sizeof(data) / sizeof(DWORD);
 	bk_close(pevent, pdata);
-*/ 
-	return 0;//bk_size(pevent);
+ 
+	return bk_size(pevent);
 
 }
 

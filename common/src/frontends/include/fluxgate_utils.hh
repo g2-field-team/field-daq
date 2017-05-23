@@ -37,8 +37,8 @@ about:  Contains parameters, structures, and helper functions for fluxgate front
 namespace g2field {
 //fluxgate struct
 	struct fluxgate_t{
-		Double_t sys_clock;
-		Double_t gps_clock;
+		time_t sys_time;
+		time_t gps_time;
 		Float_t fg_r[8];
 		Float_t fg_theta[8];
 		Float_t fg_z[8];
