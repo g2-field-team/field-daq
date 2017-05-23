@@ -725,6 +725,7 @@ void update_feedback_params()
   BOOL flag;
   double freq[nprobes] = {0};
   double ferr[nprobes] = {0};
+  double health_thresh = 10.0;
   double uniform_mean_freq = 0.0;
   double weighted_mean_freq = 0.0;
 
@@ -777,6 +778,8 @@ void update_feedback_params()
   db_set_value(hDB, 0, str, &use_zc, sizeof(use_zc), 1, TID_BOOL);
   
   double w_sum = 0.0;
+  double u_sum = 0.0;
+
   for (int i = 0; i < nprobes; ++i) {
     
     if (use_zc) {
@@ -789,10 +792,13 @@ void update_feedback_params()
       ferr[i] = data.ferr[i];
     }
 
-    uniform_mean_freq += freq[i];
-    weighted_mean_freq += freq[i] / (ferr[i] + 0.001);
+    if (data.health[i] > health_thresh) {
+      uniform_mean_freq += freq[i];
+      weighted_mean_freq += freq[i] / (ferr[i] + 0.001);
 
-    w_sum += 1.0 / (ferr[i] + 0.001);
+      u_sum += 1.0;
+      w_sum += 1.0 / (ferr[i] + 0.001);
+    }
   }
 
   uniform_mean_freq /= nprobes;
