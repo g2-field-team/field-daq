@@ -124,8 +124,8 @@ BOOL write_root = false;
 TFile *pf;
 TTree *pt_norm;
 // my data structures and variables  
-g2field::yokogawa_t YokoCurrent;            // current value of yokogawa data 
-vector<g2field::yokogawa_t> YokoBuffer;     // vector of yokogawa data 
+g2field::psfeedback_t PSFBCurrent;            // current value of yokogawa data 
+vector<g2field::psfeedback_t> PSFBBuffer;     // vector of yokogawa data 
 BOOL gSimMode = false;
 // hardware limits 
 double gLowerLimit = -200E-3; 
@@ -160,7 +160,7 @@ double get_new_current(double meas_value);             // get new current based 
 int update_current();                                  // update the current on the Yokogawa 
 unsigned long get_utc_time();                          // UTC time in milliseconds 
 
-const char * const yoko_bank_name = "PSFB";     // 4 letters, try to make sensible
+const char * const psfb_bank_name = "PSFB";     // 4 letters, try to make sensible
 const char * const SETTINGS_DIR   = "/Equipment/Yokogawa/Settings";
 const char * const MONITORS_DIR   = "/Equipment/Yokogawa/Monitors";
 
@@ -275,46 +275,42 @@ INT begin_of_run(INT run_number, char *error){
    cm_get_experiment_database(&hDB, NULL);
    db_get_value(hDB,0,"/Runinfo/Run number",&RunNumber,&RunNumber_size,TID_INT, 0);
 
+   //Get Root output switch
    const int SIZE = 200; 
    char *root_sw = (char *)malloc( sizeof(char)*(SIZE+1) ); 
    sprintf(root_sw,"%s/Root Output",SETTINGS_DIR); 
-
-   //Get Root output switch
    int write_root_size = sizeof(write_root);
    db_get_value(hDB,0,root_sw,&write_root,&write_root_size,TID_BOOL, 0);
-
    free(root_sw); 
 
    char *root_outpath = (char *)malloc( sizeof(char)*(SIZE+1) ); 
-   sprintf(root_outpath,"%s/Root dir",SETTINGS_DIR); 
-
+   sprintf(root_outpath,"%s/Root Dir",SETTINGS_DIR); 
    //Get Data dir
    string DataDir;
    char str[500];
    int str_size = sizeof(str);
    db_get_value(hDB,0,root_outpath,&str,&str_size,TID_STRING, 0);
    DataDir = string(str);
-
    free(root_outpath); 
 
    //Root File Name
-   sprintf(str,"Root/Yokogawa_%05d.root",RunNumber);
+   sprintf(str,"ps-feedback_%05d.root",RunNumber);
    string RootFileName = DataDir + string(str);
 
    if(write_root){
       cm_msg(MINFO,"begin_of_run","Writing to root file %s",RootFileName.c_str());
       pf      = new TFile(RootFileName.c_str(), "recreate");
-      pt_norm = new TTree("t_yoko", "Yokogawa Data");
+      pt_norm = new TTree("t_psfb", "PSFeedbackData");
       pt_norm->SetAutoSave(5);
       pt_norm->SetAutoFlush(20);
 
-      string yoko_br_name("YOKO");
-      pt_norm->Branch(yoko_bank_name, &YokoCurrent, g2field::yokogawa_str);
+      // string psfb_br_name("PSFB");
+      pt_norm->Branch(psfb_bank_name, &PSFBCurrent, g2field::psfb_str);
    }
 
    // clear data buffers 
    mlock.lock(); 
-   YokoBuffer.clear(); 
+   PSFBBuffer.clear(); 
    mlock.unlock();
    cm_msg(MINFO,"begin_of_run","Data buffer is emptied at the beginning of the run.");
 
@@ -437,7 +433,7 @@ INT read_yoko_event(char *pevent,INT off){
    //cm_msg(MINFO,"read_yoko_event","Writing to MIDAS bank");
 
    static unsigned int num_events = 0; 
-   DWORD *pYokoData; 
+   DWORD *pPSFBData; 
 
    INT BufferLoad; 
    INT BufferLoad_size = sizeof(BufferLoad); 
@@ -445,7 +441,7 @@ INT read_yoko_event(char *pevent,INT off){
    // ROOT output 
    if (write_root) {
       mlock_data.lock();
-      YokoCurrent = YokoBuffer[0];
+      PSFBCurrent = PSFBBuffer[0];
       mlock_data.unlock();
       pt_norm->Fill();
       num_events++;
@@ -464,18 +460,18 @@ INT read_yoko_event(char *pevent,INT off){
    mlock_data.lock(); 
 
    // create the bank 
-   bk_create(pevent,yoko_bank_name,TID_WORD,(void **)&pYokoData);
-   // copy data into pYokoData 
-   memcpy(pYokoData, &(YokoBuffer[0]), sizeof(g2field::yokogawa_t));
+   bk_create(pevent,psfb_bank_name,TID_WORD,(void **)&pPSFBData);
+   // copy data into pPSFBData 
+   memcpy(pPSFBData, &(PSFBBuffer[0]), sizeof(g2field::psfeedback_t));
    // increment the pointer 
-   pYokoData += sizeof(g2field::yokogawa_t)/sizeof(WORD);
+   pPSFBData += sizeof(g2field::psfeedback_t)/sizeof(WORD);
    // close the event 
-   bk_close(pevent,pYokoData);
+   bk_close(pevent,pPSFBData);
 
    // some type of cleanup 
-   YokoBuffer.erase( YokoBuffer.begin() ); 
+   PSFBBuffer.erase( PSFBBuffer.begin() ); 
    // check size of readout buffer 
-   BufferLoad = YokoBuffer.size();
+   BufferLoad = PSFBBuffer.size();
 
    // unlock the thread  
    mlock_data.unlock();  
@@ -507,7 +503,7 @@ void read_from_device(){
    mlock.unlock();
 
    // create a data structure    
-   g2field::yokogawa_t *yoko_data = new g2field::yokogawa_t; 
+   g2field::psfeedback_t *psfb_data = new g2field::psfeedback_t; 
 
    // grab the data 
    if (!gSimMode) { 
@@ -516,35 +512,33 @@ void read_from_device(){
       mode       = yokogawa_interface::get_mode(); 
       lvl        = yokogawa_interface::get_level(); 
       // fill the data structure  
-      yoko_data->sys_clock  = gCurrentTime;  // not sure of the difference here... 
-      yoko_data->gps_clock  = gCurrentTime;  // not sure of the difference here... 
-      yoko_data->mode       = mode;  
-      yoko_data->is_enabled = is_enabled;  
-      yoko_data->p_fdbk     = gP_coeff; 
-      yoko_data->i_fdbk     = gI_coeff; 
-      yoko_data->d_fdbk     = gD_coeff; 
+      psfb_data->sys_clock  = gCurrentTime;  // not sure of the difference here... 
+      psfb_data->mode       = mode;  
+      psfb_data->is_enabled = is_enabled;  
+      psfb_data->p_fdbk     = gP_coeff; 
+      psfb_data->i_fdbk     = gI_coeff; 
+      psfb_data->d_fdbk     = gD_coeff; 
       if (mode==yokogawa_interface::kVOLTAGE) {
-	 yoko_data->current = 0.; 
-	 yoko_data->voltage = lvl; 
+	 psfb_data->current = 0.; 
+	 psfb_data->voltage = lvl; 
       } else if (mode==yokogawa_interface::kCURRENT) {
-	 yoko_data->current = lvl; 
-	 yoko_data->voltage = 0.; 
+	 psfb_data->current = lvl; 
+	 psfb_data->voltage = 0.; 
       }
    } else { 
       // this is a simulation, fill with random numbers
-      yoko_data->sys_clock  = gCurrentTime;
-      yoko_data->gps_clock  = gCurrentTime;
-      yoko_data->current    = (double)(rand() % 100);   // random number between 0 and 100 
-      yoko_data->voltage    = 0.;
-      yoko_data->p_fdbk     = gP_coeff; 
-      yoko_data->i_fdbk     = gI_coeff; 
-      yoko_data->d_fdbk     = gD_coeff; 
-      yoko_data->mode       = -1;  
-      yoko_data->is_enabled = 0;  
+      psfb_data->sys_clock  = gCurrentTime;
+      psfb_data->current    = (double)(rand() % 100);   // random number between 0 and 100 
+      psfb_data->voltage    = 0.;
+      psfb_data->p_fdbk     = gP_coeff; 
+      psfb_data->i_fdbk     = gI_coeff; 
+      psfb_data->d_fdbk     = gD_coeff; 
+      psfb_data->mode       = -1;  
+      psfb_data->is_enabled = 0;  
    } 
    // fill buffer 
    mlock_data.lock(); 
-   YokoBuffer.push_back(*yoko_data); 
+   PSFBBuffer.push_back(*psfb_data); 
    mlock_data.unlock(); 
 
    // Update ODB
@@ -554,7 +548,7 @@ void read_from_device(){
    db_set_value(hDB,0,current_read_path,&current_val,sizeof(current_val),1,TID_DOUBLE);
 
    // clean up for next read 
-   delete yoko_data;
+   delete psfb_data;
 
    // update read thread flag 
    ReadThreadActive = 0;
@@ -575,15 +569,21 @@ int update_current(){
    const int SIZE = 100; 
    char *freq_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
    sprintf(freq_path,"%s/Average Field",MONITORS_DIR);
-
    db_get_value(hDB,0,freq_path,&avg_field,&SIZE_DOUBLE,TID_DOUBLE, 0);
    free(freq_path);
+   avg_field *= gScaleFactor;  // convert to amps! 
  
    char current_set_path[512];
    sprintf(current_set_path,"%s/Current Setpoint (mA)",SETTINGS_DIR);
    double current_set;
    db_get_value(hDB,0,current_set_path,&current_set,&SIZE_DOUBLE,TID_DOUBLE, 0);
    current_set *= 1E-3; // convert to amps! 
+
+   char field_set_path[512];
+   sprintf(field_set_path,"%s/Field Setpoint (Hz)",SETTINGS_DIR);
+   double field_set;
+   db_get_value(hDB,0,field_set_path,&current_set,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   field_set *= gScaleFactor; // convert to amps! 
 
    char switch_path[512];
    sprintf(switch_path,"%s/Feedback Active",SETTINGS_DIR);
@@ -607,24 +607,21 @@ int update_current(){
    db_get_value(hDB,0,dc_path,&D_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
 
    char sf_path[512];
-   sprintf(sf_path,"%s/Scale Factor (Amps/Hz)",SETTINGS_DIR);
+   sprintf(sf_path,"%s/Scale Factor (Amps_per_Hz)",SETTINGS_DIR);
    double sf = 0;
    db_get_value(hDB,0,sf_path,&sf,&SIZE_DOUBLE,TID_DOUBLE, 0);
 
-   // FIXME: 1. get the right time
-   //        2. pass the correct current into the PID loop (based on fixed probe data)     
    double lvl   = 0;
    gCurrentTime = get_utc_time();
 
    gP_coeff     = P_coeff; 
    gI_coeff     = I_coeff; 
    gD_coeff     = D_coeff; 
-   gSetpoint    = current_set;
+   gSetpoint    = field_set;            // use the FIELD setpoint here!  
    gScaleFactor = sf; 
 
    if (IsFeedbackOn) {
-     lvl = yokogawa_interface::get_level(); 
-     lvl = get_new_current(lvl);   
+     lvl = get_new_current(avg_field);  // send in the average field (in amps); compares to setpoint  
    } else {
      lvl = gSetpoint;
    }
