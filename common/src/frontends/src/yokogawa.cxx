@@ -202,7 +202,8 @@ INT frontend_init(){
    char *sim_sw_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
    sprintf(sim_sw_path,"%s/Simulation Mode",SETTINGS_DIR); 
    db_get_value(hDB,0,sim_sw_path,&gSimMode,&size_Bool,TID_BOOL,0);
-  
+
+
    // IP addr
    char *ip_addr_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
    sprintf(ip_addr_path,"%s/IP address",SETTINGS_DIR); 
@@ -566,6 +567,13 @@ int update_current(){
    double avg_field = 0;
    int SIZE_DOUBLE  = sizeof(avg_field);  
 
+   // can't do this for some reason... 
+   // char enable_sw_path[512];
+   // BOOL IsOutputEnabled = FALSE;
+   // int SIZE_BOOL = sizeof(IsOutputEnabled);
+   // sprintf(enable_sw_path,"%s/Output Enable",SETTINGS_DIR); 
+   // db_get_value(hDB,0,enable_sw_path,&IsOutputEnabled,&SIZE_BOOL,TID_BOOL,0);
+
    const int SIZE = 100; 
    char *freq_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
    sprintf(freq_path,"%s/Average Field",MONITORS_DIR);
@@ -613,6 +621,22 @@ int update_current(){
 
    double lvl   = 0;
    gCurrentTime = get_utc_time();
+
+   // if(IsOutputEnabled){
+   //    rc = yokogawa_interface::set_output_state(yokogawa_interface::kENABLED); 
+   //    if (rc!=0) {
+   //       cm_msg(MINFO,"update","Yokogawa output ENABLED.");
+   //    } else { 
+   //       cm_msg(MINFO,"update","Cannot enable Yokogawa output!");
+   //    }
+   // }else{
+   //    rc = yokogawa_interface::set_output_state(yokogawa_interface::kDISABLED); 
+   //    if (rc!=0) {
+   //       cm_msg(MINFO,"update","Yokogawa output DISABLED.");
+   //    } else { 
+   //       cm_msg(MINFO,"update","Cannot disable Yokogawa output!");
+   //    }
+   // }
 
    gP_coeff     = P_coeff; 
    gI_coeff     = I_coeff; 
