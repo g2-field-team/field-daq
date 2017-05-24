@@ -161,8 +161,8 @@ int update_current();                                  // update the current on 
 unsigned long get_utc_time();                          // UTC time in milliseconds 
 
 const char * const psfb_bank_name = "PSFB";     // 4 letters, try to make sensible
-const char * const SETTINGS_DIR   = "/Equipment/Yokogawa/Settings";
-const char * const MONITORS_DIR   = "/Equipment/Yokogawa/Monitors";
+const char * const SETTINGS_DIR   = "/Equipment/PS Feedback/Settings";
+const char * const MONITORS_DIR   = "/Equipment/PS Feedback/Monitors";
 
 /********************************************************************\
   Callback routines for system transitions
