@@ -203,7 +203,6 @@ INT frontend_init(){
    sprintf(sim_sw_path,"%s/Simulation Mode",SETTINGS_DIR); 
    db_get_value(hDB,0,sim_sw_path,&gSimMode,&size_Bool,TID_BOOL,0);
 
-
    // IP addr
    char *ip_addr_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
    sprintf(ip_addr_path,"%s/IP address",SETTINGS_DIR); 
@@ -213,6 +212,9 @@ INT frontend_init(){
    int ip_addr_size = sizeof(ip_addr);
 
    int rc=0;
+   double lvl=0;
+   char yoko_read_msg[512]; 
+
    if (!gSimMode) {
       // taking real data, grab the IP address  
       db_get_value(hDB,0,ip_addr_path,&ip_addr,&ip_addr_size,TID_STRING,0);
@@ -225,7 +227,10 @@ INT frontend_init(){
          rc = yokogawa_interface::set_range_max(); 
          cm_msg(MINFO,"init","Yokogawa set to maximum range.");
          rc = yokogawa_interface::set_level(0.000); 
-         cm_msg(MINFO,"init","Yokogawa current set to 0 mA.");
+	 // sanity check to make sure we did what we thought we did 
+	 lvl = yokogawa_interface::get_level(); 
+	 sprintf(yoko_read_msg,"Yokogawa set to %.3lf mA",lvl/1E-3);  
+	 cm_msg(MINFO,"init",yoko_read_msg);
          rc = yokogawa_interface::set_output_state(yokogawa_interface::kENABLED); 
          cm_msg(MINFO,"init","Yokogawa output ENABLED.");
       } else {
@@ -339,23 +344,26 @@ INT end_of_run(INT run_number, char *error){
    }
 
    int rc=0; 
-
+   double lvl=0; 
  
+   char yoko_read_msg[512];  
+
    if (!gSimMode) { 
       // set to zero mA 
       rc = yokogawa_interface::set_level(0.0); 
       if (rc!=0) { 
 	 cm_msg(MERROR,"exit","Cannot set Yokogawa current to 0 mA!");
       }
-      cm_msg(MINFO,"exit","Yokogawa set to 0 mA.");
+      // sanity check to make sure we did what we thought we did 
+      lvl = yokogawa_interface::get_level(); 
+      sprintf(yoko_read_msg,"Yokogawa set to %.3lf mA",lvl/1E-3);  
+      cm_msg(MINFO,"exit",yoko_read_msg);
       // disable output 
       rc = yokogawa_interface::set_output_state(yokogawa_interface::kDISABLED); 
       if (rc!=0) { 
 	 cm_msg(MERROR,"exit","Cannot disable Yokogawa output!");
       }
       cm_msg(MINFO,"exit","Yokogawa output DISABLED.");
-
-	   ;
    }
 
    return SUCCESS;
