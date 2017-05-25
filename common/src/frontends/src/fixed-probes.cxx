@@ -490,12 +490,12 @@ INT read_fixed_probe_event(char *pevent, INT off)
 
   } else if (triggered && !event_manager->HasEvent()) {
     // No event yet.
-    cm_msg(MDEBUG, "read_fixed_probe_event", "no data yet");
+    //cm_msg(MDEBUG, "read_fixed_probe_event", "no data yet");
     return 0;
 
   } else {
 
-    cm_msg(MDEBUG, "read_fixed_probe_event", "got real data event");
+    cm_msg(MDEBUG, "read_fixed_probe_event", "got event data event");
 
     auto fp_data = event_manager->GetCurrentEvent();
     event_manager->PopCurrentEvent();
@@ -515,7 +515,7 @@ INT read_fixed_probe_event(char *pevent, INT off)
 
     data_mutex.lock();
 
-    cm_msg(MINFO, frontend_name, "copying the data from event");
+    // cm_msg(MINFO, frontend_name, "copying the data from event");
     std::copy(fp_data.clock_sys_ns.begin(),
 	      fp_data.clock_sys_ns.begin() + nprobes,
 	      &data.clock_sys_ns[0]);
@@ -605,7 +605,6 @@ INT read_fixed_probe_event(char *pevent, INT off)
   }
 
   if (write_root && run_in_progress) {
-    cm_msg(MINFO, "read_fixed_event", "Filling TTree");
     // Now that we have a copy of the latest event, fill the tree.
     pt->Fill();
 
@@ -617,7 +616,6 @@ INT read_fixed_probe_event(char *pevent, INT off)
 
     if (num_events % 10 == 1) {
 
-      cm_msg(MINFO, frontend_name, "flushing TTree.");
       pt->AutoSave("SaveSelf,FlushBaskets");
 
       if (write_full_waveform) {
