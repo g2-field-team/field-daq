@@ -141,6 +141,7 @@ namespace{
 
   std::thread read_thread;
   std::mutex mlock;
+  std::mutex globalLock;
   BOOL FrontendActive;
 
   TFile *pf;
@@ -371,8 +372,10 @@ INT frontend_init()
   std::cout << "Starting the thread now!!" << std::endl;
   read_thread = std::thread(ReadCurrents);
 
+  globalLock.lock();
   run_in_progress = false;
-  
+  globalLock.unlock();
+
   cm_msg(MINFO, "init","Surface Coils initialization complete");
   
   std::cout << "Initialization complete" << std::endl;
@@ -391,7 +394,9 @@ INT frontend_exit()
   read_thread.join();
   cm_msg(MINFO,"exit","Thread joined.");
   
+  globalLock.lock();
   run_in_progress = false;
+  globalLock.unlock();
 
   cm_msg(MINFO, "exit", "Surface Coils teardown complete");
   std::cout << "Frontend exit complete" << std::endl;
@@ -413,37 +418,23 @@ INT begin_of_run(INT run_number, char *error)
   //Grab the database handle
   cm_get_experiment_database(&hDB, NULL);
 
-  //Start with all healths being good
-  std::cout << "Setting all healths to be good" << std::endl;
-
-  mlock.lock();
-  current_health = 1;
-  temp_health = 1;
-  std::string blank = "";
-
-  db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Current Health", &current_health, sizeof(current_health), 1, TID_BOOL);
-  db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Temp Health", &temp_health, sizeof(temp_health), 1, TID_BOOL);
-  db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Problem Current Channel", blank.c_str(), sizeof(blank.c_str()), 1, TID_STRING);
-  db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Problem Temp Channel", blank.c_str(), sizeof(blank.c_str()), 1, TID_STRING);
-  mlock.unlock();
-
   //set up the data
   std::string datadir;
   std::string filename;
 
   std::cout << "Get run info from ODB" << std::endl;
-  mlock.lock();
+  //mlock.lock();
   // Get the run info out of the ODB.          
   db_find_key(hDB, 0, "/Runinfo", &hkey);
   if (db_open_record(hDB, hkey, &runinfo, sizeof(runinfo), MODE_READ, NULL, NULL) != DB_SUCCESS) {
     cm_msg(MERROR, "begin_of_run", "Can't open \"/Runinfo\" in ODB");
     return CM_DB_ERROR;
   }
-  mlock.unlock();
+  //mlock.unlock();
 
   std::cout << "Get data directory from ODB" << std::endl;
   // Get the data directory from the ODB.
-  mlock.lock();
+  //mlock.lock();
   snprintf(str, sizeof(str), "/Equipment/Surface Coils/Settings/Root Directory");
   db_find_key(hDB, 0, str, &hkey);
 
@@ -452,7 +443,7 @@ INT begin_of_run(INT run_number, char *error)
     db_get_data(hDB, hkey, str, &size, TID_STRING);
     datadir = std::string(str);
     }
-  mlock.unlock();
+  //mlock.unlock();
 
   // Set the filename       
   snprintf(str, sizeof(str), "Root/surface_coil_run_%05d.root", runinfo.run_number);
@@ -462,7 +453,7 @@ INT begin_of_run(INT run_number, char *error)
 
   std::cout << "Get parameter for root output" << std::endl;
   // Get the parameter for root output.  
-  mlock.lock();
+  //mlock.lock();
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Root Output", &hkey);
 
   if (hkey) {
@@ -474,13 +465,13 @@ INT begin_of_run(INT run_number, char *error)
 
     write_root = true;
   }
-  mlock.unlock();
+  //mlock.unlock();
 
   std::cout << "Got all info for root output from odb" << std::endl;
 
   if (write_root) {
     // Set up the ROOT data output.        
-    mlock.lock();
+    //mlock.lock();
     pf = new TFile(filename.c_str(), "recreate");
     pt_norm = new TTree("t_scc", "Surface Coil Data");
     pt_norm->SetAutoSave(5);
@@ -489,14 +480,15 @@ INT begin_of_run(INT run_number, char *error)
     std::string br_name("surface_coils");
 
     pt_norm->Branch(br_name.c_str(), &data.bot_sys_clock[0], g2field::sc_str);
-    mlock.unlock();
+    //mlock.unlock();
  }
  
+  std::cout << "Set up tree for writing data. Now going to set event number" << std::endl;
 
-  mlock.lock();
+  globalLock.lock();
   event_number = 0;
   run_in_progress = true;
-  mlock.unlock();
+  globalLock.unlock();
   
   cm_msg(MLOG, "begin of run", "Completed successfully");
 
@@ -519,9 +511,9 @@ INT end_of_run(INT run_number, char *error)
     mlock.unlock();
   }
 
-  mlock.lock();
+  globalLock.lock();
   run_in_progress = false;
-  mlock.unlock();
+  globalLock.unlock();
 
   std::cout << "Finished end of run routine" << std::endl;
   cm_msg(MLOG, "end_of_run","Completed successfully");
@@ -648,11 +640,10 @@ INT read_surface_coils(char *pevent, INT c)
 
   bk_close(pevent, pdata);
 
-  mlock.unlock();
-
+  globalLock.unlock();
   event_number++;
+  globalLock.lock();
 
-  mlock.lock();
   dataBuffer.erase(dataBuffer.begin());
   mlock.unlock();
 
@@ -681,6 +672,7 @@ void ReadCurrents(){
   mlock.unlock();
   if(!localFrontendActive) break;
 
+  std::cout << "Getting ODB values in while loop" << std::endl;
   mlock.lock();
   //Get the current odb values
   //Get bottom set currents
@@ -693,6 +685,7 @@ void ReadCurrents(){
     bot_comp_values[i] = 0;
     top_comp_values[i] = 0;
   }
+
   int bot_comp_size = sizeof(bot_comp_values);
   db_get_data(hDB, hkey, &bot_comp_values, &bot_comp_size, TID_DOUBLE);
 
@@ -710,7 +703,7 @@ void ReadCurrents(){
   compSetPoint = 0;               
   int compsetpt_size = sizeof(compSetPoint);
   db_get_data(hDB, hkey, &compSetPoint, &compsetpt_size, TID_DOUBLE);
-  mlock.unlock();
+ 
 
   //Compare these values to the previous set points. If any 1 current is different, update the actual set point arrays and send the values to the beaglebones
   for(int i=0;i<nCoils;i++){
@@ -746,7 +739,7 @@ void ReadCurrents(){
 
       zmq::message_t message3 (buffer.size());
       std::copy(buffer.begin(), buffer.end(), (char *)message3.data());
-      mlock.lock();
+      
       requester3.send(message3);
       std::cout << "Sent the set points to crate 3" << std::endl;
 
@@ -756,12 +749,12 @@ void ReadCurrents(){
 	return FE_ERR_HW;
       }
       else std::cout << "set Points were received by crate 3" << std::endl;
-      mlock.unlock();
+      
 
       break;
     }
   }
-
+ 
   //make an instance of the struct
   unpacked_data dataUnit;
 
@@ -777,7 +770,7 @@ void ReadCurrents(){
   bool st = false; //status of receiving data             
   zmq::message_t bbVals;
   
-  mlock.lock();
+ 
   while (!st) {
     try {
       if (!subscriber.recv(&bbVals)) {
@@ -824,7 +817,11 @@ void ReadCurrents(){
       else std::cout << "PROBLEM! Neither a T nor a B!" << std::endl;
   }
   
+  std::cout << "Pushing data into dataBuffer" << std::endl;
+  mlock.lock();
   dataBuffer.push_back(dataUnit);
+  mlock.unlock();
+  std::cout << "dataBuffer size: " << dataBuffer.size() << std::endl;
 
   mlock.lock();
   //Update values in odb   
@@ -839,11 +836,12 @@ void ReadCurrents(){
 
   string bad_curr_string = "";
   string bad_temp_string = "";
-  
+ 
+  mlock.lock(); 
   for(int i=0;i<nCoils;i++){
     //bottom currents            
     if(std::abs(dataUnit.bot_currents[i]-bot_set_values[i]) >= setPoint){
-      mlock.lock();
+ 
       
       char str[256];
       current_health = 0;
@@ -855,12 +853,10 @@ void ReadCurrents(){
       db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Problem Current Channel", str, sizeof(str), 1, TID_STRING);
       cm_msg(MINFO, "read_surface_coils", "Bottom current out of spec");
 
-      mlock.unlock();
     }
 
     //top currents                
     if(std::abs(dataUnit.top_currents[i]-top_set_values[i]) >= setPoint){
-      mlock.lock();
 
       char str[256];
       current_health = 0;
@@ -871,12 +867,10 @@ void ReadCurrents(){
       db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Current Health", &current_health, sizeof(current_health), 1, TID_BOOL);
       db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Problem Current Channel", str, sizeof(str), 1, TID_STRING);
       cm_msg(MINFO, "read_surface_coils", "Top current out of spec");
-      mlock.unlock();
     }
 
     //bottom temps       
     if(dataUnit.bot_temps[i] > high_temp){
-      mlock.lock();
 
       char str[256];
       temp_health = 0;
@@ -887,12 +881,10 @@ void ReadCurrents(){
       db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Temp Health", &temp_health, sizeof(temp_health), 1, TID_BOOL);
       db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Problem Temp Channel", str, sizeof(str), 1, TID_STRING);
       cm_msg(MINFO, "read_surface_coils", "A bottom temp is too high!");
-      mlock.unlock();
     }
 
     //top temps  
     if(dataUnit.top_temps[i] > high_temp){
-      mlock.lock();
 
       char str[256];
       temp_health = 0;
@@ -903,9 +895,9 @@ void ReadCurrents(){
       db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Temp Health", &temp_health, sizeof(temp_health), 1, TID_BOOL);
       db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Problem Temp Channel", str, sizeof(str), 1, TID_STRING);
       cm_msg(MINFO, "read_surface_coils", "A top temp is too high!");
-      mlock.unlock();
     }
   }
+ mlock.unlock();
 
 
   }//end while(1) loop
