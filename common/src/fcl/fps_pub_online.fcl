@@ -16,7 +16,8 @@ source : {
    requestedBanks : ['FXPR'] 
    eventIDMask: 1
    midasExperimentName: "g2-field"
-   mserverHost: "g2field-be-priv:1175" 
+//   mserverHost: "g2field-be-priv:1175" 
+   mserverHost: ""
  }
 }
 
