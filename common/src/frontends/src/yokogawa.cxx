@@ -280,15 +280,27 @@ INT frontend_exit(){
  
    if (!gSimMode) { 
       // set to zero mA 
-      rc = yokogawa_interface::set_level(0.0); 
+      rc = yokogawa_interface::set_level(0.0);
+      rc = check_yokogawa_comms(rc,"exit"); 
+      if (rc!=0) { 
+          return FE_ERR_HW; 
+      } 
       // disable output 
       rc = yokogawa_interface::set_output_state(yokogawa_interface::kDISABLED); 
+      rc = check_yokogawa_comms(rc,"exit"); 
+      if (rc!=0) { 
+          return FE_ERR_HW; 
+      } 
       // close connection  
       rc = yokogawa_interface::close_connection();
       if (rc==0) {
 	 cm_msg(MINFO,"exit","Yokogawa disconnected successfully.");
       } else {
-	 cm_msg(MERROR,"exit","Yokogawa disconnection failed. Error code: %d",rc);
+	 cm_msg(MERROR,"exit","Yokogawa disconnection failed.");
+         rc = check_yokogawa_comms(rc,"exit"); 
+         if (rc!=0) { 
+             return FE_ERR_HW; 
+         }
       }
    }
 
@@ -376,6 +388,8 @@ INT end_of_run(INT run_number, char *error){
       rc = yokogawa_interface::set_level(0.0); 
       if (rc!=0) { 
 	 cm_msg(MERROR,"exit","Cannot set Yokogawa current to 0 mA!");
+         rc = check_yokogawa_comms(rc,"exit"); 
+         return FE_ERR_HW; 
       }
       // sanity check to make sure we did what we thought we did 
       lvl = yokogawa_interface::get_level(); 
@@ -384,7 +398,9 @@ INT end_of_run(INT run_number, char *error){
       // disable output 
       rc = yokogawa_interface::set_output_state(yokogawa_interface::kDISABLED); 
       if (rc!=0) { 
-	 cm_msg(MERROR,"exit","Cannot disable Yokogawa output!");
+	 cm_msg(MERROR,"exit","Cannot disable Yokogawa output!"); 
+         rc = check_yokogawa_comms(rc,"exit"); 
+         return FE_ERR_HW; 
       }
       cm_msg(MINFO,"exit","Yokogawa output DISABLED.");
    }
@@ -537,12 +553,21 @@ void read_from_device(){
    // create a data structure    
    g2field::psfeedback_t *psfb_data = new g2field::psfeedback_t; 
 
+   int rc=0;
+
    // grab the data 
    if (!gSimMode) { 
       // real data 
-      is_enabled = yokogawa_interface::get_output_state(); 
-      mode       = yokogawa_interface::get_mode(); 
-      lvl        = yokogawa_interface::get_level(); 
+      mode = yokogawa_interface::get_mode(); 
+      if (mode==-1) {
+         // something is wrong
+         rc         = check_yokogawa_comms(mode,"read_from_device"); 
+         is_enabled = -1; 
+         lvl        = -500E-3;   // unrealistic value  
+      } else { 
+         is_enabled = yokogawa_interface::get_output_state(); 
+         lvl        = yokogawa_interface::get_level(); 
+      } 
       // fill the data structure  
       psfb_data->sys_clock  = gCurrentTime;  // not sure of the difference here... 
       psfb_data->mode       = mode;  
@@ -691,6 +716,10 @@ int update_current(){
       } 
       // checks are finished, set the current 
       rc = yokogawa_interface::set_level(lvl);
+      if (rc!=0) { 
+         rc = check_yokogawa_comms(rc,"update_current");
+         return FE_ERR_HW;  
+      }
    } else {
       // simulation, do nothing  
    }
