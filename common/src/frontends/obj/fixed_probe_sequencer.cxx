@@ -28,7 +28,7 @@ int FixedProbeSequencer::Init()
   thread_live_ = false;
 
   sequence_in_progress_ = false;
-  builder_has_finished_ = true;
+  builder_has_finished_ = false;
   mux_round_configured_ = false;
   analyze_fids_online_ = false;
   use_fast_fids_class_ = false;
@@ -146,7 +146,7 @@ int FixedProbeSequencer::BeginOfRun()
 
   min_event_time_ = conf.get<int>("min_event_time", 1000);
   max_event_time_ = conf.get<int>("max_event_time", 10000);
-  mux_switch_time_ = conf.get<int>("mux_switch_time", 10000);
+  mux_switch_time_ = conf.get<int>("mux_switch_time", 15000);
 
   mux_sequence_ = conf.get<std::string>("config.mux_sequence");
 
@@ -229,6 +229,8 @@ int FixedProbeSequencer::BeginOfRun()
   go_time_ = true;
   LogMessage("Starting workers");
   workers_.StartRun();
+
+  usleep(5000);
 
   // Pop stale events
   while (workers_.AnyWorkersHaveEvent()) {
@@ -346,6 +348,8 @@ void FixedProbeSequencer::RunLoop()
                    data_queue_.size());
         }
 
+	
+
         queue_mutex_.unlock();
       }
       
@@ -374,6 +378,7 @@ void FixedProbeSequencer::TriggerLoop()
 	  if (!go_time_) break;
 
 	  got_round_data_ = false;
+	  mux_round_configured_ = false;
 
 	  for (auto &conf : round) { // {mux_name, set_channel}
 	    if (!go_time_) break;
@@ -435,9 +440,14 @@ void FixedProbeSequencer::TriggerLoop()
 	    LogDebug("Generated DIO triggers");
 	    int trg_count = 0;
 
-	    for (auto &trg : dio_triggers_) {
+	    dio_triggers_[0]->FireTriggers(0xff);
+	    dio_triggers_[1]->FireTriggers(0xff);
+	    //	    dio_triggers_[1]->FireTriggers();
 
-	      int rc = trg->FireTriggers();
+	    //	    for (auto &trg : dio_triggers_) {
+	    //	      int rc = trg->FireTriggers();
+
+
 	      // LogMessage("Trigger %i fired", trg_count);
 
 	      // while (rc > 0) {
@@ -446,15 +456,14 @@ void FixedProbeSequencer::TriggerLoop()
 	      // 	LogMessage("Trigger %i re-fired", trg_count);
 	      // }
 	      // ++trg_count;
-	    }
 	  }
 	  
 	  LogDebug("TriggerLoop: muxes configured, triggers fired");
 	  mux_round_configured_ = true;
-	  
+
 	  while (!got_round_data_ && go_time_) {
 	    ThreadSleepShort();
-	  }
+	  };
 	  
 	} // on to the next round
 
@@ -462,15 +471,15 @@ void FixedProbeSequencer::TriggerLoop()
 	got_start_trg_ = false;
 
 	LogDebug("TriggerLoop: waiting for builder to finish");
+	
 	while (!builder_has_finished_ && go_time_) {
 	  ThreadSleepShort();
 	};
-
+	
 	LogDebug("TriggerLoop: builder finished packing event");
-
+	ThreadSleepShort();
+	
       } // done with trigger sequence
-
-      ThreadSleepShort();
     }
 
     ThreadSleepLong();
@@ -559,8 +568,8 @@ void FixedProbeSequencer::BuilderLoop()
               auto trace = data[sis_idx].trace[trace_idx];
               auto size = data[sis_idx].trace[trace_idx].size();
 
-              LogDebug("BuilderLoop: round %i, copying %s, ch %i -> %i",
-                       seq_index, sis_name.c_str(), trace_idx, idx);
+              LogDebug("BuilderLoop: round %i, copying %s, ch %i -> %i, %i samples",
+                       seq_index, sis_name.c_str(), trace_idx, idx, size);
 
               std::copy(&trace[0], &trace[0] + size, arr_ptr);
               
