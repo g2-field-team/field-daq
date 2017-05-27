@@ -799,7 +799,7 @@ void update_feedback_params()
     }
   }
 
-  uniform_mean_freq /= nprobes;
+  uniform_mean_freq /= u_sum;
   weighted_mean_freq /= w_sum;
 
   out << uniform_mean_freq << ",";

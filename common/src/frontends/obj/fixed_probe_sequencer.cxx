@@ -438,14 +438,14 @@ void FixedProbeSequencer::TriggerLoop()
 	    for (auto &trg : dio_triggers_) {
 
 	      int rc = trg->FireTriggers();
-	      LogMessage("Trigger %i fired", trg_count);
+	      // LogMessage("Trigger %i fired", trg_count);
 
-	      while (rc > 0) {
-		LogError("Trigger %i failed with rc = %i", trg_count, rc);
-		rc = trg->FireTriggers();
-		LogMessage("Trigger %i re-fired", trg_count);
-	      }
-	      ++trg_count;
+	      // while (rc > 0) {
+	      // 	LogError("Trigger %i failed with rc = %i", trg_count, rc);
+	      // 	rc = trg->FireTriggers();
+	      // 	LogMessage("Trigger %i re-fired", trg_count);
+	      // }
+	      // ++trg_count;
 	    }
 	  }
 	  
