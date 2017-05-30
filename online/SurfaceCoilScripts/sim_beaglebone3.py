@@ -42,4 +42,4 @@ while True:
     print "Sent a message, clearing dictionary"
     #print data
     data.clear()
-    time.sleep(1)
+    time.sleep(3)

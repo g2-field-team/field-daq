@@ -134,9 +134,12 @@ namespace{
 
   //for zmq
   zmq::context_t context(1);
-  //zmq::socket_t publisher(context, ZMQ_PUB); //for sending set point currents
+  zmq::socket_t requester1(context, ZMQ_REQ);
   //zmq::socket_t requester2(context, ZMQ_REQ);
   zmq::socket_t requester3(context, ZMQ_REQ);
+  /*zmq::socket_t requester4(context, ZMQ_REQ);
+  zmq::socket_t requester5(context, ZMQ_REQ);
+  zmq::socket_t requester6(context, ZMQ_REQ);*/
   zmq::socket_t subscriber(context, ZMQ_SUB); //subscribe to data being sent back from beaglebones
 
   std::thread read_thread;
@@ -310,21 +313,40 @@ INT frontend_init()
   }  
   mlock.unlock();
 
-  //bind to server 
+  //bind to servers
+  requester1.setsockopt(ZMQ_LINGER, 0);     
+  requester1.setsockopt(ZMQ_RCVTIMEO, 2000);           
+  requester1.bind("tcp://*:5551");               
+  cm_msg(MINFO, "init", "Bound to beaglebone 1"); 
+  std::cout << "Bound to beaglebone 1" << std::endl;
+
   //requester2.setsockopt(ZMQ_LINGER, 0);
   //requester2.setsockopt(ZMQ_RCVTIMEO, 2000);
-  //requester2.bind("tcp://*:5549");
-                                          
-  cm_msg(MINFO, "init", "Binding to server");
+  //requester2.bind("tcp://*:5552");
+  //cm_msg(MINFO, "init", "Bound to beaglebone 2");
+
   requester3.setsockopt(ZMQ_LINGER, 0);
   requester3.setsockopt(ZMQ_RCVTIMEO, 2000);
-  //requester3.bind("tcp://127.0.0.1:5550");
   requester3.bind("tcp://*:5553");
+  cm_msg(MINFO, "init", "Bound to beaglebone 3");
+  std::cout << "Bound to beaglebone 3" << std::endl;
+
+  //requester4.setsockopt(ZMQ_LINGER, 0);  
+  //requester4.setsockopt(ZMQ_RCVTIMEO, 2000);         
+  //requester4.bind("tcp://*:5554");                
+  //cm_msg(MINFO, "init", "Bound to beaglebone 4");
+
+  //requester5.setsockopt(ZMQ_LINGER, 0); 
+  //requester5.setsockopt(ZMQ_RCVTIMEO, 2000);      
+  //requester5.bind("tcp://*:5552");             
+  //cm_msg(MINFO, "init", "Bound to beaglebone 5");
+
+  //requester6.setsockopt(ZMQ_LINGER, 0);      
+  //requester6.setsockopt(ZMQ_RCVTIMEO, 2000);     
+  //requester6.bind("tcp://*:5556");               
+  //cm_msg(MINFO, "init", "Bound to beaglebone 6"); 
 
   //Now bind subscriber to receive data being pushed by beaglebones    
-  std::cout << "Binding to subscribe socket" << std::endl;
-  //subscriber.bind("tcp://127.0.0.1:5551");          
-
   //Subscribe to all incoming data                                             
   subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
   subscriber.setsockopt(ZMQ_LINGER, 0);
@@ -335,6 +357,19 @@ INT frontend_init()
   //send data to driver boards                         
   std::string buffer = request.dump();              
            
+  //message 1                                  
+  zmq::message_t message1 (buffer.size());                 
+  std::copy(buffer.begin(), buffer.end(), (char *)message1.data());   
+  requester1.send(message1);                                
+  std::cout << "Sent the set points to crate 1" << std::endl;        
+                                                     
+  zmq::message_t reply1;                     
+  if(!requester1.recv(&reply1)){                       
+    cm_msg(MINFO, "frontend_init", "Crate 1 never responded");       
+    return FE_ERR_HW;                                 
+  }                                                        
+  else std::cout << "set Points were received by crate 1" << std::endl;
+
   //message 2
   /*zmq::message_t message2 (buffer.size());
   std::copy(buffer.begin(), buffer.end(), (char *)message2.data());
@@ -359,7 +394,46 @@ INT frontend_init()
     cm_msg(MINFO, "frontend_init", "Crate 3 never responded");
     return FE_ERR_HW;
    }                                                  
-  else std::cout << "set Points were received by crate 3" << std::endl;      
+  else std::cout << "set Points were received by crate 3" << std::endl; 
+
+  //message 4
+  /*zmq::message_t message4 (buffer.size());                    
+  std::copy(buffer.begin(), buffer.end(), (char *)message4.data());  
+  requester4.send(message4);                 
+  std::cout << "Sent the set points to crate 4" << std::endl;    
+                                                                    
+  zmq::message_t reply4;                                       
+  if(!requester4.recv(&reply4){                  
+    cm_msg(MINFO, "frontend_init", "Crate 4 never responded");     
+    return FE_ERR_HW;                          
+  }                                                         
+  else std::cout << "set Points were received by crate 4" << std::endl;*/
+
+  //message 5
+  /*zmq::message_t message5 (buffer.size());                 
+  std::copy(buffer.begin(), buffer.end(), (char *)message5.data());   
+  requester5.send(message5);                       
+  std::cout << "Sent the set points to crate 5" << std::endl;         
+                                                               
+  zmq::message_t reply5;           
+  if(!requester5.recv(&reply5)){                 
+    cm_msg(MINFO, "frontend_init", "Crate 5 never responded"); 
+    return FE_ERR_HW;                              
+  }                                            
+  else std::cout << "set Points were received by crate 5" << std::endl;*/
+
+  //message 6
+  /*zmq::message_t message6 (buffer.size());  
+  std::copy(buffer.begin(), buffer.end(), (char *)message6.data());  
+  requester6.send(message6);            
+  std::cout << "Sent the set points to crate 6" << std::endl;     
+
+  zmq::message_t reply6;   
+  if(!requester6.recv(&reply6)){                  
+    cm_msg(MINFO, "frontend_init", "Crate 6 never responded");
+    return FE_ERR_HW;               
+  }                                                      
+  else std::cout << "set Points were received by crate 6" << std::endl;*/
 
   cm_msg(MINFO, "begin_of_run", "Currents all set");
   
@@ -423,18 +497,15 @@ INT begin_of_run(INT run_number, char *error)
   std::string filename;
 
   std::cout << "Get run info from ODB" << std::endl;
-  //mlock.lock();
   // Get the run info out of the ODB.          
   db_find_key(hDB, 0, "/Runinfo", &hkey);
   if (db_open_record(hDB, hkey, &runinfo, sizeof(runinfo), MODE_READ, NULL, NULL) != DB_SUCCESS) {
     cm_msg(MERROR, "begin_of_run", "Can't open \"/Runinfo\" in ODB");
     return CM_DB_ERROR;
   }
-  //mlock.unlock();
 
   std::cout << "Get data directory from ODB" << std::endl;
   // Get the data directory from the ODB.
-  //mlock.lock();
   snprintf(str, sizeof(str), "/Equipment/Surface Coils/Settings/Root Directory");
   db_find_key(hDB, 0, str, &hkey);
 
@@ -443,7 +514,6 @@ INT begin_of_run(INT run_number, char *error)
     db_get_data(hDB, hkey, str, &size, TID_STRING);
     datadir = std::string(str);
     }
-  //mlock.unlock();
 
   // Set the filename       
   snprintf(str, sizeof(str), "Root/surface_coil_run_%05d.root", runinfo.run_number);
@@ -453,7 +523,6 @@ INT begin_of_run(INT run_number, char *error)
 
   std::cout << "Get parameter for root output" << std::endl;
   // Get the parameter for root output.  
-  //mlock.lock();
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Root Output", &hkey);
 
   if (hkey) {
@@ -465,13 +534,11 @@ INT begin_of_run(INT run_number, char *error)
 
     write_root = true;
   }
-  //mlock.unlock();
 
   std::cout << "Got all info for root output from odb" << std::endl;
 
   if (write_root) {
     // Set up the ROOT data output.        
-    //mlock.lock();
     pf = new TFile(filename.c_str(), "recreate");
     pt_norm = new TTree("t_scc", "Surface Coil Data");
     pt_norm->SetAutoSave(5);
@@ -480,7 +547,6 @@ INT begin_of_run(INT run_number, char *error)
     std::string br_name("surface_coils");
 
     pt_norm->Branch(br_name.c_str(), &data.bot_sys_clock[0], g2field::sc_str);
-    //mlock.unlock();
  }
  
   std::cout << "Set up tree for writing data. Now going to set event number" << std::endl;
@@ -499,17 +565,19 @@ INT begin_of_run(INT run_number, char *error)
 //--- End of Run -------------------------------------------------------------//
 INT end_of_run(INT run_number, char *error)
 {
-  // Make sure we write the ROOT data.       
-  if (run_in_progress && write_root) {
-    mlock.lock();
-    pt_norm->Write();
+  std::cout << "End of run. Size: " << dataBuffer.size() << std::endl;
 
-    pf->Write();
-    pf->Close();
-   
-    delete pf;
-    mlock.unlock();
-  }
+  // Make sure we write the ROOT data.                                 
+  if (run_in_progress && write_root) {                       
+    mlock.lock();                             
+    pt_norm->Write();                               
+                                                                      
+    pf->Write();                                         
+    pf->Close();                                           
+                                                                    
+    delete pf;                        
+    mlock.unlock();                                            
+  }       
 
   globalLock.lock();
   run_in_progress = false;
@@ -591,23 +659,23 @@ INT interrupt_configure(INT cmd, INT source, PTYPE adr)
 //--- Event Readout ----------------------------------------------------------//
 INT read_surface_coils(char *pevent, INT c)
 {
-  std::cout << "In event readout" << std::endl;
   static unsigned long long num_events;
   static unsigned long long events_written;
 
   HNDLE hDB, hkey;
-  char bk_name[10]; //bank name
-  DWORD *pdata; //place to store data
+  char bk_name[10]; //bank name          
+  DWORD *pdata; //place to store data                 
 
-  //Grab the database handle                             
+  //Grab the database handle                        
   cm_get_experiment_database(&hDB, NULL);
 
-  //initialize MIDAS bank
+  //initialize MIDAS bank                        
   bk_init32(pevent);
-
   sprintf(bk_name, "SCCS");
   bk_create(pevent, bk_name, TID_DOUBLE, (void **)&pdata);
 
+  std::cout << "In event readout" << std::endl;
+  
   //Get data ready for midas banks
   mlock.lock();
   for(int idx = 0; idx < nCoils; ++idx){
@@ -639,16 +707,19 @@ INT read_surface_coils(char *pevent, INT c)
   pdata += sizeof(data) / sizeof(DWORD);
 
   bk_close(pevent, pdata);
-
-  globalLock.unlock();
-  event_number++;
-  globalLock.lock();
-
-  dataBuffer.erase(dataBuffer.begin());
   mlock.unlock();
 
+  globalLock.lock();
+  event_number++;
+  globalLock.unlock();
+
+  dataBuffer.erase(dataBuffer.begin());
+  
   std::cout << "Wrote data" << std::endl;
+
   return bk_size(pevent);
+  
+ 
 }
 
  
@@ -737,9 +808,35 @@ void ReadCurrents(){
       //send data to driver boards                                            
       std::string buffer = newRequest.dump();
 
+      //message 1
+      /*zmq::message_t message1 (buffer.size());
+      std::copy(buffer.begin(), buffer.end(), (char *)message1.data());
+      requester1.send(message1);
+      std::cout << "Sent the set points to crate 1" << std::endl;
+
+      zmq::message_t reply1;
+      if(!requester1.recv(&reply1)){
+        cm_msg(MINFO, "frontend_init", "Crate 1 never responded");
+	return FE_ERR_HW;
+      }
+      else std::cout << "set Points were received by crate 1" << std::endl;*/
+
+      //message 2
+      /*zmq::message_t message2 (buffer.size());
+      std::copy(buffer.begin(), buffer.end(), (char *)message2.data());
+      requester2.send(message2);
+      std::cout << "Sent the set points to crate 2" << std::endl;
+
+      zmq::message_t reply2;
+      if(!requester2.recv(&reply2)){
+        cm_msg(MINFO, "frontend_init", "Crate 2 never responded");
+	return FE_ERR_HW;
+      }
+      else std::cout << "set Points were received by crate 2" << std::endl;*/
+
+      //message 3
       zmq::message_t message3 (buffer.size());
       std::copy(buffer.begin(), buffer.end(), (char *)message3.data());
-      
       requester3.send(message3);
       std::cout << "Sent the set points to crate 3" << std::endl;
 
@@ -750,6 +847,44 @@ void ReadCurrents(){
       }
       else std::cout << "set Points were received by crate 3" << std::endl;
       
+      //message 4
+      /*zmq::message_t message4 (buffer.size());
+      std::copy(buffer.begin(), buffer.end(), (char *)message4.data());
+      requester4.send(message4);
+      std::cout << "Sent the set points to crate 4" << std::endl;
+
+      zmq::message_t reply4;
+      if(!requester4.recv(&reply4)){
+        cm_msg(MINFO, "frontend_init", "Crate 4 never responded");
+	return FE_ERR_HW;
+      }
+      else std::cout << "set Points were received by crate 4" << std::endl;*/
+
+      //message 5
+      /*zmq::message_t message5 (buffer.size());
+      std::copy(buffer.begin(), buffer.end(), (char *)message5.data());
+      requester3.send(message5);
+      std::cout << "Sent the set points to crate 5" << std::endl;
+
+      zmq::message_t reply5;
+      if(!requester5.recv(&reply5)){
+        cm_msg(MINFO, "frontend_init", "Crate 5 never responded");
+	return FE_ERR_HW;
+      }
+      else std::cout << "set Points were received by crate 5" << std::endl;*/
+
+      //message 6
+      /*zmq::message_t message6 (buffer.size());
+      std::copy(buffer.begin(), buffer.end(), (char *)message6.data());
+      requester6.send(message6);
+      std::cout << "Sent the set points to crate 6" << std::endl;
+
+      zmq::message_t reply6;
+      if(!requester6.recv(&reply6)){
+        cm_msg(MINFO, "frontend_init", "Crate 6 never responded");
+	return FE_ERR_HW;
+      }
+      else std::cout << "set Points were received by crate 6" << std::endl;*/
 
       break;
     }
