@@ -11,10 +11,12 @@ source : {
 
   //Parameters parsed by the detail class
   detail : {
+   analyzerName: "FPS DQM"
    online : false
    requestedBanks : ['FXPR'] 
    eventIDMask: 1
-   midasTriggerMask: 1
+   midasExperimentName: "g2-field"
+   mserverHost: "g2field-be-priv:1175" 
  }
 }
 
@@ -61,7 +63,7 @@ physics : {
 
   analyzers:{
 
-  publisher: {
+  Publisher: {
      module_type : FixedProbePublisher
   }
 
@@ -71,7 +73,7 @@ physics : {
   // Define paths/streams
 
   unpackerPath   : []
-  onlinePath: [publisher]  
+  onlinePath: [Publisher]  
 
   dataOutputPath : []
 

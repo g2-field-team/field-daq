@@ -820,9 +820,18 @@ void GalilMonitor(const GCon &g){
 	    GalilDataUnit.StatusArray[j] = TRUE;
 	  }
 	}
-      }else if(Header.compare("ERROR")==0){
+      }else if(Header[0]=='?' || Header.compare("ERROR")==0){
 	mlock.lock();
 	GCmd(g,"AB 1");
+	//Update finish labels
+	GCmd(g,"tlfinish=1");
+	GCmd(g,"grfinish=1");
+	//Terminate thread
+	GCmd(g,"HX 1");
+	//Set the motor switch odb values to off
+	BOOL MOTOR_OFF = FALSE;
+	db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Switch",&MOTOR_OFF,sizeof(MOTOR_OFF), 1 ,TID_BOOL); 
+	db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Garage Switch",&MOTOR_OFF,sizeof(MOTOR_OFF), 1 ,TID_BOOL); 
 	mlock.unlock();
 	cm_msg(MINFO,"Galil Message",BufString.substr(0,foundnewline-1).c_str());
       }else{
@@ -1040,11 +1049,17 @@ void GalilControl(const GCon &g){
       }else{
 	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
       }
+      //Safety checks
       //Do not execute command if corresponding motors are not ON
       BOOL MotorStatus[6];
+      INT FLimitSwitch[6];
+      INT RLimitSwitch[6];
       INT size_MotorStatus = sizeof(MotorStatus);
+      INT size_LimitSwitches = sizeof(FLimitSwitch);
       mlock.lock();
       db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Status",&MotorStatus,&size_MotorStatus,TID_BOOL,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Limit Switches Forward",&FLimitSwitch,&size_LimitSwitches,TID_INT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Limit Switches Reverse",&RLimitSwitch,&size_LimitSwitches,TID_INT,0);
       mlock.unlock();
       if (MotorStatus[0] == FALSE || MotorStatus[1] == FALSE){
 	if (command == 1 || command == 2 || command == 6 || command == 7){
@@ -1063,6 +1078,13 @@ void GalilControl(const GCon &g){
 	  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
 	  mlock.unlock();
 	}
+      }
+      if (FLimitSwitch[0]==0 || FLimitSwitch[1]==0 || RLimitSwitch[0]==0 || RLimitSwitch[1]==0){
+	  command = 0;
+	  mlock.lock();
+	  cm_msg(MINFO,"ManualCtrl","This command requires All trolley limit switches nonactive.");
+	  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
+	  mlock.unlock();
       }
     }
     if (command == 1){

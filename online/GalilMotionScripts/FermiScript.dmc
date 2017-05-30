@@ -54,7 +54,7 @@ IF (@AN[1]-ofst1>thigh)
   BGB
 #LOOP2
   IF (@AN[1]-ofst1 < thigh)
-    MG "MESSAGE TENSION INITIALIZED", MG @AN[1],@AN[2]
+    MG "MESSAGE TENSION INITIALIZED", @AN[1],@AN[2]
     STB
     KPB=0
     JP #NEXT1

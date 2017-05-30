@@ -490,19 +490,19 @@ INT read_fixed_probe_event(char *pevent, INT off)
 
   } else if (triggered && !event_manager->HasEvent()) {
     // No event yet.
-    cm_msg(MDEBUG, "read_fixed_probe_event", "no data yet");
+    //cm_msg(MDEBUG, "read_fixed_probe_event", "no data yet");
     return 0;
 
   } else {
 
-    cm_msg(MDEBUG, "read_fixed_probe_event", "got real data event");
+    cm_msg(MDEBUG, "read_fixed_probe_event", "got event data event");
 
     auto fp_data = event_manager->GetCurrentEvent();
+    event_manager->PopCurrentEvent();
 
     if ((fp_data.clock_sys_ns[0] == 0) && 
 	(fp_data.clock_sys_ns[nprobes-1] == 0)) {
 
-      event_manager->PopCurrentEvent();
       triggered = false;
       return 0;
     }
@@ -515,7 +515,7 @@ INT read_fixed_probe_event(char *pevent, INT off)
 
     data_mutex.lock();
 
-    cm_msg(MINFO, frontend_name, "copying the data from event");
+    // cm_msg(MINFO, frontend_name, "copying the data from event");
     std::copy(fp_data.clock_sys_ns.begin(),
 	      fp_data.clock_sys_ns.begin() + nprobes,
 	      &data.clock_sys_ns[0]);
@@ -536,6 +536,10 @@ INT read_fixed_probe_event(char *pevent, INT off)
 	      fp_data.device_gain_vpp.begin() + nprobes,
 	      &data.device_gain_vpp[0]);
     
+    std::copy(fp_data.fid_amp.begin(),
+	      fp_data.fid_amp.begin() + nprobes,
+	      &data.fid_amp[0]);
+
     std::copy(fp_data.fid_snr.begin(),
 	      fp_data.fid_snr.begin() + nprobes,
 	      &data.fid_snr[0]);
@@ -543,6 +547,26 @@ INT read_fixed_probe_event(char *pevent, INT off)
     std::copy(fp_data.fid_len.begin(),
 	      fp_data.fid_len.begin() + nprobes,
 	      &data.fid_len[0]);
+
+    std::copy(fp_data.freq.begin(),
+	      fp_data.freq.begin() + nprobes,
+	      &data.freq[0]);
+
+    std::copy(fp_data.ferr.begin(),
+	      fp_data.ferr.begin() + nprobes,
+	      &data.ferr[0]);
+
+    std::copy(fp_data.freq_zc.begin(),
+	      fp_data.freq_zc.begin() + nprobes,
+	      &data.freq_zc[0]);
+
+    std::copy(fp_data.ferr_zc.begin(),
+	      fp_data.ferr_zc.begin() + nprobes,
+	      &data.ferr_zc[0]);
+
+    std::copy(fp_data.health.begin(),
+	      fp_data.health.begin() + nprobes,
+	      &data.health[0]);
 
     for (int idx = 0; idx < nprobes; ++idx) {
       
@@ -581,7 +605,6 @@ INT read_fixed_probe_event(char *pevent, INT off)
   }
 
   if (write_root && run_in_progress) {
-    cm_msg(MINFO, "read_fixed_event", "Filling TTree");
     // Now that we have a copy of the latest event, fill the tree.
     pt->Fill();
 
@@ -593,7 +616,6 @@ INT read_fixed_probe_event(char *pevent, INT off)
 
     if (num_events % 10 == 1) {
 
-      cm_msg(MINFO, frontend_name, "flushing TTree.");
       pt->AutoSave("SaveSelf,FlushBaskets");
 
       if (write_full_waveform) {
@@ -701,8 +723,17 @@ void update_feedback_params()
   BOOL flag;
   double freq[nprobes] = {0};
   double ferr[nprobes] = {0};
+  double health_thresh = 10.0;
   double uniform_mean_freq = 0.0;
   double weighted_mean_freq = 0.0;
+
+  std::string outfile = "/home/newg2/Applications/PSFeedback/input/fixed-probe-data.csv";
+  std::string lockfile = "/home/newg2/Applications/PSFeedback/input/fixed-probe-data.lock";
+
+  std::ofstream out(outfile);
+  std::ofstream lock(lockfile);
+
+  lock << "in use" << std::endl;
   
   cm_get_experiment_database(&hDB, NULL);
 
@@ -745,6 +776,8 @@ void update_feedback_params()
   db_set_value(hDB, 0, str, &use_zc, sizeof(use_zc), 1, TID_BOOL);
   
   double w_sum = 0.0;
+  double u_sum = 0.0;
+
   for (int i = 0; i < nprobes; ++i) {
     
     if (use_zc) {
@@ -757,14 +790,20 @@ void update_feedback_params()
       ferr[i] = data.ferr[i];
     }
 
-    uniform_mean_freq += freq[i];
-    weighted_mean_freq += freq[i] / (ferr[i] + 0.001);
+    if (data.health[i] > health_thresh) {
+      uniform_mean_freq += freq[i];
+      weighted_mean_freq += freq[i] / (ferr[i] + 0.001);
 
-    w_sum += 1.0 / (ferr[i] + 0.001);
+      u_sum += 1.0;
+      w_sum += 1.0 / (ferr[i] + 0.001);
+    }
   }
 
-  uniform_mean_freq /= nprobes;
+  uniform_mean_freq /= u_sum;
   weighted_mean_freq /= w_sum;
+
+  out << uniform_mean_freq << ",";
+  out << 1.0 << ",";
 
   snprintf(str, sizeof(str), "%s/weighted_mean_nmr_freq", stub);
   db_set_value(hDB, 0, str, 

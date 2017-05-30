@@ -28,7 +28,7 @@ int FixedProbeSequencer::Init()
   thread_live_ = false;
 
   sequence_in_progress_ = false;
-  builder_has_finished_ = true;
+  builder_has_finished_ = false;
   mux_round_configured_ = false;
   analyze_fids_online_ = false;
   use_fast_fids_class_ = false;
@@ -38,7 +38,8 @@ int FixedProbeSequencer::Init()
   // Change the logfile if there is one in the config.
   boost::property_tree::ptree conf;
   boost::property_tree::read_json(conf_file_, conf);
-  SetLogfile(conf.get<std::string>("logfile", logfile_));
+  SetLogfile(conf.get<std::string>("output.logfile", logfile_));
+  SetVerbosity(conf.get<int>("output.verbosity", logging_verbosity_));
 }
 
 int FixedProbeSequencer::BeginOfRun()
@@ -108,8 +109,6 @@ int FixedProbeSequencer::BeginOfRun()
    				      NMR_FID_LENGTH_ONLINE));
   }
 
-  workers_[0]->SetVerbosity(4);
-
   // Set up the NMR pulser triggers
   dio_triggers_.resize(0);
 
@@ -122,22 +121,22 @@ int FixedProbeSequencer::BeginOfRun()
     switch (bid) {
       case 'a':
 	LogDebug("setting NMR pulser trigger on dio board A, port %i", port);
-	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_A, port));
+	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_A, port, false));
 	break;
 	
       case 'b':
 	LogDebug("setting NMR pulser trigger on dio board B, port %i", port);
-	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_B, port));
+	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_B, port, false));
 	break;
       
       case 'c':
 	LogDebug("setting NMR pulser trigger on dio board C, port %i", port);
-	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_C, port));
+	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_C, port, false));
 	break;
 
       default:
 	LogDebug("setting NMR pulser trigger on dio board D, port %i", port);
-	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_D, port));
+	dio_triggers_.push_back(new hw::DioTriggerBoard(0x0, hw::BOARD_D, port, false));
 	break;
     }
 
@@ -147,7 +146,7 @@ int FixedProbeSequencer::BeginOfRun()
 
   min_event_time_ = conf.get<int>("min_event_time", 1000);
   max_event_time_ = conf.get<int>("max_event_time", 10000);
-  mux_switch_time_ = conf.get<int>("mux_switch_time", 10000);
+  mux_switch_time_ = conf.get<int>("mux_switch_time", 15000);
 
   mux_sequence_ = conf.get<std::string>("config.mux_sequence");
 
@@ -231,6 +230,8 @@ int FixedProbeSequencer::BeginOfRun()
   LogMessage("Starting workers");
   workers_.StartRun();
 
+  usleep(5000);
+
   // Pop stale events
   while (workers_.AnyWorkersHaveEvent()) {
     workers_.FlushEventData();
@@ -298,7 +299,7 @@ void FixedProbeSequencer::RunLoop()
 {
   while (thread_live_) {
 
-    while (false & go_time_) {
+    while (go_time_ && !generate_software_triggers_) {
 
       if (workers_.AnyWorkersHaveEvent()) {
 
@@ -316,7 +317,7 @@ void FixedProbeSequencer::RunLoop()
 	while (!workers_.AllWorkersHaveEvent() &&
 	       (count++ * 500 < max_event_time_)) {
 	  usleep(500);
-	  LogDebug("RunLoop: sleep check");
+	  LogDump("RunLoop: sleep check");
 	}
 	
 	LogDebug("RunLoop: slept max");
@@ -347,6 +348,8 @@ void FixedProbeSequencer::RunLoop()
                    data_queue_.size());
         }
 
+	
+
         queue_mutex_.unlock();
       }
       
@@ -369,12 +372,13 @@ void FixedProbeSequencer::TriggerLoop()
 	builder_has_finished_ = false;
 	mux_round_configured_ = false;
 
-	LogMessage("received trigger, sequencing multiplexers");
+	LogMessage("TriggerLoop: received trigger, sequencing multiplexers");
 
 	for (auto &round : trg_seq_) { // {mux_conf_0...mux_conf_n}
 	  if (!go_time_) break;
 
 	  got_round_data_ = false;
+	  mux_round_configured_ = false;
 
 	  for (auto &conf : round) { // {mux_name, set_channel}
 	    if (!go_time_) break;
@@ -418,32 +422,48 @@ void FixedProbeSequencer::TriggerLoop()
 	  
 	    while (!workers_.AllWorkersHaveEvent()) usleep(500);
 
+	    hw::event_data_t bundle;
+	    workers_.GetEventData(bundle);
+	    hw::wait_ns(hw::short_sleep * 2);
+	    
+	    queue_mutex_.lock();
+	    if (data_queue_.size() <= kMaxQueueSize) {
+	      data_queue_.push(bundle);
+	      
+	      LogDebug("RunLoop: Got data. Data queue now: %i",
+		       data_queue_.size());
+	    }
+	    queue_mutex_.unlock();
+	    
 	  } else {
 	    
 	    LogDebug("Generated DIO triggers");
-	    for (auto &trg : dio_triggers_) {
-	      trg->FireTriggers();
-	    }
+	    int trg_count = 0;
+
+	    dio_triggers_[0]->FireTriggers(0xff);
+	    dio_triggers_[1]->FireTriggers(0xff);
+	    //	    dio_triggers_[1]->FireTriggers();
+
+	    //	    for (auto &trg : dio_triggers_) {
+	    //	      int rc = trg->FireTriggers();
+
+
+	      // LogMessage("Trigger %i fired", trg_count);
+
+	      // while (rc > 0) {
+	      // 	LogError("Trigger %i failed with rc = %i", trg_count, rc);
+	      // 	rc = trg->FireTriggers();
+	      // 	LogMessage("Trigger %i re-fired", trg_count);
+	      // }
+	      // ++trg_count;
 	  }
 	  
-	  hw::event_data_t bundle;
-	  workers_.GetEventData(bundle);
-
-	  queue_mutex_.lock();
-	  if (data_queue_.size() <= kMaxQueueSize) {
-	    data_queue_.push(bundle);
-	    
-	    LogDebug("RunLoop: Got data. Data queue now: %i",
-		     data_queue_.size());
-	  }
-	  queue_mutex_.unlock();
-
-	  LogDebug("TriggerLoop: muxes configure, triggers fired");
+	  LogDebug("TriggerLoop: muxes configured, triggers fired");
 	  mux_round_configured_ = true;
-	  
+
 	  while (!got_round_data_ && go_time_) {
 	    ThreadSleepShort();
-	  }
+	  };
 	  
 	} // on to the next round
 
@@ -451,15 +471,15 @@ void FixedProbeSequencer::TriggerLoop()
 	got_start_trg_ = false;
 
 	LogDebug("TriggerLoop: waiting for builder to finish");
+	
 	while (!builder_has_finished_ && go_time_) {
 	  ThreadSleepShort();
 	};
-
+	
 	LogDebug("TriggerLoop: builder finished packing event");
-
+	ThreadSleepShort();
+	
       } // done with trigger sequence
-
-      ThreadSleepShort();
     }
 
     ThreadSleepLong();
@@ -491,7 +511,7 @@ void FixedProbeSequencer::BuilderLoop()
       int seq_index = 0;
 
       if (sequence_in_progress_) {
-        LogMessage("assembling a new event");
+        LogMessage("BuilderLoop: beginning a new event");
       }
 
       while (sequence_in_progress_ && go_time_) {
@@ -548,8 +568,8 @@ void FixedProbeSequencer::BuilderLoop()
               auto trace = data[sis_idx].trace[trace_idx];
               auto size = data[sis_idx].trace[trace_idx].size();
 
-              LogDebug("BuilderLoop: round %i, copying %s, ch %i -> %i",
-                       seq_index, sis_name.c_str(), trace_idx, idx);
+              LogDebug("BuilderLoop: round %i, copying %s, ch %i -> %i, %i samples",
+                       seq_index, sis_name.c_str(), trace_idx, idx, size);
 
               std::copy(&trace[0], &trace[0] + size, arr_ptr);
               
@@ -582,7 +602,11 @@ void FixedProbeSequencer::BuilderLoop()
                   fid::FastFid myfid(wf, tm);
 
                   // Make sure we got an FID signal
-                  if (myfid.isgood()) {
+                  if (myfid.isgood() && std::isfinite(myfid.CalcFreq())) {
+		    
+		    if (idx == 0) {
+		      std::cout << "probe000: freq = " << myfid.freq() << std::endl;
+		    }
 
                     bundle.fid_amp[idx] = myfid.amp();
                     bundle.fid_snr[idx] = myfid.snr();
@@ -596,7 +620,7 @@ void FixedProbeSequencer::BuilderLoop()
 
                   } else {
 
-                    myfid.DiagnosticInfo();
+                    // myfid.DiagnosticInfo();
                     bundle.fid_snr[idx] = 0.0;
                     bundle.fid_len[idx] = 0.0;
                     bundle.freq[idx] = 0.0;

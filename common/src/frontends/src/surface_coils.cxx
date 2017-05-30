@@ -191,7 +191,7 @@ INT frontend_init()
   if(rc != SUCCESS){
     return rc;
   }
-  
+ 
   //Get the channel mapping
   HNDLE hDB, hkey;
 
@@ -361,81 +361,75 @@ INT frontend_init()
   zmq::message_t message1 (buffer.size());                 
   std::copy(buffer.begin(), buffer.end(), (char *)message1.data());   
   requester1.send(message1);                                
-  std::cout << "Sent the set points to crate 1" << std::endl;        
-                                                     
+                                                       
   zmq::message_t reply1;                     
   if(!requester1.recv(&reply1)){                       
     cm_msg(MINFO, "frontend_init", "Crate 1 never responded");       
     return FE_ERR_HW;                                 
   }                                                        
-  else std::cout << "set Points were received by crate 1" << std::endl;
+  cm_msg(MINFO, "frontend_init", "set points were received by crate 1");
 
   //message 2
   /*zmq::message_t message2 (buffer.size());
   std::copy(buffer.begin(), buffer.end(), (char *)message2.data());
   requester2.send(message2);
-  std::cout << "Sent the set points to crate 2" << std::endl;
-
+  
   zmq::message_t reply2;
   if(!requester2.recv(&reply2)){
     cm_msg(MINFO, "frontend_init", "Crate 2 never responded");
     return FE_ERR_HW;
   }
-  else std::cout << "set Points were received by crate 2" << std::endl;*/
+  cm_msg(MINFO, "frontend_init", "set points were received by crate 2");*/
                                                  
   //message 3
   zmq::message_t message3 (buffer.size());                   
   std::copy(buffer.begin(), buffer.end(), (char *)message3.data());      
   requester3.send(message3);                  
-  std::cout << "Sent the set points to crate 3" << std::endl;        
-
+  
   zmq::message_t reply3;                   
   if(!requester3.recv(&reply3)){
     cm_msg(MINFO, "frontend_init", "Crate 3 never responded");
     return FE_ERR_HW;
    }                                                  
-  else std::cout << "set Points were received by crate 3" << std::endl; 
+  cm_msg(MINFO, "frontend_init", "set points were received by crate 3");
 
   //message 4
   /*zmq::message_t message4 (buffer.size());                    
   std::copy(buffer.begin(), buffer.end(), (char *)message4.data());  
   requester4.send(message4);                 
-  std::cout << "Sent the set points to crate 4" << std::endl;    
-                                                                    
+                                                                      
   zmq::message_t reply4;                                       
   if(!requester4.recv(&reply4){                  
     cm_msg(MINFO, "frontend_init", "Crate 4 never responded");     
     return FE_ERR_HW;                          
   }                                                         
-  else std::cout << "set Points were received by crate 4" << std::endl;*/
+  cm_msg(MINFO, "frontend_init", "set points were received by crate 4");*/
 
   //message 5
   /*zmq::message_t message5 (buffer.size());                 
   std::copy(buffer.begin(), buffer.end(), (char *)message5.data());   
   requester5.send(message5);                       
-  std::cout << "Sent the set points to crate 5" << std::endl;         
-                                                               
+                                                                 
   zmq::message_t reply5;           
   if(!requester5.recv(&reply5)){                 
     cm_msg(MINFO, "frontend_init", "Crate 5 never responded"); 
     return FE_ERR_HW;                              
   }                                            
-  else std::cout << "set Points were received by crate 5" << std::endl;*/
+  cm_msg(MINFO, "frontend_init", "set points were received by crate 5");*/
 
   //message 6
   /*zmq::message_t message6 (buffer.size());  
   std::copy(buffer.begin(), buffer.end(), (char *)message6.data());  
   requester6.send(message6);            
-  std::cout << "Sent the set points to crate 6" << std::endl;     
-
+  
   zmq::message_t reply6;   
   if(!requester6.recv(&reply6)){                  
     cm_msg(MINFO, "frontend_init", "Crate 6 never responded");
     return FE_ERR_HW;               
   }                                                      
-  else std::cout << "set Points were received by crate 6" << std::endl;*/
+  cm_msg(MINFO, "frontend_init", "set points were received by crate 6");*/
 
-  cm_msg(MINFO, "begin_of_run", "Currents all set");
+  cm_msg(MINFO, "begin_of_run", "Surface coil currents all set");
   
   //Set FrontendActive to True
   mlock.lock();
@@ -443,7 +437,6 @@ INT frontend_init()
   mlock.unlock();
 
   //Start the read thread
-  std::cout << "Starting the thread now!!" << std::endl;
   read_thread = std::thread(ReadCurrents);
 
   globalLock.lock();
@@ -452,7 +445,6 @@ INT frontend_init()
 
   cm_msg(MINFO, "init","Surface Coils initialization complete");
   
-  std::cout << "Initialization complete" << std::endl;
   return SUCCESS;
 }
 
@@ -473,15 +465,12 @@ INT frontend_exit()
   globalLock.unlock();
 
   cm_msg(MINFO, "exit", "Surface Coils teardown complete");
-  std::cout << "Frontend exit complete" << std::endl;
-  return SUCCESS;
+   return SUCCESS;
 }
 
 //--- Begin of Run ----------------------------------------------------------//
 INT begin_of_run(INT run_number, char *error)
 {
-  std::cout << "In begin of run routine" << std::endl;
-
   using namespace boost;
   //ODB parameters
   HNDLE hDB, hkey;
@@ -492,11 +481,11 @@ INT begin_of_run(INT run_number, char *error)
   //Grab the database handle
   cm_get_experiment_database(&hDB, NULL);
 
+
   //set up the data
   std::string datadir;
   std::string filename;
 
-  std::cout << "Get run info from ODB" << std::endl;
   // Get the run info out of the ODB.          
   db_find_key(hDB, 0, "/Runinfo", &hkey);
   if (db_open_record(hDB, hkey, &runinfo, sizeof(runinfo), MODE_READ, NULL, NULL) != DB_SUCCESS) {
@@ -504,7 +493,6 @@ INT begin_of_run(INT run_number, char *error)
     return CM_DB_ERROR;
   }
 
-  std::cout << "Get data directory from ODB" << std::endl;
   // Get the data directory from the ODB.
   snprintf(str, sizeof(str), "/Equipment/Surface Coils/Settings/Root Directory");
   db_find_key(hDB, 0, str, &hkey);
@@ -516,12 +504,11 @@ INT begin_of_run(INT run_number, char *error)
     }
 
   // Set the filename       
-  snprintf(str, sizeof(str), "Root/surface_coil_run_%05d.root", runinfo.run_number);
+  snprintf(str, sizeof(str), "surface_coil_run_%05d.root", runinfo.run_number);
 
   // Join the directory and filename using boost filesystem. 
   filename = (filesystem::path(datadir) / filesystem::path(str)).string();
 
-  std::cout << "Get parameter for root output" << std::endl;
   // Get the parameter for root output.  
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Root Output", &hkey);
 
@@ -535,8 +522,6 @@ INT begin_of_run(INT run_number, char *error)
     write_root = true;
   }
 
-  std::cout << "Got all info for root output from odb" << std::endl;
-
   if (write_root) {
     // Set up the ROOT data output.        
     pf = new TFile(filename.c_str(), "recreate");
@@ -549,8 +534,6 @@ INT begin_of_run(INT run_number, char *error)
     pt_norm->Branch(br_name.c_str(), &data.bot_sys_clock[0], g2field::sc_str);
  }
  
-  std::cout << "Set up tree for writing data. Now going to set event number" << std::endl;
-
   globalLock.lock();
   event_number = 0;
   run_in_progress = true;
@@ -558,14 +541,12 @@ INT begin_of_run(INT run_number, char *error)
   
   cm_msg(MLOG, "begin of run", "Completed successfully");
 
-  std::cout << "Finished begin of run routine" << std::endl;
   return SUCCESS;
 }
 
 //--- End of Run -------------------------------------------------------------//
 INT end_of_run(INT run_number, char *error)
 {
-  std::cout << "End of run. Size: " << dataBuffer.size() << std::endl;
 
   // Make sure we write the ROOT data.                                 
   if (run_in_progress && write_root) {                       
@@ -583,8 +564,7 @@ INT end_of_run(INT run_number, char *error)
   run_in_progress = false;
   globalLock.unlock();
 
-  std::cout << "Finished end of run routine" << std::endl;
-  cm_msg(MLOG, "end_of_run","Completed successfully");
+  cm_msg(MLOG, "end_of_run","Surface coil end of run completed successfully");
   return SUCCESS;
 }
 
@@ -633,7 +613,7 @@ INT poll_event(INT source, INT count, BOOL test)
   BOOL check = dataBuffer.size()>1;
   mlock.unlock();
   if(check){
-    std::cout << "Trigger" << std::endl;
+    //std::cout << "Trigger" << std::endl;
     return 1;
   }
   else return 0;
@@ -674,8 +654,6 @@ INT read_surface_coils(char *pevent, INT c)
   sprintf(bk_name, "SCCS");
   bk_create(pevent, bk_name, TID_DOUBLE, (void **)&pdata);
 
-  std::cout << "In event readout" << std::endl;
-  
   //Get data ready for midas banks
   mlock.lock();
   for(int idx = 0; idx < nCoils; ++idx){
@@ -715,17 +693,12 @@ INT read_surface_coils(char *pevent, INT c)
 
   dataBuffer.erase(dataBuffer.begin());
   
-  std::cout << "Wrote data" << std::endl;
-
-  return bk_size(pevent);
-  
- 
+  return bk_size(pevent); 
 }
 
  
 //Thread function!
 void ReadCurrents(){
-  std::cout << "In the thread" << std::endl;
 
   HNDLE hDB, hkey;
   char bk_name[10]; //bank name           
@@ -735,7 +708,6 @@ void ReadCurrents(){
   cm_get_experiment_database(&hDB, NULL);
 
   while(1){
-    std::cout << "In the while loop" << std::endl;
 
   BOOL localFrontendActive;
   mlock.lock();
@@ -743,13 +715,12 @@ void ReadCurrents(){
   mlock.unlock();
   if(!localFrontendActive) break;
 
-  std::cout << "Getting ODB values in while loop" << std::endl;
   mlock.lock();
   //Get the current odb values
   //Get bottom set currents
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Bottom Set Currents", &hkey);
   if(hkey == NULL){
-    cm_msg(MERROR, "begin_of_run", "unable to find Bottom Set Currents key");
+    cm_msg(MERROR, "ReadCurrents", "unable to find Bottom Set Currents key");
   }
 
   for(int i=0;i<nCoils;i++){
@@ -763,7 +734,7 @@ void ReadCurrents(){
   //Get top set currents            
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Top Set Currents", &hkey);
   if(hkey == NULL){
-    cm_msg(MERROR, "begin_of_run", "unable to find Top Set Currents key");
+    cm_msg(MERROR, "ReadCurrents", "unable to find Top Set Currents key");
   }
 
   int top_comp_size = sizeof(top_comp_values);
@@ -809,82 +780,82 @@ void ReadCurrents(){
       std::string buffer = newRequest.dump();
 
       //message 1
-      /*zmq::message_t message1 (buffer.size());
+      zmq::message_t message1 (buffer.size());
       std::copy(buffer.begin(), buffer.end(), (char *)message1.data());
       requester1.send(message1);
-      std::cout << "Sent the set points to crate 1" << std::endl;
+      //std::cout << "Sent the set points to crate 1" << std::endl;
 
       zmq::message_t reply1;
       if(!requester1.recv(&reply1)){
-        cm_msg(MINFO, "frontend_init", "Crate 1 never responded");
+        cm_msg(MINFO, "ReadCurrents", "Crate 1 never responded");
 	return FE_ERR_HW;
       }
-      else std::cout << "set Points were received by crate 1" << std::endl;*/
+      //else std::cout << "set Points were received by crate 1" << std::endl;
 
       //message 2
       /*zmq::message_t message2 (buffer.size());
       std::copy(buffer.begin(), buffer.end(), (char *)message2.data());
       requester2.send(message2);
-      std::cout << "Sent the set points to crate 2" << std::endl;
+      //std::cout << "Sent the set points to crate 2" << std::endl;
 
       zmq::message_t reply2;
       if(!requester2.recv(&reply2)){
-        cm_msg(MINFO, "frontend_init", "Crate 2 never responded");
+        cm_msg(MINFO, "ReadCurrents", "Crate 2 never responded");
 	return FE_ERR_HW;
       }
-      else std::cout << "set Points were received by crate 2" << std::endl;*/
+      //else std::cout << "set Points were received by crate 2" << std::endl;*/
 
       //message 3
       zmq::message_t message3 (buffer.size());
       std::copy(buffer.begin(), buffer.end(), (char *)message3.data());
       requester3.send(message3);
-      std::cout << "Sent the set points to crate 3" << std::endl;
+      //std::cout << "Sent the set points to crate 3" << std::endl;
 
       zmq::message_t reply3;
       if(!requester3.recv(&reply3)){
-	cm_msg(MINFO, "frontend_init", "Crate 3 never responded");
+	cm_msg(MINFO, "ReadCurrents", "Crate 3 never responded");
 	return FE_ERR_HW;
       }
-      else std::cout << "set Points were received by crate 3" << std::endl;
+      //else std::cout << "set Points were received by crate 3" << std::endl;
       
       //message 4
       /*zmq::message_t message4 (buffer.size());
       std::copy(buffer.begin(), buffer.end(), (char *)message4.data());
       requester4.send(message4);
-      std::cout << "Sent the set points to crate 4" << std::endl;
+      //std::cout << "Sent the set points to crate 4" << std::endl;
 
       zmq::message_t reply4;
       if(!requester4.recv(&reply4)){
-        cm_msg(MINFO, "frontend_init", "Crate 4 never responded");
+        cm_msg(MINFO, "ReadCurrents", "Crate 4 never responded");
 	return FE_ERR_HW;
       }
-      else std::cout << "set Points were received by crate 4" << std::endl;*/
+      //else std::cout << "set Points were received by crate 4" << std::endl;*/
 
       //message 5
       /*zmq::message_t message5 (buffer.size());
       std::copy(buffer.begin(), buffer.end(), (char *)message5.data());
       requester3.send(message5);
-      std::cout << "Sent the set points to crate 5" << std::endl;
+      //std::cout << "Sent the set points to crate 5" << std::endl;
 
       zmq::message_t reply5;
       if(!requester5.recv(&reply5)){
-        cm_msg(MINFO, "frontend_init", "Crate 5 never responded");
+        cm_msg(MINFO, "ReadCurrents", "Crate 5 never responded");
 	return FE_ERR_HW;
       }
-      else std::cout << "set Points were received by crate 5" << std::endl;*/
+      //else std::cout << "set Points were received by crate 5" << std::endl;*/
 
       //message 6
       /*zmq::message_t message6 (buffer.size());
       std::copy(buffer.begin(), buffer.end(), (char *)message6.data());
       requester6.send(message6);
-      std::cout << "Sent the set points to crate 6" << std::endl;
+      //std::cout << "Sent the set points to crate 6" << std::endl;
 
       zmq::message_t reply6;
       if(!requester6.recv(&reply6)){
-        cm_msg(MINFO, "frontend_init", "Crate 6 never responded");
+        cm_msg(MINFO, "ReadCurrents", "Crate 6 never responded");
 	return FE_ERR_HW;
       }
-      else std::cout << "set Points were received by crate 6" << std::endl;*/
+      //else std::cout << "set Points were received by crate 6" << std::endl;*/
 
       break;
     }
@@ -927,9 +898,7 @@ void ReadCurrents(){
   s.resize(bbVals.size());
   //std::cout << s << std::endl;
   json reply_data = json::parse(s);
-  //std::cout << "NOW JSON" << std::endl;        
-  //std::cout << reply_data.dump() << std::endl;              
-  
+    
   //Process the data in the vector. Loops through all json objects.   
   //In the end, only most recent data is stored in array           
   for(json::iterator it = reply_data.begin(); it != reply_data.end(); ++it){
@@ -952,11 +921,9 @@ void ReadCurrents(){
       else std::cout << "PROBLEM! Neither a T nor a B!" << std::endl;
   }
   
-  std::cout << "Pushing data into dataBuffer" << std::endl;
   mlock.lock();
   dataBuffer.push_back(dataUnit);
   mlock.unlock();
-  std::cout << "dataBuffer size: " << dataBuffer.size() << std::endl;
 
   mlock.lock();
   //Update values in odb   
@@ -980,6 +947,7 @@ void ReadCurrents(){
       
       char str[256];
       current_health = 0;
+
       if(bad_curr_string == ""){ bad_curr_string = coil_string("bot", i);}
       else {bad_curr_string = bad_curr_string + ", " + coil_string("bot", i);}
       snprintf(str, 256, "%s", bad_curr_string.c_str());
@@ -989,6 +957,7 @@ void ReadCurrents(){
       cm_msg(MINFO, "read_surface_coils", "Bottom current out of spec");
 
     }
+
 
     //top currents                
     if(std::abs(dataUnit.top_currents[i]-top_set_values[i]) >= setPoint){
