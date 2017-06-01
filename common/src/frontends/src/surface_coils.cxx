@@ -4,10 +4,13 @@ Name: surface_coils.cxx
 Author: Rachel E. Osofsky
 Email: osofskyr@uw.edu
 
-About: Implements a MIDAS frontend for the surface coils. It checks
-       what the current settings should be and makes sure that the
-       currents are set correctly. Then collects data continuously about
-       the output currents.
+About: Implements a MIDAS frontend for the surface coils. During initialization 
+       gets the current set points from the ODB and sends a message to each
+       beaglebone, which in turn sets the currents. Then, in a thread, routinely 
+       checks the current set points and determines whether they have changed. 
+       If so, sends a new message to all beaglebones with new currents. Otherwise 
+       listens for read-back values of currents and temperatures, records these 
+       values, and checks versus set points.
 
 \*****************************************************************************/
 
@@ -46,6 +49,7 @@ using std::string;
 //--- globals --------------------------------------------------------------//
 #define FRONTEND_NAME "Surface Coils"
 
+//definition used for json objects
 using json = nlohmann::json;
 
 extern "C" {
@@ -79,9 +83,12 @@ extern "C" {
   INT resume_run(INT run_number, char *error);
 
   INT frontend_loop();
-  INT read_surface_coils(char *pevent, INT c);//NEED TO DEFINE THIS BETTER LATER
+  INT read_surface_coils(char *pevent, INT c);
   INT poll_event(INT source, INT count, BOOL test);
   INT interrupt_configure(INT cmd, INT source, POINTER_T adr);
+
+  void ReadCurrents(); //Thread function
+  std::string coil_string(string loc, int i); //Return a string like T-###
 
   //Equipment list
 
@@ -110,9 +117,15 @@ extern "C" {
 
 RUNINFO runinfo;
 
-void ReadCurrents(); //Function for thread
+/*
+Function: std::string coil_string(string loc, int i)
 
-std::string coil_string(string loc, int i);
+Inputs: Takes a string "bot" or "top" to determine whether the coil is a top or bottom coil.
+        Takes an int i, where i is the array index
+
+Outputs: Returns a string like B-### or T-### where ###=i+1 padded by zeros
+*/
+
 std::string coil_string(string loc, int i){
   string beg;
   string end;
@@ -132,7 +145,11 @@ namespace{
   bool write_midas = true;
   bool write_root = true;
 
-  //for zmq
+  //ZMQ setup
+  //Requesters are part of a request-reply pair. Send set points to beaglebones, expect
+  //a response that message was received
+  //Subscriber listens for messages from all beaglebones. Message are sent by publishers
+  //on each beaglebone
   zmq::context_t context(1);
   zmq::socket_t requester1(context, ZMQ_REQ);
   //zmq::socket_t requester2(context, ZMQ_REQ);
@@ -140,12 +157,12 @@ namespace{
   /*zmq::socket_t requester4(context, ZMQ_REQ);
   zmq::socket_t requester5(context, ZMQ_REQ);
   zmq::socket_t requester6(context, ZMQ_REQ);*/
-  zmq::socket_t subscriber(context, ZMQ_SUB); //subscribe to data being sent back from beaglebones
+  zmq::socket_t subscriber(context, ZMQ_SUB);
 
   std::thread read_thread;
   std::mutex mlock;
   std::mutex globalLock;
-  BOOL FrontendActive;
+  bool FrontendActive;
 
   TFile *pf;
   TTree * pt_norm;
@@ -158,13 +175,14 @@ namespace{
 
   const int nCoils = g2field::kNumSCoils; //Defined in field_constants.hh
   Double_t setPoint; //If difference between value and set point is larger than this, need to change the current. Value stored in odb
-  Double_t compSetPoint;
+  Double_t compSetPoint; //For checking if setPoint has changed
 
   Double_t bot_set_values[nCoils];
   Double_t top_set_values[nCoils];
   Double_t bot_comp_values[nCoils]; //for comparison with set points
   Double_t top_comp_values[nCoils]; //for comparison with set points
 
+  //Struct to store data sent back by beaglebones
   struct unpacked_data{
     Double_t bot_currents[nCoils];
     Double_t top_currents[nCoils];
@@ -172,19 +190,28 @@ namespace{
     Double_t top_temps[nCoils];
   };
 
+  //Holds the data until it is written to file
   std::vector<unpacked_data> dataBuffer;
 
-  Double_t high_temp;
+  Double_t high_temp; //Highest allowed temperature
 
   int current_health;
   int temp_health;
 
+  //Maps between hardware labeling (###, crate-board-channel) and array labeling (Top or bottom, which index)
   std::map<std::string, std::string> coil_map; //sc_id, hw_id
   std::map<std::string, std::string> rev_coil_map;//hw_id, sc_id
   json request; //json object to hold set currents
  }
 
 //--- Frontend Init ---------------------------------------------------------//
+/*
+Frontend init first resets all of the health parameters in the ODB so that everything starts in a 
+healthy status. It then gets the hardware map from the ODB, as well as reads in the set points. It sets
+up all of the zmq sockets and send out the initial messages to the beaglebones. At the end of the function
+the thread is started.
+*/
+
 INT frontend_init()
 {
   INT rc = load_settings(frontend_name, conf);
@@ -198,7 +225,7 @@ INT frontend_init()
   //Grab the database handle                                        
   cm_get_experiment_database(&hDB, NULL);
 
-  //Start with all healths being good      
+  //Start with all healths being good, no problem channels      
   mlock.lock();
 
   current_health = 1;
@@ -212,8 +239,8 @@ INT frontend_init()
 
   mlock.unlock();
 
+  //Get the hardware/array map from ODB
   mlock.lock();
-  //Get the map from ODB
   for(int i=0;i<2*nCoils;i++){
     string crate_key;
     string board_key;
@@ -289,7 +316,7 @@ INT frontend_init()
  
   mlock.unlock();
 
-  //Now that we have the current set points, package them into json object  
+  //Now that we have the current set points, package them into a json object to be sent to beaglebones  
   mlock.lock();
   request["000"] = setPoint;            
   if(coil_map.size()!=200) cm_msg(MERROR, "begin_of_run", "Coil map is of wrong size");                                                                      
@@ -313,7 +340,10 @@ INT frontend_init()
   }  
   mlock.unlock();
 
-  //bind to servers
+  //Set all requesters to have no linger time
+  //Set all requesters to time out after 2 seconds
+  //Bind to the correct ports
+
   requester1.setsockopt(ZMQ_LINGER, 0);     
   requester1.setsockopt(ZMQ_RCVTIMEO, 2000);           
   requester1.bind("tcp://*:5551");               
@@ -347,17 +377,24 @@ INT frontend_init()
   //cm_msg(MINFO, "init", "Bound to beaglebone 6"); 
 
   //Now bind subscriber to receive data being pushed by beaglebones    
-  //Subscribe to all incoming data                                             
+  //Subscribe to all incoming data 
+  //Set to have no linger time
+  //Set maximum time to wait to receive a message to 5 seconds
+
   subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
   subscriber.setsockopt(ZMQ_LINGER, 0);
   subscriber.setsockopt(ZMQ_RCVTIMEO, 5000);
   subscriber.bind("tcp://*:5550");
   std::cout << "Bound to subscribe socket" << std::endl;
 
-  //send data to driver boards                         
+  //Send data to driver boards:                         
+  //Define a zmq message and fill it with the contents of buffer
+  //Send the message
+  //Define a zmq reply and wait for a response. If no reply received, return an error
+
   std::string buffer = request.dump();              
            
-  //message 1                                  
+  //message 1 
   zmq::message_t message1 (buffer.size());                 
   std::copy(buffer.begin(), buffer.end(), (char *)message1.data());   
   requester1.send(message1);                                
@@ -436,7 +473,9 @@ INT frontend_init()
   FrontendActive = true;
   mlock.unlock();
 
-  //Start the read thread
+  //Start the thread
+  //Will now start receiving readback values from beaglebones and checking whether
+  //set points have been updated in ODB
   read_thread = std::thread(ReadCurrents);
 
   globalLock.lock();
@@ -456,7 +495,7 @@ INT frontend_exit()
   FrontendActive = false;
   mlock.unlock();
 
-  //Join the thread
+  //Join the threads
   read_thread.join();
   cm_msg(MINFO,"exit","Thread joined.");
   
@@ -469,6 +508,12 @@ INT frontend_exit()
 }
 
 //--- Begin of Run ----------------------------------------------------------//
+/*
+The main purpose of the begin of run function is to grab the run information from
+the ODB. This includes the Runinfo, as well as information about whether to write
+a root file, and if so, where to write it. If root data is being written, it also
+sets up the root tree.
+*/
 INT begin_of_run(INT run_number, char *error)
 {
   using namespace boost;
@@ -597,6 +642,11 @@ INT frontend_loop()
 \******************************************************************************/
 
 //--- Trigger event routines -------------------------------------------------//
+/*
+Poll event function checks whether there is data to be written to file. If so,
+returns "1" which prompts the frontend to enter the read_surface_coils function
+which write the data to midas and, if told to do so, to root. 
+*/
 INT poll_event(INT source, INT count, BOOL test)
 {
   //static bool triggered = false;
@@ -637,6 +687,11 @@ INT interrupt_configure(INT cmd, INT source, PTYPE adr)
 }
 
 //--- Event Readout ----------------------------------------------------------//
+/*
+The read_surface_coils function writes the data. It reads the data from the first
+entry in the dataBuffer and after writing this data, removes it from dataBuffer.
+Writes to midas banks, and if told to do so, to the root tree.
+*/
 INT read_surface_coils(char *pevent, INT c)
 {
   static unsigned long long num_events;
@@ -697,7 +752,18 @@ INT read_surface_coils(char *pevent, INT c)
 }
 
  
-//Thread function!
+//Thread function
+/*
+First checks whether the frontend is active. If not, ends the thread.
+Next gets the set points from the ODB and compares to the values it has currently
+stored. If there is anything different, it copies these new values into memory
+and produces a new json file of set points, which are then sent out to the beaglebones.
+Listens for messages from beaglebones. When a message is received, parses the json
+into a dataUnit and pushes the dataUnit into the dataBuffer, as well as updating the
+values on the monitoring page of the ODB. Checks the currents and temperatures vs. set 
+points/highest allowed temp. If anything is wrong, updates the health and bad channel 
+strings in the ODB, which then prompt midas to throw an alarm.
+*/
 void ReadCurrents(){
 
   HNDLE hDB, hkey;
@@ -716,7 +782,7 @@ void ReadCurrents(){
   if(!localFrontendActive) break;
 
   mlock.lock();
-  //Get the current odb values
+  //Get the current set points from ODB
   //Get bottom set currents
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Bottom Set Currents", &hkey);
   if(hkey == NULL){
@@ -864,7 +930,7 @@ void ReadCurrents(){
   //make an instance of the struct
   unpacked_data dataUnit;
 
-  //reset arrays to hold data sent from beaglebones                
+  //Initialize arrays to hold data sent from beaglebones                
   for(int i=0;i<nCoils;i++){
     dataUnit.bot_currents[i] = 0.0;
     dataUnit.top_currents[i] = 0.0;
