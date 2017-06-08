@@ -273,6 +273,7 @@ INT frontend_exit()
 
   event_manager->EndOfRun();
   delete event_manager;
+  event_manager = nullptr;
 
   cm_msg(MINFO, "exit", "Fixed Probe teardown complete");
   return SUCCESS;
@@ -378,6 +379,11 @@ INT begin_of_run(INT run_number, char *error)
 //--- End of Run ----------------------------------------------------*/
 INT end_of_run(INT run_number, char *error)
 {
+  // Destroy the event manager.
+  event_manager->EndOfRun();
+  delete event_manager;
+  event_manager = nullptr;
+
   // Make sure we write the ROOT data.
   if (run_in_progress && write_root) {
 

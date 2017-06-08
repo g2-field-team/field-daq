@@ -385,24 +385,26 @@ INT end_of_run(INT run_number, char *error){
 
    if (!gSimMode) { 
       // set to zero mA 
-      rc = yokogawa_interface::set_level(0.0); 
+/*      rc = yokogawa_interface::set_level(0.0); 
       if (rc!=0) { 
 	 cm_msg(MERROR,"exit","Cannot set Yokogawa current to 0 mA!");
          rc = check_yokogawa_comms(rc,"exit"); 
          return FE_ERR_HW; 
-      }
+      }*/
       // sanity check to make sure we did what we thought we did 
+      // message the enf_of_run current.
       lvl = yokogawa_interface::get_level(); 
       sprintf(yoko_read_msg,"Yokogawa set to %.3lf mA",lvl/1E-3);  
-      cm_msg(MINFO,"exit",yoko_read_msg);
+      cm_msg(MINFO,"end_of_run",yoko_read_msg);
       // disable output 
-      rc = yokogawa_interface::set_output_state(yokogawa_interface::kDISABLED); 
+   /*   rc = yokogawa_interface::set_output_state(yokogawa_interface::kDISABLED); 
       if (rc!=0) { 
 	 cm_msg(MERROR,"exit","Cannot disable Yokogawa output!"); 
          rc = check_yokogawa_comms(rc,"exit"); 
          return FE_ERR_HW; 
       }
       cm_msg(MINFO,"exit","Yokogawa output DISABLED.");
+*/
    }
 
    return SUCCESS;
@@ -559,6 +561,7 @@ void read_from_device(){
    if (!gSimMode) { 
       // real data 
       mode = yokogawa_interface::get_mode(); 
+     // cm_msg(MINFO,"read","Yokogawa mode: %d",mode);
       if (mode==-1) {
          // something is wrong
          rc         = check_yokogawa_comms(mode,"read_from_device"); 
@@ -646,7 +649,7 @@ int update_current(){
    char field_set_path[512];
    sprintf(field_set_path,"%s/Field Setpoint (Hz)",SETTINGS_DIR);
    double field_set;
-   db_get_value(hDB,0,field_set_path,&current_set,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   db_get_value(hDB,0,field_set_path,&field_set,&SIZE_DOUBLE,TID_DOUBLE, 0);
    field_set *= gScaleFactor; // convert to amps! 
 
    char switch_path[512];
@@ -703,7 +706,7 @@ int update_current(){
    if (IsFeedbackOn) {
      lvl = get_new_current(avg_field);  // send in the average field (in amps); compares to setpoint  
    } else {
-     lvl = gSetpoint;
+     lvl = current_set;			// If not running feedback, set the current.
    }
 
    if (!gSimMode) { 
@@ -721,7 +724,7 @@ int update_current(){
          return FE_ERR_HW;  
       }
    } else {
-      // simulation, do nothing  
+      ;// simulation, do nothing  
    }
    return rc;  
 }

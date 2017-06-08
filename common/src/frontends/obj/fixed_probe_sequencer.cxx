@@ -169,8 +169,9 @@ int FixedProbeSequencer::BeginOfRun()
   for (auto &mux : conf) {
 
     int count = 0;
-    std::cout << "load mux: " << mux.first << ", " << std::endl;
-    boost::property_tree::write_json(std::cout, mux.second);
+    // std::cout << "load mux: " << mux.first << ", " << std::endl;
+    // boost::property_tree::write_json(std::cout, mux.second);
+
     for (auto &chan : mux.second) {
 
       // If we are adding a new mux, resize.
@@ -409,13 +410,13 @@ void FixedProbeSequencer::TriggerLoop()
 
 	    // Trigger the 3316 and relevant pulser modules.
 	    while (wfd_3316->GenerateTrigger() != 0) usleep(10000);
-	    dio_triggers_[0]->FireTriggers(0xff);
 	    dio_triggers_[1]->FireTriggers(0xff);
+	    dio_triggers_[2]->FireTriggers(0xff);
 
 	    // Trigger the 3302 and pulse the relevant NMR pulsers.
 	    while (wfd_3302->GenerateTrigger() != 0) usleep(10000);
 	    hw::wait_ns(0.5e6);
-	    dio_triggers_[2]->FireTriggers(0x0f);
+	    dio_triggers_[3]->FireTriggers(0x0f);
 
 	    workers_.StartWorkers();
 	    hw::wait_ns(100e6);
@@ -439,23 +440,20 @@ void FixedProbeSequencer::TriggerLoop()
 	    
 	    LogDebug("Generated DIO triggers");
 	    int trg_count = 0;
+	    
+	    for (auto &trg : dio_triggers_) {
 
-	    dio_triggers_[0]->FireTriggers(0xff);
-	    dio_triggers_[1]->FireTriggers(0xff);
-	    //	    dio_triggers_[1]->FireTriggers();
+	      int rc = trg->FireTriggers();
 
-	    //	    for (auto &trg : dio_triggers_) {
-	    //	      int rc = trg->FireTriggers();
+	      LogDebug("Trigger %i fired", trg_count);
 
-
-	      // LogMessage("Trigger %i fired", trg_count);
-
-	      // while (rc > 0) {
-	      // 	LogError("Trigger %i failed with rc = %i", trg_count, rc);
-	      // 	rc = trg->FireTriggers();
-	      // 	LogMessage("Trigger %i re-fired", trg_count);
-	      // }
-	      // ++trg_count;
+	      while (rc > 0) {
+		LogError("Trigger %i failed with rc = %i", trg_count, rc);
+	       	rc = trg->FireTriggers();
+	       	LogMessage("Trigger %i re-fired", trg_count);
+	      }
+	      ++trg_count;
+	    }
 	  }
 	  
 	  LogDebug("TriggerLoop: muxes configured, triggers fired");
@@ -604,9 +602,9 @@ void FixedProbeSequencer::BuilderLoop()
                   // Make sure we got an FID signal
                   if (myfid.isgood() && std::isfinite(myfid.CalcFreq())) {
 		    
-		    if (idx == 0) {
-		      std::cout << "probe000: freq = " << myfid.freq() << std::endl;
-		    }
+		    // if (idx == 0) {
+		    //   std::cout << "probe000: freq = " << myfid.freq() << std::endl;
+		    // }
 
                     bundle.fid_amp[idx] = myfid.amp();
                     bundle.fid_snr[idx] = myfid.snr();
