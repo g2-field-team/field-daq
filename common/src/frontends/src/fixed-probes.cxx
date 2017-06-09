@@ -340,7 +340,7 @@ INT begin_of_run(INT run_number, char *error)
   write_full_waveform = conf.get<bool>("output.write_full_waveform");
   full_waveform_subsampling = conf.get<int>("output.full_waveform_subsampling");
 
-  cm_msg(MINFO, "fixed-probes", "loading root file");
+  cm_msg(MDEBUG, "fixed-probes", "loading root file");
   // Set up the ROOT data output.
   if (write_root) {
   
@@ -641,7 +641,7 @@ INT read_fixed_probe_event(char *pevent, INT off)
   }
 
   // Pop the event now that we are done copying it.
-  cm_msg(MINFO, "read_fixed_event", "Updating PS Feedback variables");
+  cm_msg(MDEBUG, "read_fixed_event", "Updating PS Feedback variables");
   update_feedback_params();
 
   // Let the front-end know we are ready for another trigger.
@@ -659,7 +659,7 @@ INT simulate_fixed_probe_event()
   static std::default_random_engine gen(hw::systime_us()); 
   static std::normal_distribution<double> norm(0.0, 0.1);
   
-  cm_msg(MINFO, "read_fixed_event", "simulating data");
+  cm_msg(MDEBUG, "read_fixed_event", "simulating data");
 
   // Set the time vector.
   if (tm.size() == 0) {
@@ -711,7 +711,7 @@ INT simulate_fixed_probe_event()
   }
 
   // Pop the event now that we are done copying it.
-  cm_msg(MINFO, "read_fixed_event", "Finished simulating event");
+  cm_msg(MDEBUG, "read_fixed_event", "Finished simulating event");
 }
 
 void update_feedback_params()
