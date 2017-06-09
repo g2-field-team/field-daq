@@ -9,7 +9,7 @@ MG "MOTORSTATUS", TIME,_MOA,_MOB,_MOC,_MOD,_MOE,_MOF
 ' Tension monitor
 lofst1=0.0
 lofst2=0.18
-tlimit=1.0
+tlimit=1.25
 IF ((@AN[1]-lofst1 > tlimit) | (@AN[2]-lofst2 > tlimit))
   MG "ERROR TENSION IS TOO MUCH "
   AB 1
