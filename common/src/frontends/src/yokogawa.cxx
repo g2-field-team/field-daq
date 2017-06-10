@@ -385,26 +385,25 @@ INT end_of_run(INT run_number, char *error){
 
    if (!gSimMode) { 
       // set to zero mA 
-/*      rc = yokogawa_interface::set_level(0.0); 
-      if (rc!=0) { 
-	 cm_msg(MERROR,"exit","Cannot set Yokogawa current to 0 mA!");
-         rc = check_yokogawa_comms(rc,"exit"); 
-         return FE_ERR_HW; 
-      }*/
+      // rc = yokogawa_interface::set_level(0.0); 
+      // if (rc!=0) { 
+      //    cm_msg(MERROR,"exit","Cannot set Yokogawa current to 0 mA!");
+      //    rc = check_yokogawa_comms(rc,"exit"); 
+      //    return FE_ERR_HW; 
+      // }
       // sanity check to make sure we did what we thought we did 
-      // message the enf_of_run current.
+      // message the end_of_run current.
       lvl = yokogawa_interface::get_level(); 
-      sprintf(yoko_read_msg,"Yokogawa set to %.3lf mA",lvl/1E-3);  
+      sprintf(yoko_read_msg,"End of run.  Yokogawa is set to %.3lf mA",lvl/1E-3);  
       cm_msg(MINFO,"end_of_run",yoko_read_msg);
       // disable output 
-   /*   rc = yokogawa_interface::set_output_state(yokogawa_interface::kDISABLED); 
-      if (rc!=0) { 
-	 cm_msg(MERROR,"exit","Cannot disable Yokogawa output!"); 
-         rc = check_yokogawa_comms(rc,"exit"); 
-         return FE_ERR_HW; 
-      }
-      cm_msg(MINFO,"exit","Yokogawa output DISABLED.");
-*/
+      // rc = yokogawa_interface::set_output_state(yokogawa_interface::kDISABLED); 
+      // if (rc!=0) { 
+      //    cm_msg(MERROR,"exit","Cannot disable Yokogawa output!"); 
+      //    rc = check_yokogawa_comms(rc,"exit"); 
+      //    return FE_ERR_HW; 
+      // }
+      // cm_msg(MINFO,"exit","Yokogawa output DISABLED.");
    }
 
    return SUCCESS;
