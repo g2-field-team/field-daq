@@ -986,10 +986,10 @@ void ReadFromDevice(){
       //Calculate Pressure
       Pressure = CalculatePressure(TrlyMonitorDataUnit->PMonitorVal,TrlyMonitorDataUnit->PMonitorTemp,PressureSensorCal,PressureTemperature);
 
-      Vmin1 = TrlyMonitorDataUnit->V1Min/65536.0*10;
-      Vmax1 = TrlyMonitorDataUnit->V1Max/65536.0*10;
-      Vmin2 = TrlyMonitorDataUnit->V2Min/65536.0*5;
-      Vmax2 = TrlyMonitorDataUnit->V2Max/65536.0*5;
+      Vmin1 = TrlyMonitorDataUnit->V1Min/65535.0*10;
+      Vmax1 = TrlyMonitorDataUnit->V1Max/65535.0*10;
+      Vmin2 = TrlyMonitorDataUnit->V2Min/65535.0*5;
+      Vmax2 = TrlyMonitorDataUnit->V2Max/65535.0*5;
 
       //Update odb error monitors and sending messages
       mlock.lock();

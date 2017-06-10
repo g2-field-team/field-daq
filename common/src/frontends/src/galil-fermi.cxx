@@ -246,7 +246,7 @@ INT frontend_init()
 			     + std::string(dbname) + std::string(" user=") + std::string(user) \
 			     + std::string(" password=") + std::string(password) + std::string(" port=")\
 			     + std::string(port);
-  psql_con = std::make_unique<pqxx::connection>(psql_con_str);
+//  psql_con = std::make_unique<pqxx::connection>(psql_con_str);
 
   //Set the motor switch odb values to off as default
   BOOL MOTOR_OFF = FALSE;
@@ -902,7 +902,7 @@ void GalilMonitor(const GCon &g){
     mlock.unlock();
 
     //Load to Data base
-    if (i%5000==0){
+/*    if (i%5000==0){
       mlock.lock();
       char message_buffer[512];
       sprintf(message_buffer,"{%f,%f}",T1,T2);
@@ -931,7 +931,7 @@ void GalilMonitor(const GCon &g){
       }
       mlock.unlock();
     }
-
+*/
     //Check emergencies
     //This thread is not blocking
     INT emergency_size = sizeof(emergency);
