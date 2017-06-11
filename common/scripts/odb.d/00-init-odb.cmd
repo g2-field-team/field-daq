@@ -18,5 +18,10 @@ mkdir "Programs"
 cd "Programs"
 load ProgramsInit.xml
 
+cd  "/"
+mkdir "Lazy"
+cd "Lazy"
+load LazyloggerInit.xml
+
 cd "/"
 mkdir "Settings"

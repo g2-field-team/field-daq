@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
-<!-- created by MXML on Mon Jan 16 18:15:34 2017 -->
-<odb root="/Logger" filename="LoggerInit.xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="/home/newg2/Packages/gm2midas/midas/odb.xsd">
+<!-- created by MXML on Sat Jun 10 17:43:16 2017 -->
+<odb root="/Logger" filename="Loggeraaa.xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="/home/newg2/Packages/gm2midas/midas/odb.xsd">
   <key name="Data dir" type="STRING" size="256">/home/newg2/gm2Data/</key>
   <key name="Message file" type="STRING" size="256">midas.log</key>
   <key name="Auto restart" type="BOOL">n</key>
@@ -28,20 +28,20 @@
         <key name="Subrun Byte limit" type="DOUBLE">2000000000</key>
         <key name="Tape capacity" type="DOUBLE">0</key>
         <key name="Subdir format" type="STRING" size="32"></key>
-        <key name="Current filename" type="STRING" size="256">run00000_00.mid.gz</key>
+        <key name="Current filename" type="STRING" size="256">run00481_00.mid.gz</key>
         <key name="Data checksum" type="STRING" size="256">CRC32C (one of: NONE CRC32C SHA256 SHA512 ZLIB)</key>
         <key name="File checksum" type="STRING" size="256">CRC32C (one of: NONE CRC32C SHA256 SHA512 ZLIB)</key>
         <key name="Compress" type="STRING" size="256">gzip (one of: none gzip lz4 bzip2 pbzip2)</key>
         <key name="Output" type="STRING" size="256">FILE (one of: NULL FILE FTP ROOT PIPE)</key>
       </dir>
       <dir name="Statistics">
-        <key name="Events written" type="DOUBLE">6</key>
-        <key name="Bytes written" type="DOUBLE">12266</key>
-        <key name="Bytes written uncompressed" type="DOUBLE">139141</key>
-        <key name="Bytes written total" type="DOUBLE">148924</key>
-        <key name="Bytes written subrun" type="DOUBLE">12266</key>
-        <key name="Files written" type="DOUBLE">2</key>
-        <key name="Disk level" type="DOUBLE">0.07803830437469506</key>
+        <key name="Events written" type="DOUBLE">20690</key>
+        <key name="Bytes written" type="DOUBLE">201481</key>
+        <key name="Bytes written uncompressed" type="DOUBLE">3509462</key>
+        <key name="Bytes written total" type="DOUBLE">293224804106</key>
+        <key name="Bytes written subrun" type="DOUBLE">201481</key>
+        <key name="Files written" type="DOUBLE">293</key>
+        <key name="Disk level" type="DOUBLE">0.280895251708057</key>
       </dir>
     </dir>
   </dir>
@@ -99,4 +99,6 @@
   <key name="Run duration" type="DWORD">0</key>
   <key name="Next subrun" type="BOOL">n</key>
   <key name="Subrun duration" type="DWORD">0</key>
+  <key name="Async transitions" type="BOOL">n</key>
+  <key name="Multithread transitions" type="BOOL">y</key>
 </odb>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
-<!-- created by MXML on Sun Apr 30 20:14:10 2017 -->
-<odb root="/Equipment" filename="EquipmentInit.xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="/home/newg2/Packages/gm2midas/midas/odb.xsd">
+<!-- created by MXML on Sat Jun 10 17:36:47 2017 -->
+<odb root="/Equipment" filename="Equipment.xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="/home/newg2/Packages/gm2midas/midas/odb.xsd">
   <dir name="Fixed Probes">
     <dir name="Common">
       <key name="Event ID" type="WORD">1</key>
@@ -11,7 +11,7 @@
       <key name="Format" type="STRING" size="8">MIDAS</key>
       <key name="Enabled" type="BOOL">y</key>
       <key name="Read on" type="INT">1</key>
-      <key name="Period" type="INT">10</key>
+      <key name="Period" type="INT">1000</key>
       <key name="Event limit" type="DOUBLE">0</key>
       <key name="Num subevents" type="DWORD">0</key>
       <key name="Log history" type="INT">0</key>
@@ -24,7 +24,7 @@
     </dir>
     <dir name="Variables"/>
     <dir name="Statistics">
-      <key name="Events sent" type="DOUBLE">0</key>
+      <key name="Events sent" type="DOUBLE">358</key>
       <key name="Events per sec." type="DOUBLE">0</key>
       <key name="kBytes per sec." type="DOUBLE">0</key>
     </dir>
@@ -85,12 +85,40 @@
       <key name="kBytes per sec." type="DOUBLE">0</key>
     </dir>
   </dir>
-  <dir name="Surface Coils">
+  <dir name="PS Feedback">
     <dir name="Common">
-      <key name="Event ID" type="WORD">1</key>
+      <key name="Event ID" type="WORD">64</key>
       <key name="Trigger mask" type="WORD">0</key>
       <key name="Buffer" type="STRING" size="32">SYSTEM</key>
       <key name="Type" type="INT">1</key>
+      <key name="Source" type="INT">0</key>
+      <key name="Format" type="STRING" size="8">MIDAS</key>
+      <key name="Enabled" type="BOOL">y</key>
+      <key name="Read on" type="INT">1</key>
+      <key name="Period" type="INT">1000</key>
+      <key name="Event limit" type="DOUBLE">0</key>
+      <key name="Num subevents" type="DWORD">0</key>
+      <key name="Log history" type="INT">0</key>
+      <key name="Frontend host" type="STRING" size="32">g2field-fe2-priv</key>
+      <key name="Frontend name" type="STRING" size="32">PS Feedback</key>
+      <key name="Frontend file name" type="STRING" size="256">src/yokogawa.cxx</key>
+      <key name="Status" type="STRING" size="256">PS Feedback@g2field-fe2-priv</key>
+      <key name="Status color" type="STRING" size="32">greenLight</key>
+      <key name="Hidden" type="BOOL">n</key>
+    </dir>
+    <dir name="Variables"/>
+    <dir name="Statistics">
+      <key name="Events sent" type="DOUBLE">20688</key>
+      <key name="Events per sec." type="DOUBLE">0</key>
+      <key name="kBytes per sec." type="DOUBLE">0</key>
+    </dir>
+  </dir>
+  <dir name="Surface Coils">
+    <dir name="Common">
+      <key name="Event ID" type="WORD">16</key>
+      <key name="Trigger mask" type="WORD">0</key>
+      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
+      <key name="Type" type="INT">2</key>
       <key name="Source" type="INT">0</key>
       <key name="Format" type="STRING" size="8">MIDAS</key>
       <key name="Enabled" type="BOOL">y</key>
@@ -103,6 +131,34 @@
       <key name="Frontend name" type="STRING" size="32">Surface Coils</key>
       <key name="Frontend file name" type="STRING" size="256">src/surface_coils.cxx</key>
       <key name="Status" type="STRING" size="256">Surface Coils@g2field-fe1-priv</key>
+      <key name="Status color" type="STRING" size="32">greenLight</key>
+      <key name="Hidden" type="BOOL">n</key>
+    </dir>
+    <dir name="Variables"/>
+    <dir name="Statistics">
+      <key name="Events sent" type="DOUBLE">0</key>
+      <key name="Events per sec." type="DOUBLE">0</key>
+      <key name="kBytes per sec." type="DOUBLE">0</key>
+    </dir>
+  </dir>
+  <dir name="Fluxgate">
+    <dir name="Common">
+      <key name="Event ID" type="WORD">10</key>
+      <key name="Trigger mask" type="WORD">0</key>
+      <key name="Buffer" type="STRING" size="32">SYSTEM</key>
+      <key name="Type" type="INT">1</key>
+      <key name="Source" type="INT">0</key>
+      <key name="Format" type="STRING" size="8">MIDAS</key>
+      <key name="Enabled" type="BOOL">y</key>
+      <key name="Read on" type="INT">1</key>
+      <key name="Period" type="INT">15000</key>
+      <key name="Event limit" type="DOUBLE">0</key>
+      <key name="Num subevents" type="DWORD">0</key>
+      <key name="Log history" type="INT">1</key>
+      <key name="Frontend host" type="STRING" size="32">g2field-fe1-priv</key>
+      <key name="Frontend name" type="STRING" size="32">Fluxgate</key>
+      <key name="Frontend file name" type="STRING" size="256">src/fluxgate.cxx</key>
+      <key name="Status" type="STRING" size="256">Fluxgate@g2field-fe1-priv</key>
       <key name="Status color" type="STRING" size="32">greenLight</key>
       <key name="Hidden" type="BOOL">n</key>
     </dir>
