@@ -158,6 +158,7 @@ void update_d_term(double err,double dt,double derr);  // update D term
 double get_new_current(double meas_value);             // get new current based on PID  
 
 int update_current();                                  // update the current on the Yokogawa 
+int check_yokogawa_comms(int rc,const char *func);     // check on the yokogawa communication; run error check if necessary 
 unsigned long get_utc_time();                          // UTC time in milliseconds 
 
 const char * const psfb_bank_name = "PSFB";     // 4 letters, try to make sensible
@@ -211,9 +212,9 @@ INT frontend_init(){
 
    int ip_addr_size = sizeof(ip_addr);
 
-   int rc=0;
+   int rc=0,err_code;
    double lvl=0;
-   char yoko_read_msg[512]; 
+   char yoko_read_msg[512],err_msg[512]; 
 
    if (!gSimMode) {
       // taking real data, grab the IP address  
@@ -223,18 +224,39 @@ INT frontend_init(){
       if (rc==0) {
          cm_msg(MINFO,"init","Yokogawa is connected.");
          rc = yokogawa_interface::set_mode(yokogawa_interface::kCURRENT); 
-         cm_msg(MINFO,"init","Yokogawa set to CURRENT mode.");
+         rc = check_yokogawa_comms(rc,"init");  
+         if (rc==0) {
+	    cm_msg(MINFO,"init","Yokogawa set to CURRENT mode.");
+         } else { 
+            return FE_ERR_HW; 
+         }
          rc = yokogawa_interface::set_range_max(); 
-         cm_msg(MINFO,"init","Yokogawa set to maximum range.");
+         rc = check_yokogawa_comms(rc,"init");  
+         if (rc==0) { 
+            cm_msg(MINFO,"init","Yokogawa set to maximum range.");
+         } else { 
+            return FE_ERR_HW; 
+         }
          rc = yokogawa_interface::set_level(0.000); 
-	 // sanity check to make sure we did what we thought we did 
-	 lvl = yokogawa_interface::get_level(); 
-	 sprintf(yoko_read_msg,"Yokogawa set to %.3lf mA",lvl/1E-3);  
-	 cm_msg(MINFO,"init",yoko_read_msg);
+         rc = check_yokogawa_comms(rc,"init"); 
+         if (rc==0) { 
+	    // sanity check to make sure we did what we thought we did 
+	    lvl = yokogawa_interface::get_level(); 
+	    sprintf(yoko_read_msg,"Yokogawa set to %.3lf mA",lvl/1E-3);  
+	    cm_msg(MINFO,"init",yoko_read_msg);
+         } else { 
+            return FE_ERR_HW; 
+         }
          rc = yokogawa_interface::set_output_state(yokogawa_interface::kENABLED); 
-         cm_msg(MINFO,"init","Yokogawa output ENABLED.");
+         rc = check_yokogawa_comms(rc,"init"); 
+         if (rc==0) {
+            cm_msg(MINFO,"init","Yokogawa output ENABLED.");
+         } else { 
+            return FE_ERR_HW; 
+         }
       } else {
-         cm_msg(MERROR,"init","Yokogawa connection FAILED. Error code: %d",rc);
+         cm_msg(MERROR,"init","Cannot connect to the Yokogawa.");
+         err_code = check_yokogawa_comms(rc,"init");
          return FE_ERR_HW; 
       }
    } else { 
@@ -247,6 +269,7 @@ INT frontend_init(){
 
    return SUCCESS;
 }
+
 //______________________________________________________________________________
 INT frontend_exit(){
    // Disconnect from Yokogawa 
@@ -257,15 +280,27 @@ INT frontend_exit(){
  
    if (!gSimMode) { 
       // set to zero mA 
-      rc = yokogawa_interface::set_level(0.0); 
+      rc = yokogawa_interface::set_level(0.0);
+      rc = check_yokogawa_comms(rc,"exit"); 
+      if (rc!=0) { 
+          return FE_ERR_HW; 
+      } 
       // disable output 
       rc = yokogawa_interface::set_output_state(yokogawa_interface::kDISABLED); 
+      rc = check_yokogawa_comms(rc,"exit"); 
+      if (rc!=0) { 
+          return FE_ERR_HW; 
+      } 
       // close connection  
       rc = yokogawa_interface::close_connection();
       if (rc==0) {
 	 cm_msg(MINFO,"exit","Yokogawa disconnected successfully.");
       } else {
-	 cm_msg(MERROR,"exit","Yokogawa disconnection failed. Error code: %d",rc);
+	 cm_msg(MERROR,"exit","Yokogawa disconnection failed.");
+         rc = check_yokogawa_comms(rc,"exit"); 
+         if (rc!=0) { 
+             return FE_ERR_HW; 
+         }
       }
    }
 
@@ -350,20 +385,25 @@ INT end_of_run(INT run_number, char *error){
 
    if (!gSimMode) { 
       // set to zero mA 
-      rc = yokogawa_interface::set_level(0.0); 
-      if (rc!=0) { 
-	 cm_msg(MERROR,"exit","Cannot set Yokogawa current to 0 mA!");
-      }
+      // rc = yokogawa_interface::set_level(0.0); 
+      // if (rc!=0) { 
+      //    cm_msg(MERROR,"exit","Cannot set Yokogawa current to 0 mA!");
+      //    rc = check_yokogawa_comms(rc,"exit"); 
+      //    return FE_ERR_HW; 
+      // }
       // sanity check to make sure we did what we thought we did 
+      // message the end_of_run current.
       lvl = yokogawa_interface::get_level(); 
-      sprintf(yoko_read_msg,"Yokogawa set to %.3lf mA",lvl/1E-3);  
-      cm_msg(MINFO,"exit",yoko_read_msg);
+      sprintf(yoko_read_msg,"End of run.  Yokogawa is set to %.3lf mA",lvl/1E-3);  
+      cm_msg(MINFO,"end_of_run",yoko_read_msg);
       // disable output 
-      rc = yokogawa_interface::set_output_state(yokogawa_interface::kDISABLED); 
-      if (rc!=0) { 
-	 cm_msg(MERROR,"exit","Cannot disable Yokogawa output!");
-      }
-      cm_msg(MINFO,"exit","Yokogawa output DISABLED.");
+      // rc = yokogawa_interface::set_output_state(yokogawa_interface::kDISABLED); 
+      // if (rc!=0) { 
+      //    cm_msg(MERROR,"exit","Cannot disable Yokogawa output!"); 
+      //    rc = check_yokogawa_comms(rc,"exit"); 
+      //    return FE_ERR_HW; 
+      // }
+      // cm_msg(MINFO,"exit","Yokogawa output DISABLED.");
    }
 
    return SUCCESS;
@@ -514,12 +554,22 @@ void read_from_device(){
    // create a data structure    
    g2field::psfeedback_t *psfb_data = new g2field::psfeedback_t; 
 
+   int rc=0;
+
    // grab the data 
    if (!gSimMode) { 
       // real data 
-      is_enabled = yokogawa_interface::get_output_state(); 
-      mode       = yokogawa_interface::get_mode(); 
-      lvl        = yokogawa_interface::get_level(); 
+      mode = yokogawa_interface::get_mode(); 
+     // cm_msg(MINFO,"read","Yokogawa mode: %d",mode);
+      if (mode==-1) {
+         // something is wrong
+         rc         = check_yokogawa_comms(mode,"read_from_device"); 
+         is_enabled = -1; 
+         lvl        = -500E-3;   // unrealistic value  
+      } else { 
+         is_enabled = yokogawa_interface::get_output_state(); 
+         lvl        = yokogawa_interface::get_level(); 
+      } 
       // fill the data structure  
       psfb_data->sys_clock  = gCurrentTime;  // not sure of the difference here... 
       psfb_data->mode       = mode;  
@@ -598,7 +648,7 @@ int update_current(){
    char field_set_path[512];
    sprintf(field_set_path,"%s/Field Setpoint (Hz)",SETTINGS_DIR);
    double field_set;
-   db_get_value(hDB,0,field_set_path,&current_set,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   db_get_value(hDB,0,field_set_path,&field_set,&SIZE_DOUBLE,TID_DOUBLE, 0);
    field_set *= gScaleFactor; // convert to amps! 
 
    char switch_path[512];
@@ -655,7 +705,7 @@ int update_current(){
    if (IsFeedbackOn) {
      lvl = get_new_current(avg_field);  // send in the average field (in amps); compares to setpoint  
    } else {
-     lvl = gSetpoint;
+     lvl = current_set;			// If not running feedback, set the current.
    }
 
    if (!gSimMode) { 
@@ -668,8 +718,12 @@ int update_current(){
       } 
       // checks are finished, set the current 
       rc = yokogawa_interface::set_level(lvl);
+      if (rc!=0) { 
+         rc = check_yokogawa_comms(rc,"update_current");
+         return FE_ERR_HW;  
+      }
    } else {
-      // simulation, do nothing  
+      ;// simulation, do nothing  
    }
    return rc;  
 }
@@ -717,5 +771,20 @@ unsigned long get_utc_time(){
    int rc = ftime(&now); 
    unsigned long utc = now.time + now.millitm;
    return utc; 
+}
+//______________________________________________________________________________
+int check_yokogawa_comms(int rc,const char *func){
+   int RC=-1,RC2=-1;
+   int err_code=0;
+   char err_msg[512]; 
+   if (rc!=0) {
+      err_code = yokogawa_interface::error_check(err_msg); 
+      cm_msg(MERROR,func,"Yokogawa communication FAILED. Error code: %d, msg: %s",err_code,err_msg);
+      RC2 = yokogawa_interface::clear_errors();
+      RC  = err_code; 
+   } else {
+      RC = rc;
+   }
+   return RC; 
 } 
 
