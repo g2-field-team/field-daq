@@ -3,11 +3,13 @@ var updateTimerId = 0;
 
 function update()  {
   clearTimeout(updateTimerId);
-  load();
+  loadGalil();
+  loadTrolley();
   if (updatePeriod > 0)
     updateTimerId = setTimeout('update()', updatePeriod);
 }
-function load()   {
+
+function loadGalil()   {
   mjsonrpc_db_get_values(["/Equipment/GalilFermi/Monitors/Positions","/Equipment/GalilFermi/Monitors/Velocities","/Equipment/GalilFermi/Monitors/Control Voltages","/Equipment/GalilFermi/Monitors/Analogs","/Equipment/GalilFermi/Monitors/Limit Switches Forward","/Equipment/GalilFermi/Monitors/Limit Switches Reverse","/Equipment/GalilFermi/Monitors/Motor Status"]).then(function(rpc) {
       var Ps= String(rpc.result.data[0]);
       Ps = Ps.split(',');
@@ -24,12 +26,6 @@ function load()   {
       document.getElementById("CA").innerHTML = Cs[0]/1000.0;
       document.getElementById("CB").innerHTML = Cs[1]/1000.0;
       document.getElementById("CC").innerHTML = Cs[2]/1000.0;
-      var As= String(rpc.result.data[3]);
-      As = As.split(',');
-      document.getElementById("TA").innerHTML = As[0]/1000.0;
-      document.getElementById("TB").innerHTML = As[1]/1000.0;
-      document.getElementById("TempA").innerHTML = As[2]/1000.0;
-      document.getElementById("TempB").innerHTML = As[3]/1000.0;
       var Lf= String(rpc.result.data[4]);
       Lf = Lf.split(',');
       document.getElementById("LFA").innerHTML = Lf[0];
@@ -48,6 +44,162 @@ function load()   {
       else document.getElementById("MOB").innerHTML = "ON";
       if (MO[2]=="false")document.getElementById("MOC").innerHTML = "OFF";
       else document.getElementById("MOC").innerHTML = "ON";
+      }).catch(function(error) {
+	mjsonrpc_error_alert(error);
+	});
+  mjsonrpc_db_get_values(["/Equipment/GalilFermi/Monitors/Motor Temperature Fish","/Equipment/GalilFermi/Monitors/Motor Temperature Sig","/Equipment/GalilFermi/Monitors/Motor Tension Fish","/Equipment/GalilFermi/Monitors/Motor Tension Sig"]).then(function(rpc) {
+      var Temp1= Number(rpc.result.data[0]);
+      var Temp2= Number(rpc.result.data[1]);
+      var Tension1= Number(rpc.result.data[2]);
+      var Tension2= Number(rpc.result.data[3]);
+      document.getElementById("TA").innerHTML = Tension1.toFixed(3);
+      document.getElementById("TB").innerHTML = Tension2.toFixed(3);
+      document.getElementById("TempA").innerHTML = Temp1.toFixed(3);
+      document.getElementById("TempB").innerHTML = Temp2.toFixed(3);
+      }).catch(function(error) {
+	mjsonrpc_error_alert(error);
+	});
+} 
+
+function loadTrolley()   {
+  mjsonrpc_db_get_values(["/Equipment/TrolleyInterface/Monitors/Interface/Trolley Power Protection Trip","/Equipment/TrolleyInterface/Monitors/Interface/Trolley Power Status","/Equipment/TrolleyInterface/Monitors/Interface/Interface RF0","/Equipment/TrolleyInterface/Monitors/Interface/Interface RF1","/Equipment/TrolleyInterface/Monitors/Interface/ldo Temp Monitors Min","/Equipment/TrolleyInterface/Monitors/Interface/ldo Temp Monitors Max"]).then(function(rpc) {
+      var PowerTrip= String(rpc.result.data[0]);
+      if (PowerTrip=="false")document.getElementById("InterfacePWTrip").innerHTML = "N";
+      else document.getElementById("InterfacePWTrip").innerHTML = "Y";
+      var PowerStatus= String(rpc.result.data[1]);
+      if (PowerStatus=="false")document.getElementById("InterfacePWStatus").innerHTML = "OFF";
+      else document.getElementById("InterfacePWStatus").innerHTML = "ON";
+      var RF0= Number(rpc.result.data[2]);
+      document.getElementById("InterfaceRF0").innerHTML = RF0;
+      var RF1= Number(rpc.result.data[3]);
+      document.getElementById("InterfaceRF1").innerHTML = RF1;
+      var TempMin= Number(rpc.result.data[4]);
+      document.getElementById("InterfaceTempMin").innerHTML = TempMin.toFixed(3);
+      var TempMax= Number(rpc.result.data[5]);
+      document.getElementById("InterfaceTempMax").innerHTML = TempMax.toFixed(3);
+      }).catch(function(error) {
+	mjsonrpc_error_alert(error);
+	});
+  mjsonrpc_db_get_values(["/Equipment/TrolleyInterface/Monitors/Interface/V15neg Min","/Equipment/TrolleyInterface/Monitors/Interface/V15neg Max","/Equipment/TrolleyInterface/Monitors/Interface/V15pos Min","/Equipment/TrolleyInterface/Monitors/Interface/V15pos Max","/Equipment/TrolleyInterface/Monitors/Interface/v5 Min","/Equipment/TrolleyInterface/Monitors/Interface/v5 Max","/Equipment/TrolleyInterface/Monitors/Interface/v33 Min","/Equipment/TrolleyInterface/Monitors/Interface/v33 Max","/Equipment/TrolleyInterface/Monitors/Interface/V Monitors","/Equipment/TrolleyInterface/Monitors/Interface/I Monitors"]).then(function(rpc) {
+      var V15negMin= Number(rpc.result.data[0]);
+      var V15negMax= Number(rpc.result.data[1]);
+      document.getElementById("Interface15VNegMin").innerHTML = V15negMin.toFixed(3);
+      document.getElementById("Interface15VNegMax").innerHTML = V15negMax.toFixed(3);
+
+      var V15posMin= Number(rpc.result.data[2]);
+      var V15posMax= Number(rpc.result.data[3]);
+      document.getElementById("Interface15VPosMin").innerHTML = V15posMin.toFixed(3);
+      document.getElementById("Interface15VPosMax").innerHTML = V15posMax.toFixed(3);
+
+      var V5Min= Number(rpc.result.data[4]);
+      var V5Max= Number(rpc.result.data[5]);
+      document.getElementById("Interface5VMin").innerHTML = V5Min.toFixed(3);
+      document.getElementById("Interface5VMax").innerHTML = V5Max.toFixed(3);
+
+      var V33Min= Number(rpc.result.data[6]);
+      var V33Max= Number(rpc.result.data[7]);
+      document.getElementById("Interface33VMin").innerHTML = V33Min.toFixed(3);
+      document.getElementById("Interface33VMax").innerHTML = V33Max.toFixed(3);
+
+      var TLV= Number(rpc.result.data[8]);
+      document.getElementById("InterfaceTLV").innerHTML = TLV.toFixed(3);
+
+      var TLI= Number(rpc.result.data[9]);
+      document.getElementById("InterfaceTLI").innerHTML = TLI.toFixed(3);
+
+  }).catch(function(error) {
+    mjsonrpc_error_alert(error);
+    });
+  mjsonrpc_db_get_values(["/Equipment/TrolleyInterface/Monitors/Trolley/Barcode Error","/Equipment/TrolleyInterface/Monitors/Trolley/Temperature Interrupt","/Equipment/TrolleyInterface/Monitors/Trolley/Power Supply Status","/Equipment/TrolleyInterface/Monitors/Trolley/NMR Check Sum","/Equipment/TrolleyInterface/Monitors/Trolley/Config Check Sum","/Equipment/TrolleyInterface/Monitors/Trolley/Frame Check Sum"]).then(function(rpc) {
+      var BarcodeError= String(rpc.result.data[0]);
+      if (BarcodeError=="false")document.getElementById("TrolleyBCError").innerHTML = "N";
+      else document.getElementById("TrolleyBCError").innerHTML = "Y";
+
+      var TempError= String(rpc.result.data[1]);
+      if (TempError=="false")document.getElementById("TrolleyTempError").innerHTML = "N";
+      else document.getElementById("TrolleyTempError").innerHTML = "Y";
+
+      var PowerStatus= String(rpc.result.data[2]);
+      PowerStatus = PowerStatus.split(',');
+      if (PowerStatus[0]=="true" && PowerStatus[1]=="true" && PowerStatus[2]=="true")document.getElementById("TrolleyPWStatus").innerHTML = "Y";
+      else document.getElementById("TrolleyPWStatus").innerHTML = "N";
+
+      var CheckSum1= String(rpc.result.data[3]);
+      var CheckSum2= String(rpc.result.data[4]);
+      var CheckSum3= String(rpc.result.data[5]);
+      if (CheckSum1=="true" && CheckSum2=="true" && CheckSum3=="true")document.getElementById("TrolleyCheckSum").innerHTML = "Y";
+      else document.getElementById("TrolleyCheckSum").innerHTML = "N";
+      }).catch(function(error) {
+	mjsonrpc_error_alert(error);
+	});
+  mjsonrpc_db_get_values(["/Equipment/TrolleyInterface/Monitors/Trolley/Power Factor","/Equipment/TrolleyInterface/Monitors/Trolley/Pressure","/Equipment/TrolleyInterface/Monitors/Trolley/Pressure Temperature","/Equipment/TrolleyInterface/Monitors/Trolley/Temperature In","/Equipment/TrolleyInterface/Monitors/Trolley/Temperature Ext1","/Equipment/TrolleyInterface/Monitors/Trolley/Vmin 1","/Equipment/TrolleyInterface/Monitors/Trolley/Vmax 1","/Equipment/TrolleyInterface/Monitors/Trolley/Vmin 2","/Equipment/TrolleyInterface/Monitors/Trolley/Vmax 2","/Equipment/TrolleyInterface/Monitors/Trolley/LED Voltage"]).then(function(rpc) {
+      var PowerFactor= Number(rpc.result.data[0]);
+      document.getElementById("TrolleyPWFactor").innerHTML = PowerFactor.toFixed(3);
+
+      var Pressure= Number(rpc.result.data[1]);
+      document.getElementById("TrolleyPressure").innerHTML = Pressure.toFixed(3);
+
+      var PressureTemp= Number(rpc.result.data[2]);
+      document.getElementById("TrolleyTempP").innerHTML = PressureTemp.toFixed(3);
+
+      var TIn = Number(rpc.result.data[3]);
+      document.getElementById("TrolleyTempIn").innerHTML = TIn.toFixed(3);
+
+      var TExt = Number(rpc.result.data[4]);
+      document.getElementById("TrolleyTempExt").innerHTML = TExt.toFixed(3);
+
+      var V6Min= Number(rpc.result.data[5]);
+      var V6Max= Number(rpc.result.data[6]);
+      document.getElementById("TrolleyV1Max").innerHTML = V6Max.toFixed(3);
+      document.getElementById("TrolleyV1Min").innerHTML = V6Min.toFixed(3);
+
+      var V4Min= Number(rpc.result.data[7]);
+      var V4Max= Number(rpc.result.data[8]);
+      document.getElementById("TrolleyV2Max").innerHTML = V4Max.toFixed(3);
+      document.getElementById("TrolleyV2Min").innerHTML = V4Min.toFixed(3);
+
+      var VLED= Number(rpc.result.data[9]);
+      document.getElementById("TrolleyLEDV").innerHTML = VLED.toFixed(3);
+  }).catch(function(error) {
+    mjsonrpc_error_alert(error);
+    });
+  mjsonrpc_db_get_values(["/Equipment/TrolleyInterface/Monitors/Control Thread Active","/Equipment/TrolleyInterface/Monitors/Read Thread Active","/Equipment/TrolleyInterface/Monitors/Trolley Frame Size","/Equipment/TrolleyInterface/Monitors/Interface Frame Size","/Equipment/TrolleyInterface/Monitors/Buffer Load","/Equipment/TrolleyInterface/Monitors/Current Mode"]).then(function(rpc) {
+      var ControlThread= String(rpc.result.data[0]);
+      if (ControlThread=="false")document.getElementById("FrontendCtrlTh").innerHTML = "N";
+      else document.getElementById("FrontendCtrlTh").innerHTML = "Y";
+
+      var ReadThread= String(rpc.result.data[1]);
+      if (ReadThread=="false")document.getElementById("FrontendMonTh").innerHTML = "N";
+      else document.getElementById("FrontendMonTh").innerHTML = "Y";
+
+      var FrameASize= String(rpc.result.data[2]);
+      document.getElementById("FrontendASize").innerHTML = FrameASize;
+
+      var FrameBSize= String(rpc.result.data[3]);
+      document.getElementById("FrontendBSize").innerHTML = FrameBSize;
+
+      var BufferLoad= String(rpc.result.data[4]);
+      document.getElementById("FrontendBufferLoad").innerHTML = BufferLoad;
+
+      var CurrentMode= String(rpc.result.data[5]);
+      document.getElementById("FrontendCurrentMode").innerHTML = CurrentMode;
+
+      }).catch(function(error) {
+	mjsonrpc_error_alert(error);
+	});
+  mjsonrpc_db_get_values(["/Equipment/TrolleyInterface/Settings/Trolley Power/Voltage","/Equipment/TrolleyInterface/Monitors/Barcode/LED Voltage","/Equipment/TrolleyInterface/Settings/Run Config/Continuous/Baseline Cycles","/Equipment/TrolleyInterface/Settings/Run Config/Interactive/Repeat"]).then(function(rpc) {
+      var TrolleyPowerSet = String(rpc.result.data[0]);
+      document.getElementById("ValTrolleyPower").innerHTML = TrolleyPowerSet;
+
+      var LEDVoltageSet = String(rpc.result.data[1]);
+      document.getElementById("ValLEDVoltage").innerHTML = LEDVoltageSet;
+
+      var NBaseLine = String(rpc.result.data[2]);
+      document.getElementById("ValBaselineCycles").innerHTML = NBaseLine;
+
+      var NRepeat = String(rpc.result.data[3]);
+      document.getElementById("ValInteractiveRepeat").innerHTML = NRepeat;
+
       }).catch(function(error) {
 	mjsonrpc_error_alert(error);
 	});
@@ -170,8 +322,8 @@ function SetAutoMotionControl(){
 }
 
 function SetTrolleyRegulation(){
-  var TLow = document.getElementById("TensionLow").value*1000;
-  var THigh = document.getElementById("TensionHigh").value*1000;
+  var TLow = document.getElementById("TensionLow").value;
+  var THigh = document.getElementById("TensionHigh").value;
   var TrolleyV = document.getElementById("TrolleyVelocity").value;
   var GarageV = document.getElementById("GarageVelocity").value;
   mjsonrpc_db_paste(["/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Range Low","/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Range High"],[TLow,THigh]).then(function(rpc){;}).catch(function(error) {
@@ -182,4 +334,92 @@ function SetTrolleyRegulation(){
       });
 }
 
+function TrolleySetCommand(){
+  var TrolleyVoltage = document.getElementById("TrolleyPowerSet").value;
+  var LEDVoltage = document.getElementById("LEDVoltageSet").value;
+  var BaselineCycles = document.getElementById("BaselineCycles").value;
+  var InteractiveRepeat = document.getElementById("InteractiveRepeat").value;
 
+  var RunMode = document.getElementById("RunMode").innerHTML;
+  var IdleMode = document.getElementById("IdleMode").innerHTML;
+  var ReadBarcode_ = document.getElementById("IdleReadBarcode").innerHTML;
+  var PowerDown_ = document.getElementById("SleepPowerDown").innerHTML;
+
+  var ReadBarcode = false;
+  var PowerDown = false;
+  if (ReadBarcode_ == "Y")ReadBarcode = true;
+  if (PowerDown_ == "Y")PowerDown = true;
+
+  mjsonrpc_db_paste(["/Equipment/TrolleyInterface/Settings/Trolley Power/Voltage","/Equipment/TrolleyInterface/Settings/Barcode/LED Voltage","/Equipment/TrolleyInterface/Settings/Run Config/Continuous/Baseline Cycles","/Equipment/TrolleyInterface/Settings/Run Config/Interactive/Repeat","/Equipment/TrolleyInterface/Settings/Run Config/Mode","/Equipment/TrolleyInterface/Settings/Run Config/Idle Mode","/Equipment/TrolleyInterface/Settings/Run Config/Idle/Read Barcode","/Equipment/TrolleyInterface/Settings/Run Config/Sleep/Power Down"],[TrolleyVoltage,LEDVoltage,BaselineCycles,InteractiveRepeat,RunMode,IdleMode,ReadBarcode,PowerDown]).then(function(rpc){;}).catch(function(error) {
+      mjsonrpc_error_alert(error);
+      });
+  var cmd = 1;
+  mjsonrpc_db_paste(["/Equipment/TrolleyInterface/Settings/Cmd"],[cmd]).then(function(rpc){;}).catch(function(error) {
+      mjsonrpc_error_alert(error);
+      });
+}
+
+function TrolleyInteractiveTrigger(){
+  var trigger = 1;
+  mjsonrpc_db_paste(["/Equipment/TrolleyInterface/Settings/Run Config/Interactive/Trigger"],[trigger]).then(function(rpc){;}).catch(function(error) {
+      mjsonrpc_error_alert(error);
+      });
+}
+
+function UpdateTrolleyProbes(){
+  var ProbeSelect = document.getElementById("ProbeSelect").innerHTML;
+  var Source = document.getElementById("ProbeSourceSelect").innerHTML;
+
+  var ProbeEnable= document.getElementById("ProbeEnable").value;
+  var PreampDelay= document.getElementById("PreampDelay").value;
+  var PreampPeriod= document.getElementById("PreampPeriod").value;
+  var ADCGateDelay= document.getElementById("ADCGateDelay").value;
+  var ADCGateOffset= document.getElementById("ADCGateOffset").value;
+  var ADCGatePeriod= document.getElementById("ADCGatePeriod").value;
+  var TXDelay= document.getElementById("TXDelay").value;
+  var TXPeriod= document.getElementById("TXPeriod").value;
+  var UserData= document.getElementById("UserData").value;
+
+  var BaseAddress = "/Equipment/TrolleyInterface/Settings/Probe/Probe";
+
+  if (ProbeSelect != "All"){
+    var ProbeID = Number(ProbeSelect);
+    var addr_ProbeID= BaseAddress + ProbeSelect + "/Probe ID";
+    var addr_ProbeEnable= BaseAddress + ProbeSelect + "/Probe Enable";
+    var addr_PreampDelay= BaseAddress + ProbeSelect + "/Preamp Delay";
+    var addr_PreampPeriod= BaseAddress + ProbeSelect + "/Preamp Period";
+    var addr_ADCGateDelay= BaseAddress + ProbeSelect + "/ADC Gate Delay";
+    var addr_ADCGateOffset= BaseAddress + ProbeSelect + "/ADC Gate Offset";
+    var addr_ADCGatePeriod= BaseAddress + ProbeSelect + "/ADC Gate Period";
+    var addr_TXDelay= BaseAddress + ProbeSelect + "/TX Delay";
+    var addr_TXPeriod= BaseAddress + ProbeSelect + "/TX Period";
+    var addr_UserData= BaseAddress + ProbeSelect + "/User Data";
+
+    mjsonrpc_db_paste([addr_ProbeID,addr_ProbeEnable,addr_PreampDelay,addr_PreampPeriod,addr_ADCGateDelay,addr_ADCGateOffset,addr_ADCGatePeriod,addr_TXDelay,addr_TXPeriod,addr_UserData],[ProbeID,ProbeEnable,PreampDelay,PreampPeriod,ADCGateDelay,ADCGateOffset,ADCGatePeriod,TXDelay,TXPeriod,UserData]).then(function(rpc){;}).catch(function(error) {
+	mjsonrpc_error_alert(error);
+	});
+  }else{
+    var ProbeID = 1;
+    for (ProbeID=1;ProbeID<=17;ProbeID++){
+      ProbeSelect = String(ProbeID);
+      var addr_ProbeID= BaseAddress + ProbeSelect + "/Probe ID";
+      var addr_ProbeEnable= BaseAddress + ProbeSelect + "/Probe Enable";
+      var addr_PreampDelay= BaseAddress + ProbeSelect + "/Preamp Delay";
+      var addr_PreampPeriod= BaseAddress + ProbeSelect + "/Preamp Period";
+      var addr_ADCGateDelay= BaseAddress + ProbeSelect + "/ADC Gate Delay";
+      var addr_ADCGateOffset= BaseAddress + ProbeSelect + "/ADC Gate Offset";
+      var addr_ADCGatePeriod= BaseAddress + ProbeSelect + "/ADC Gate Period";
+      var addr_TXDelay= BaseAddress + ProbeSelect + "/TX Delay";
+      var addr_TXPeriod= BaseAddress + ProbeSelect + "/TX Period";
+      var addr_UserData= BaseAddress + ProbeSelect + "/User Data";
+
+      mjsonrpc_db_paste([addr_ProbeID,addr_ProbeEnable,addr_PreampDelay,addr_PreampPeriod,addr_ADCGateDelay,addr_ADCGateOffset,addr_ADCGatePeriod,addr_TXDelay,addr_TXPeriod,addr_UserData],[ProbeID,ProbeEnable,PreampDelay,PreampPeriod,ADCGateDelay,ADCGateOffset,ADCGatePeriod,TXDelay,TXPeriod,UserData]).then(function(rpc){;}).catch(function(error) {
+	  mjsonrpc_error_alert(error);
+	  });
+    }
+  }
+
+  mjsonrpc_db_paste(["/Equipment/TrolleyInterface/Settings/Probe/Source"],[Source]).then(function(rpc){;}).catch(function(error) {
+      mjsonrpc_error_alert(error);
+      });
+}

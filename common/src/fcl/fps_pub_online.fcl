@@ -11,12 +11,13 @@ source : {
 
   //Parameters parsed by the detail class
   detail : {
+   analyzerName: "FPS DQM"
    online : true
    requestedBanks : ['FXPR'] 
    eventIDMask: 1
-   midasTriggerMask: 0
    midasExperimentName: "g2-field"
-   mserverHost: "localhost:1175" 
+   mserverHost: "g2field-be-priv:1175" 
+//   mserverHost: ""
  }
 }
 
