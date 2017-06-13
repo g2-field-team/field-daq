@@ -32,7 +32,7 @@ using std::string;
 //--- project includes ------------------------------------------------------//
 #include "g2field/core/field_structs.hh"
 #include "g2field/core/field_constants.hh"
-#include "fixed_probe_sequencer.hh"
+#include "abs_fixed_probe_sequencer.hh"
 #include "frontend_utils.hh"
 
 //--- globals ---------------------------------------------------------------//
@@ -129,7 +129,7 @@ std::string nmr_sequence_conf_file;
 
 g2field::abs_fixed_t data;
 g2field::abs_online_fixed_t full_data;
-g2field::FixedProbeSequencer *event_manager = nullptr;
+g2field::AbsFixedProbeSequencer *event_manager = nullptr;
 
 const int nprobes = g2field::kAbsNmrNumFixedProbes;
 const char *const mbank_name = (char *)"ACFP";
@@ -145,7 +145,6 @@ void set_json_tmpfiles()
   char tmp_file[256];
   std::string conf_file;
   boost::property_tree::ptree pt;
-  boost::property_tree::ptree pt_child;
 
   // Copy the wfd config file.
   snprintf(tmp_file, 128, "/tmp/g2-nmr-config_XXXXXX.json");
@@ -161,16 +160,18 @@ void set_json_tmpfiles()
   conf.get_child("devices.sis_3302").erase("sis_3302_0");
   conf.put_child("devices.sis_3302", pt);
 
+  // Now handle the config subtree.
+  pt = conf.get_child("config");
+
   // Copy the trigger sequence file.
   snprintf(tmp_file, 128, "/tmp/g2-nmr-config_XXXXXX.json");
   mkstemps(tmp_file, 5);
   conf_file = std::string(tmp_file);
 
   // Copy the json, and set to the temp file.
-  pt = conf.get_child("trg_seq_file");
-  conf.erase("trg_seq_file");
-  conf.put<std::string>("trg_seq_file", conf_file);
-  boost::property_tree::write_json(conf_file, pt);
+  boost::property_tree::write_json(conf_file, pt.get_child("mux_sequence"));
+  pt.erase("mux_sequence");
+  pt.put<std::string>("mux_sequence", conf_file);
 
   // Now the mux configuration
   snprintf(tmp_file, 128, "/tmp/g2-nmr-config_XXXXXX.json");
@@ -178,10 +179,9 @@ void set_json_tmpfiles()
   conf_file = std::string(tmp_file);
 
   // Copy the json, and set to the temp file.
-  pt = conf.get_child("mux_conf_file");
-  conf.erase("mux_conf_file");
-  conf.put<std::string>("mux_conf_file",  conf_file);
-  boost::property_tree::write_json(conf_file, pt);
+  boost::property_tree::write_json(conf_file, pt.get_child("mux_connections"));
+  pt.erase("mux_connections");
+  pt.put<std::string>("mux_connections",  conf_file);
 
   // And the fid params.
   snprintf(tmp_file, 128, "/tmp/g2-nmr-config_XXXXXX.json");
@@ -189,10 +189,12 @@ void set_json_tmpfiles()
   conf_file = std::string(tmp_file);
 
   // Copy the json, and set to the temp file.
-  pt = conf.get_child("fid_conf_file");
-  conf.erase("fid_conf_file");
-  conf.put<std::string>("fid_conf_file", conf_file);
-  boost::property_tree::write_json(conf_file, pt);
+  boost::property_tree::write_json(conf_file, pt.get_child("fid_analysis"));
+  pt.erase("fid_analysis");
+  pt.put<std::string>("fid_analysis", conf_file);
+
+  conf.erase("config");
+  conf.put_child("config", pt);
 
   // Now save the config to a temp file and feed it to the Event Manager.
   snprintf(tmp_file, 128, "/tmp/g2-nmr-config_XXXXXX.json");
@@ -209,17 +211,15 @@ int load_device_classes()
 
   // Set up the event mananger.
   if (event_manager == nullptr) {
-    event_manager = new g2field::FixedProbeSequencer(nmr_sequence_conf_file, 
+    event_manager = new g2field::AbsFixedProbeSequencer(nmr_sequence_conf_file, 
 						     nprobes);
   } else {
 
     event_manager->EndOfRun();
     delete event_manager;
-    event_manager = new g2field::FixedProbeSequencer(nmr_sequence_conf_file, 
+    event_manager = new g2field::AbsFixedProbeSequencer(nmr_sequence_conf_file, 
 						     nprobes);
   }
-
-  event_rate_limit = conf.get<double>("event_rate_limit");
 
   return SUCCESS;
 }
