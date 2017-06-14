@@ -159,11 +159,13 @@ double get_new_current(double meas_value);             // get new current based 
 
 int update_current();                                  // update the current on the Yokogawa 
 int check_yokogawa_comms(int rc,const char *func);     // check on the yokogawa communication; run error check if necessary 
+int update_parameters(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_field); 
 unsigned long get_utc_time();                          // UTC time in milliseconds 
 
 const char * const psfb_bank_name = "PSFB";     // 4 letters, try to make sensible
 const char * const SETTINGS_DIR   = "/Equipment/PS Feedback/Settings";
 const char * const MONITORS_DIR   = "/Equipment/PS Feedback/Monitors";
+const char * const SHARED_DIR     = "/Shared/Variables/PS Feedback";
 
 /********************************************************************\
   Callback routines for system transitions
@@ -618,12 +620,8 @@ void read_from_device(){
 
 }
 //______________________________________________________________________________
-int update_current(){
-   // update the current on the yokogawa based on the ODB
-   int rc=0;
-
-   double avg_field = 0;
-   int SIZE_DOUBLE  = sizeof(avg_field);  
+int update_parameters(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_field){
+   // update values from the ODB 
 
    // can't do this for some reason... 
    // char enable_sw_path[512];
@@ -632,28 +630,34 @@ int update_current(){
    // sprintf(enable_sw_path,"%s/Output Enable",SETTINGS_DIR); 
    // db_get_value(hDB,0,enable_sw_path,&IsOutputEnabled,&SIZE_BOOL,TID_BOOL,0);
 
+   char sf_path[512];
+   sprintf(sf_path,"%s/Scale Factor (Amps_per_Hz)",SETTINGS_DIR);
+   double sf = 0;
+   int SIZE_DOUBLE  = sizeof(sf);  
+   db_get_value(hDB,0,sf_path,&sf,&SIZE_DOUBLE,TID_DOUBLE, 0);
+
+   double FIELD_AVG=0;
    const int SIZE = 100; 
    char *freq_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
-   sprintf(freq_path,"%s/Average Field",MONITORS_DIR);
-   db_get_value(hDB,0,freq_path,&avg_field,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   sprintf(freq_path,"%s/uniform_mean_nmr_freq",SHARED_DIR);
+   db_get_value(hDB,0,freq_path,&FIELD_AVG,&SIZE_DOUBLE,TID_DOUBLE, 0);
    free(freq_path);
-   avg_field *= gScaleFactor;  // convert to amps! 
- 
+   avg_field  = FIELD_AVG*1E-3*gScaleFactor;  // convert from kHz -> Hz -> Amps 
+
+   double CURRENT=0; 
    char current_set_path[512];
    sprintf(current_set_path,"%s/Current Setpoint (mA)",SETTINGS_DIR);
-   double current_set;
-   db_get_value(hDB,0,current_set_path,&current_set,&SIZE_DOUBLE,TID_DOUBLE, 0);
-   current_set *= 1E-3; // convert to amps! 
+   db_get_value(hDB,0,current_set_path,&CURRENT,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   current_setpoint = CURRENT*1E-3; // convert to amps! 
 
    char field_set_path[512];
    sprintf(field_set_path,"%s/Field Setpoint (Hz)",SETTINGS_DIR);
-   double field_set;
-   db_get_value(hDB,0,field_set_path,&field_set,&SIZE_DOUBLE,TID_DOUBLE, 0);
-   field_set *= gScaleFactor; // convert to amps! 
+   double field_setpoint=0;
+   db_get_value(hDB,0,field_set_path,&field_setpoint,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   field_setpoint *= gScaleFactor; // convert to amps! 
 
    char switch_path[512];
    sprintf(switch_path,"%s/Feedback Active",SETTINGS_DIR);
-   BOOL IsFeedbackOn = FALSE;
    int SIZE_BOOL = sizeof(IsFeedbackOn);
    db_get_value(hDB,0,switch_path,&IsFeedbackOn,&SIZE_BOOL,TID_BOOL, 0);
 
@@ -671,14 +675,6 @@ int update_current(){
    sprintf(dc_path,"%s/D Coefficient",SETTINGS_DIR);
    double D_coeff = 0;
    db_get_value(hDB,0,dc_path,&D_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
-
-   char sf_path[512];
-   sprintf(sf_path,"%s/Scale Factor (Amps_per_Hz)",SETTINGS_DIR);
-   double sf = 0;
-   db_get_value(hDB,0,sf_path,&sf,&SIZE_DOUBLE,TID_DOUBLE, 0);
-
-   double lvl   = 0;
-   gCurrentTime = get_utc_time();
 
    // if(IsOutputEnabled){
    //    rc = yokogawa_interface::set_output_state(yokogawa_interface::kENABLED); 
@@ -699,13 +695,93 @@ int update_current(){
    gP_coeff     = P_coeff; 
    gI_coeff     = I_coeff; 
    gD_coeff     = D_coeff; 
-   gSetpoint    = field_set;            // use the FIELD setpoint here!  
+   gSetpoint    = field_setpoint;  // use the FIELD setpoint here!  
    gScaleFactor = sf; 
 
+   return 0; 
+
+}
+//______________________________________________________________________________
+int update_current(){
+   // update the current on the yokogawa based on the ODB
+   int rc=-1;
+
+   BOOL IsFeedbackOn = false; 
+   double current_setpoint=0,avg_field=0; 
+   rc = update_parameters(IsFeedbackOn,current_setpoint,avg_field);
+  
+   char err_msg[512]; 
+ 
+   if (rc!=0) {
+      sprintf(err_msg,"Cannot update parameters from ODB."); 
+      cm_msg(MERROR,"update_current",err_msg);
+   }
+ 
+   // double avg_field = 0;
+   // int SIZE_DOUBLE  = sizeof(avg_field);  
+
+   // // grab average field from fixed probes 
+   // const int SIZE = 100; 
+   // char *freq_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
+   // sprintf(freq_path,"%s/uniform_mean_nmr_freq",SHARED_DIR);
+   // db_get_value(hDB,0,freq_path,&avg_field,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   // free(freq_path);
+   // avg_field *= 1E+3;          // convert from kHz to Hz! 
+   // avg_field *= gScaleFactor;  // convert from Hz to amps! 
+ 
+   // char current_set_path[512];
+   // sprintf(current_set_path,"%s/Current Setpoint (mA)",SETTINGS_DIR);
+   // double current_set;
+   // db_get_value(hDB,0,current_set_path,&current_set,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   // current_set *= 1E-3; // convert to amps! 
+
+   // char field_set_path[512];
+   // sprintf(field_set_path,"%s/Field Setpoint (Hz)",SETTINGS_DIR);
+   // double field_set;
+   // db_get_value(hDB,0,field_set_path,&field_set,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   // field_set *= gScaleFactor; // convert to amps! 
+
+   // char switch_path[512];
+   // sprintf(switch_path,"%s/Feedback Active",SETTINGS_DIR);
+   // BOOL IsFeedbackOn = FALSE;
+   // int SIZE_BOOL = sizeof(IsFeedbackOn);
+   // db_get_value(hDB,0,switch_path,&IsFeedbackOn,&SIZE_BOOL,TID_BOOL, 0);
+
+   // char pc_path[512];
+   // sprintf(pc_path,"%s/P Coefficient",SETTINGS_DIR);
+   // double P_coeff = 0;
+   // db_get_value(hDB,0,pc_path,&P_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
+
+   // char ic_path[512];
+   // sprintf(ic_path,"%s/I Coefficient",SETTINGS_DIR);
+   // double I_coeff = 0;
+   // db_get_value(hDB,0,ic_path,&I_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
+
+   // char dc_path[512];
+   // sprintf(dc_path,"%s/D Coefficient",SETTINGS_DIR);
+   // double D_coeff = 0;
+   // db_get_value(hDB,0,dc_path,&D_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
+
+   // char sf_path[512];
+   // sprintf(sf_path,"%s/Scale Factor (Amps_per_Hz)",SETTINGS_DIR);
+   // double sf = 0;
+   // db_get_value(hDB,0,sf_path,&sf,&SIZE_DOUBLE,TID_DOUBLE, 0);
+
+   // double lvl   = 0;
+
+   // gP_coeff     = P_coeff; 
+   // gI_coeff     = I_coeff; 
+   // gD_coeff     = D_coeff; 
+   // gSetpoint    = field_set;            // use the FIELD setpoint here!  
+   // gScaleFactor = sf; 
+
+   gCurrentTime = get_utc_time();
+
+   double lvl=0;
    if (IsFeedbackOn) {
      lvl = get_new_current(avg_field);  // send in the average field (in amps); compares to setpoint  
    } else {
-     lvl = current_set;			// If not running feedback, set the current.
+     lvl = current_setpoint;		// If not running feedback, set the current.
    }
 
    if (!gSimMode) { 
@@ -776,10 +852,11 @@ unsigned long get_utc_time(){
 int check_yokogawa_comms(int rc,const char *func){
    int RC=-1,RC2=-1;
    int err_code=0;
-   char err_msg[512]; 
+   char err_msg[512],myStr[512]; 
    if (rc!=0) {
       err_code = yokogawa_interface::error_check(err_msg); 
-      cm_msg(MERROR,func,"Yokogawa communication FAILED. Error code: %d, msg: %s",err_code,err_msg);
+      sprintf(myStr,"Yokogawa communication FAILED.  Error code: %d, message: %s \n",err_code,err_msg); 
+      cm_msg(MERROR,func,myStr);
       RC2 = yokogawa_interface::clear_errors();
       RC  = err_code; 
    } else {
