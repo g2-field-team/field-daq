@@ -715,6 +715,7 @@ int update_current(){
    if (rc!=0) {
       sprintf(err_msg,"Cannot update parameters from ODB."); 
       cm_msg(MERROR,"update_current",err_msg);
+      IsFeedbackOn = false;  // just to be safe, turn off feedback if we can't read from the ODB 
    }
  
    // double avg_field = 0;
