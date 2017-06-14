@@ -345,7 +345,7 @@ INT frontend_init()
   //Bind to the correct ports
 
   requester1.setsockopt(ZMQ_LINGER, 0);     
-  requester1.setsockopt(ZMQ_RCVTIMEO, 2000);           
+  requester1.setsockopt(ZMQ_RCVTIMEO, 10000);           
   requester1.bind("tcp://*:5551");               
   cm_msg(MINFO, "init", "Bound to beaglebone 1"); 
   std::cout << "Bound to beaglebone 1" << std::endl;
@@ -356,7 +356,7 @@ INT frontend_init()
   //cm_msg(MINFO, "init", "Bound to beaglebone 2");
 
   requester3.setsockopt(ZMQ_LINGER, 0);
-  requester3.setsockopt(ZMQ_RCVTIMEO, 2000);
+  requester3.setsockopt(ZMQ_RCVTIMEO, 10000);
   requester3.bind("tcp://*:5553");
   cm_msg(MINFO, "init", "Bound to beaglebone 3");
   std::cout << "Bound to beaglebone 3" << std::endl;
@@ -383,8 +383,9 @@ INT frontend_init()
 
   subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
   subscriber.setsockopt(ZMQ_LINGER, 0);
-  subscriber.setsockopt(ZMQ_RCVTIMEO, 5000);
+  subscriber.setsockopt(ZMQ_RCVTIMEO, 20000);
   subscriber.bind("tcp://*:5550");
+  cm_msg(MINFO,"init","Bound to surface coil subscribe socket");
   std::cout << "Bound to subscribe socket" << std::endl;
 
   //Send data to driver boards:                         
@@ -477,6 +478,7 @@ INT frontend_init()
   //Will now start receiving readback values from beaglebones and checking whether
   //set points have been updated in ODB
   read_thread = std::thread(ReadCurrents);
+  cm_msg(MINFO, "init", "Surface coil thread started");
 
   globalLock.lock();
   run_in_progress = false;
@@ -663,7 +665,7 @@ INT poll_event(INT source, INT count, BOOL test)
   BOOL check = dataBuffer.size()>1;
   mlock.unlock();
   if(check){
-    //std::cout << "Trigger" << std::endl;
+    std::cout << "Data size, Triggered: " << dataBuffer.size() << std::endl;
     return 1;
   }
   else return 0;
@@ -694,6 +696,8 @@ Writes to midas banks, and if told to do so, to the root tree.
 */
 INT read_surface_coils(char *pevent, INT c)
 {
+
+  std::cout << "In readout routine" << std::endl;
   static unsigned long long num_events;
   static unsigned long long events_written;
 
@@ -775,12 +779,15 @@ void ReadCurrents(){
 
   while(1){
 
+  std::cout << "In the thread" << std::endl;
+
   BOOL localFrontendActive;
   mlock.lock();
   localFrontendActive = FrontendActive;
   mlock.unlock();
   if(!localFrontendActive) break;
 
+  std::cout << "Checking if ODB Setpoints were changed" << std::endl;
   mlock.lock();
   //Get the current set points from ODB
   //Get bottom set currents
@@ -930,6 +937,7 @@ void ReadCurrents(){
   //make an instance of the struct
   unpacked_data dataUnit;
 
+  std::cout << "Initializing arrays for beaglebone data" << std::endl;
   //Initialize arrays to hold data sent from beaglebones                
   for(int i=0;i<nCoils;i++){
     dataUnit.bot_currents[i] = 0.0;
@@ -942,7 +950,7 @@ void ReadCurrents(){
   bool st = false; //status of receiving data             
   zmq::message_t bbVals;
   
- 
+  std::cout << "About to receive values from beaglebones" << std::endl;
   while (!st) {
     try {
       if (!subscriber.recv(&bbVals)) {
@@ -959,6 +967,7 @@ void ReadCurrents(){
     }
   }
   mlock.unlock();
+  std::cout << "Received values in thread" << std::endl;
 
   string s(static_cast<char*>(bbVals.data()));
   s.resize(bbVals.size());
@@ -990,6 +999,8 @@ void ReadCurrents(){
   mlock.lock();
   dataBuffer.push_back(dataUnit);
   mlock.unlock();
+
+  std::cout << "Data buffer size in thread: " << dataBuffer.size() << std::endl;
 
   mlock.lock();
   //Update values in odb   
