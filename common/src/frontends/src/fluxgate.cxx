@@ -84,7 +84,7 @@ namespace {
 	const char *physicalChannelDC = "Dev1/ai0:11"; //creates DC AI channels 0-11
 	float64 minVolDC = -10.0;
 	float64 maxVolDC = 10.0;
-	const char *physicalChannelAC = "Dev1/ai12:23"; //creates AC AI channels 12-23
+	const char *physicalChannelAC = "Dev1/ai12:15"; //creates AC AI channels 12-15
 	float64 minVolAC = -1.0;
 	float64 maxVolAC = 1.0;
 	//--- Timing Parameters -----------------------------------------------------//
@@ -162,8 +162,8 @@ INT begin_of_run(INT run_number, char *err){
 		  
 	//setup channel and timing parameters
 	//create DC channels
-	db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/minVolDC",&minVolDC,sizeof(minVolDC),TID_FLOAT, 0);
-	db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/maxVolDC",&maxVolDC,sizeof(maxVolDC),TID_FLOAT, 0);
+	//db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/minVolDC",&minVolDC,sizeof(minVolDC),TID_FLOAT, 0);
+	//db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/maxVolDC",&maxVolDC,sizeof(maxVolDC),TID_FLOAT, 0);
 	db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/physicalChannelDC",&physicalChannelDC,sizeof(physicalChannelDC),1,TID_STRING);
 	DAQerr = DAQmxBaseCreateAIVoltageChan(taskHandle, physicalChannelDC, "Voltage", DAQmx_Val_Cfg_Default, minVolDC, maxVolDC, DAQmx_Val_Volts, NULL);
 	NIERRORCHECK_SUCCESSMSG("begin_of_run","error creating fluxgate DC channels","fluxgate DC channels created");
@@ -178,8 +178,8 @@ INT begin_of_run(INT run_number, char *err){
 	}
 */	
 	//create AC channels
-	db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/minVolAC",&minVolAC,sizeof(minVolAC),TID_FLOAT, 0);
-	db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/maxVolAC",&maxVolAC,sizeof(maxVolAC),TID_FLOAT, 0);
+	//db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/minVolAC",&minVolAC,sizeof(minVolAC),TID_FLOAT, 0);
+	//db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/maxVolAC",&maxVolAC,sizeof(maxVolAC),TID_FLOAT, 0);
 	db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/physicalChannelAC",&physicalChannelAC,sizeof(physicalChannelAC),1,TID_STRING);
 	DAQerr = DAQmxBaseCreateAIVoltageChan(taskHandle, physicalChannelAC, "Voltage", DAQmx_Val_Cfg_Default, minVolAC, maxVolAC, DAQmx_Val_Volts, NULL);
 	NIERRORCHECK_SUCCESSMSG("begin_of_run","error creating fluxgate AC channels","fluxgate AC channels created");
@@ -311,6 +311,9 @@ INT read_fluxgate_event(char *pevent, INT off){
 		cm_msg(MINFO,"read_fluxgate_event","fluxgate DAQ event read");
 	}
 */
+	//debugging output
+	std::cout << readOut[0] << std::endl << readOut[100] << std::endl << readOut[10000];
+
 	//restart DAQ task
 	DAQerr = DAQmxBaseStopTask(taskHandle);
 	NIERRORCHECK_NOSUCCESSMSG("read_fluxgate_event","error restarting (stop) fluxgate task");

@@ -22,7 +22,7 @@ about:  Contains parameters, structures, and helper functions for fluxgate front
 //SET parameters
 #define AQ_RATE 2000 // acquisition rate in samples per second per channel (MAKE AN INT!!!)
 #define AQ_TIME 10 // acquisiton time in seconds (MAKE AN INT!!!)
-#define AQ_TOTALCHAN 24 // total channels, including AC and DC channels
+#define AQ_TOTALCHAN 16 // total channels, including AC and DC channels
 //DERIVED paramters
 #define AQ_TIMEMS AQ_TIME*1000 // acquisition time in msec
 #define AQ_SAMPSPERCHAN AQ_RATE*AQ_TIME // number of samples to aquire per channel, equals AQ_RATE x AQ_TIME
