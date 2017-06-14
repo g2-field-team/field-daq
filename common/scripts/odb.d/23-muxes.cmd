@@ -8,10 +8,10 @@ create INT wfd_chan
 set wfd_chan 0
 
 create CHAR dio_board_id
-set dio_board_id b
+set dio_board_id a
 
 create INT dio_port_num
-set dio_port_num 0x0
+set dio_port_num 0
 
 cd ..
 cp mux_template "mux_01"

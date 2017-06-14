@@ -18,7 +18,7 @@ width: 100%;
        font-weight: 400;
 }
 
-nav ul {
+.nav ul {
   list-style-type: none;
 margin:0;
 padding: 0;
@@ -26,11 +26,11 @@ overflow: hidden;
 width: 100%;
 }
 
-nav li {
+.nav li {
 float: left;
 }
 
-nav li input {
+.nav li input {
 display: block;
 color: black;
        text-align: center;
@@ -65,14 +65,14 @@ color: black;
 
 .table-fill {
 background: white;
-	    border-radius:3px;
-	    border-collapse: collapse;
+border-radius:3px;
+border-collapse: collapse;
 height: 320px;
 margin: auto;
-	max-width: 800px;
+max-width: 800px;
 padding:10px;
 width: 100%;
-       box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
 animation: float 5s infinite;
 }
 

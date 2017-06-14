@@ -42,6 +42,7 @@ namespace g2field {
 		Float_t fg_r[8];
 		Float_t fg_theta[8];
 		Float_t fg_z[8];
+		float64 eff_rate;
 		float64 data[AQ_TOTALSAMPS];
 	};
 	#define MAKE_FG_STRING(name) FG_HELPER(name)
@@ -49,8 +50,11 @@ namespace g2field {
 	MAKE_FG_STRING(fg_str);
 	
 	constexpr float64 kFluxRate = AQ_RATE;
+	constexpr float64 kFluxEffRate = AQ_RATE/FILT_BINSIZE;
 	constexpr float64 kFluxTime = AQ_TIME;
 	constexpr int32 kFluxNumChannels = AQ_TOTALCHAN;
+	constexpr int32 kFluxBinSize = FILT_BINSIZE;
+	constexpr float64 kFluxDigitalRolloff = FILT_ROLLOFF;
 	constexpr uInt64 kFluxSampsPerChanToAcquire = AQ_SAMPSPERCHAN;
 	constexpr uInt32 kFluxArraySizeInSamps = AQ_TOTALSAMPS;
 	

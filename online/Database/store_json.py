@@ -1,25 +1,21 @@
 import psycopg2
 import sys
-import os 
-import midas
+import os
+import datetime
 
-#Set up to access odb                                                          
-odb = midas.ODB('g2-field')
+file_name = sys.argv[1];
+username = sys.argv[2];
+dbname = sys.argv[3];
+hostname = sys.argv[4];
+port = sys.argv[5];
 
-# Start collecting information from ODB first
-Run_number = odb.get_value('/RunInfo/Run number')
-Data_dir = odb.get_value('/Logger/Data dir')
-filename = Data_dir.strip() + 'run' + '{0:05d}'.format(int(Run_number)) + '.json'
-
-dbname = sys.argv[1];
-
-run_num =int(filter(str.isdigit,os.path.basename(filename)));
-print(run_num);
-print(dbname);
+run_num =int(filter(str.isdigit,os.path.basename(file_name)));
 print "Pouring Run No.{0} JSON File to Local Database [{1}]...".format(run_num,dbname),
 
-json_text = open(filename, "r").read();
-conn = psycopg2.connect("host={0} dbname={1} user={2} port=5432".format('g2db-priv',dbname,'daq'));
+json_text = open(file_name, "r").read();
+conn = psycopg2.connect("host={0} dbname={1} user={2} port={3}".format(hostname,dbname,username,port));
 c = conn.cursor();
 c.execute("insert into gm2field_daq(run_num, json_data) values(%s, %s); commit", (run_num, json_text));
 print(' Done!');
+
+#c.execute("insert into gm2field_daq(run_num, json_data, \"time\") values(%s, %s, %s); commit", (run_num, json_text, datetime.datetime.now()));

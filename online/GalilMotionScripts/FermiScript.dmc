@@ -9,7 +9,7 @@ MG "MOTORSTATUS", TIME,_MOA,_MOB,_MOC,_MOD,_MOE,_MOF
 ' Tension monitor
 lofst1=0.0
 lofst2=0.18
-tlimit=1.0
+tlimit=1.25
 IF ((@AN[1]-lofst1 > tlimit) | (@AN[2]-lofst2 > tlimit))
   MG "ERROR TENSION IS TOO MUCH "
   AB 1
@@ -54,7 +54,7 @@ IF (@AN[1]-ofst1>thigh)
   BGB
 #LOOP2
   IF (@AN[1]-ofst1 < thigh)
-    MG "MESSAGE TENSION INITIALIZED", MG @AN[1],@AN[2]
+    MG "MESSAGE TENSION INITIALIZED", @AN[1],@AN[2]
     STB
     KPB=0
     JP #NEXT1

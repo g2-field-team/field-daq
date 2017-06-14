@@ -24,8 +24,6 @@ $Id$
 #include <thread>
 #include <mutex>
 
-#undef RPC_SUCCESS
-#undef SUCCESS
 #include "g2field/YokogawaInterface.hh"
 #include "g2field/core/field_structs.hh"
 #include "g2field/core/field_constants.hh"
@@ -33,7 +31,7 @@ $Id$
 #include "TTree.h"
 #include "TFile.h"
 
-#define FRONTEND_NAME "Yokogawa" // Prefer capitalize with spaces
+#define FRONTEND_NAME "PS Feedback" // Prefer capitalize with spaces
 
 using namespace std;
 
@@ -89,8 +87,8 @@ extern "C" {
   EQUIPMENT equipment[] = {
 
 
-    {"Yokogawa",                  /* equipment name */
-      {1, 0,                      /* event ID, trigger mask */
+    {FRONTEND_NAME,               /* equipment name */
+      {EVENTID_YOKOGAWA, 0,       /* event ID, trigger mask */
 	"SYSTEM",                 /* event buffer */
 	EQ_PERIODIC,              /* equipment type; periodic readout */ 
 	0,                        /* interrupt source */
@@ -125,20 +123,47 @@ BOOL RunActive;
 BOOL write_root = false;
 TFile *pf;
 TTree *pt_norm;
-// my data structures 
-g2field::yokogawa_t YokoCurrent;            // current value of yokogawa data 
-vector<g2field::yokogawa_t> YokoBuffer;     // vector of yokogawa data 
+// my data structures and variables  
+g2field::psfeedback_t PSFBCurrent;            // current value of yokogawa data 
+vector<g2field::psfeedback_t> PSFBBuffer;     // vector of yokogawa data 
 BOOL gSimMode = false;
-double gPrevAvgField = 0;  
+// hardware limits 
+double gLowerLimit = -200E-3; 
+double gUpperLimit =  200E-3; 
+// P, I, D coefficients 
+double gP_coeff=0;
+double gI_coeff=0;
+double gD_coeff=0;
+// P, I, D terms 
+double gP_term=0;
+double gI_term=0;
+double gD_term=0;
+// other terms we need to keep track of 
+double gSetpoint=0;
+double gLastErr=0;
+double gIntErr=0;
+double gWindupGuard=20.;  
+double gSampleTime=10E-3; // 10 ms  
+double gScaleFactor=1.0;  // in Amps/Hz 
+// time variables 
+unsigned long gCurrentTime=0;
+unsigned long gLastTime=0; 
 
 // my functions 
-void read_from_device();                        // pull data from the Yokogawa  
+void read_from_device();                               // pull data from the Yokogawa 
+void update_p_term(double err,double dt,double derr);  // update P term 
+void update_i_term(double err,double dt,double derr);  // update I term 
+void update_d_term(double err,double dt,double derr);  // update D term 
 
-int update_current();                           // update the current on the Yokogawa 
+double get_new_current(double meas_value);             // get new current based on PID  
 
-const char * const yoko_bank_name = "YOKO";     // 4 letters, try to make sensible
-const char * const SETTINGS_DIR   = "/Equipment/Yokogawa/Settings";
-const char * const MONITOR_DIR    = "/Equipment/Yokogawa/Monitor";
+int update_current();                                  // update the current on the Yokogawa 
+int check_yokogawa_comms(int rc,const char *func);     // check on the yokogawa communication; run error check if necessary 
+unsigned long get_utc_time();                          // UTC time in milliseconds 
+
+const char * const psfb_bank_name = "PSFB";     // 4 letters, try to make sensible
+const char * const SETTINGS_DIR   = "/Equipment/PS Feedback/Settings";
+const char * const MONITORS_DIR   = "/Equipment/PS Feedback/Monitors";
 
 /********************************************************************\
   Callback routines for system transitions
@@ -178,34 +203,60 @@ INT frontend_init(){
    char *sim_sw_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
    sprintf(sim_sw_path,"%s/Simulation Mode",SETTINGS_DIR); 
    db_get_value(hDB,0,sim_sw_path,&gSimMode,&size_Bool,TID_BOOL,0);
-  
+
    // IP addr
    char *ip_addr_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
    sprintf(ip_addr_path,"%s/IP address",SETTINGS_DIR); 
 
-   string ip_addr,ip_str;
-   // char ip_str[SIZE+1];
+   char ip_addr[256];
+
    int ip_addr_size = sizeof(ip_addr);
 
-   int rc=0;
+   int rc=0,err_code;
+   double lvl=0;
+   char yoko_read_msg[512],err_msg[512]; 
+
    if (!gSimMode) {
       // taking real data, grab the IP address  
       db_get_value(hDB,0,ip_addr_path,&ip_addr,&ip_addr_size,TID_STRING,0);
-      // ip_addr = string(ip_str);
       // connect to the yokogawa
-      rc = yokogawa_interface::open_connection( ip_addr.c_str() );  
+      rc = yokogawa_interface::open_connection(ip_addr);  
       if (rc==0) {
          cm_msg(MINFO,"init","Yokogawa is connected.");
          rc = yokogawa_interface::set_mode(yokogawa_interface::kCURRENT); 
-         cm_msg(MINFO,"init","Yokogawa set to CURRENT mode.");
+         rc = check_yokogawa_comms(rc,"init");  
+         if (rc==0) {
+	    cm_msg(MINFO,"init","Yokogawa set to CURRENT mode.");
+         } else { 
+            return FE_ERR_HW; 
+         }
          rc = yokogawa_interface::set_range_max(); 
-         cm_msg(MINFO,"init","Yokogawa set to maximum range.");
-         rc = yokogawa_interface::set_level(0.0); 
-         cm_msg(MINFO,"init","Yokogawa current set to 0 mA.");
+         rc = check_yokogawa_comms(rc,"init");  
+         if (rc==0) { 
+            cm_msg(MINFO,"init","Yokogawa set to maximum range.");
+         } else { 
+            return FE_ERR_HW; 
+         }
+         rc = yokogawa_interface::set_level(0.000); 
+         rc = check_yokogawa_comms(rc,"init"); 
+         if (rc==0) { 
+	    // sanity check to make sure we did what we thought we did 
+	    lvl = yokogawa_interface::get_level(); 
+	    sprintf(yoko_read_msg,"Yokogawa set to %.3lf mA",lvl/1E-3);  
+	    cm_msg(MINFO,"init",yoko_read_msg);
+         } else { 
+            return FE_ERR_HW; 
+         }
          rc = yokogawa_interface::set_output_state(yokogawa_interface::kENABLED); 
-         cm_msg(MINFO,"init","Yokogawa output ENABLED.");
+         rc = check_yokogawa_comms(rc,"init"); 
+         if (rc==0) {
+            cm_msg(MINFO,"init","Yokogawa output ENABLED.");
+         } else { 
+            return FE_ERR_HW; 
+         }
       } else {
-         cm_msg(MERROR,"init","Yokogawa connection FAILED. Error code: %d",rc);
+         cm_msg(MERROR,"init","Cannot connect to the Yokogawa.");
+         err_code = check_yokogawa_comms(rc,"init");
          return FE_ERR_HW; 
       }
    } else { 
@@ -218,6 +269,7 @@ INT frontend_init(){
 
    return SUCCESS;
 }
+
 //______________________________________________________________________________
 INT frontend_exit(){
    // Disconnect from Yokogawa 
@@ -228,15 +280,27 @@ INT frontend_exit(){
  
    if (!gSimMode) { 
       // set to zero mA 
-      rc = yokogawa_interface::set_level(0.0); 
+      rc = yokogawa_interface::set_level(0.0);
+      rc = check_yokogawa_comms(rc,"exit"); 
+      if (rc!=0) { 
+          return FE_ERR_HW; 
+      } 
       // disable output 
       rc = yokogawa_interface::set_output_state(yokogawa_interface::kDISABLED); 
+      rc = check_yokogawa_comms(rc,"exit"); 
+      if (rc!=0) { 
+          return FE_ERR_HW; 
+      } 
       // close connection  
       rc = yokogawa_interface::close_connection();
       if (rc==0) {
 	 cm_msg(MINFO,"exit","Yokogawa disconnected successfully.");
       } else {
-	 cm_msg(MERROR,"exit","Yokogawa disconnection failed. Error code: %d",rc);
+	 cm_msg(MERROR,"exit","Yokogawa disconnection failed.");
+         rc = check_yokogawa_comms(rc,"exit"); 
+         if (rc!=0) { 
+             return FE_ERR_HW; 
+         }
       }
    }
 
@@ -252,46 +316,42 @@ INT begin_of_run(INT run_number, char *error){
    cm_get_experiment_database(&hDB, NULL);
    db_get_value(hDB,0,"/Runinfo/Run number",&RunNumber,&RunNumber_size,TID_INT, 0);
 
+   //Get Root output switch
    const int SIZE = 200; 
    char *root_sw = (char *)malloc( sizeof(char)*(SIZE+1) ); 
    sprintf(root_sw,"%s/Root Output",SETTINGS_DIR); 
-
-   //Get Root output switch
    int write_root_size = sizeof(write_root);
    db_get_value(hDB,0,root_sw,&write_root,&write_root_size,TID_BOOL, 0);
-
    free(root_sw); 
 
    char *root_outpath = (char *)malloc( sizeof(char)*(SIZE+1) ); 
-   sprintf(root_outpath,"%s/Root dir",SETTINGS_DIR); 
-
+   sprintf(root_outpath,"%s/Root Dir",SETTINGS_DIR); 
    //Get Data dir
    string DataDir;
    char str[500];
    int str_size = sizeof(str);
    db_get_value(hDB,0,root_outpath,&str,&str_size,TID_STRING, 0);
    DataDir = string(str);
-
    free(root_outpath); 
 
    //Root File Name
-   sprintf(str,"Root/Yokogawa_%05d.root",RunNumber);
+   sprintf(str,"ps-feedback_%05d.root",RunNumber);
    string RootFileName = DataDir + string(str);
 
    if(write_root){
       cm_msg(MINFO,"begin_of_run","Writing to root file %s",RootFileName.c_str());
       pf      = new TFile(RootFileName.c_str(), "recreate");
-      pt_norm = new TTree("t_yoko", "Yokogawa Data");
+      pt_norm = new TTree("t_psfb", "PSFeedbackData");
       pt_norm->SetAutoSave(5);
       pt_norm->SetAutoFlush(20);
 
-      string yoko_br_name("YOKO");
-      pt_norm->Branch(yoko_bank_name, &YokoCurrent, g2field::yokogawa_str);
+      // string psfb_br_name("PSFB");
+      pt_norm->Branch(psfb_bank_name, &PSFBCurrent, g2field::psfb_str);
    }
 
    // clear data buffers 
    mlock.lock(); 
-   YokoBuffer.clear(); 
+   PSFBBuffer.clear(); 
    mlock.unlock();
    cm_msg(MINFO,"begin_of_run","Data buffer is emptied at the beginning of the run.");
 
@@ -319,20 +379,31 @@ INT end_of_run(INT run_number, char *error){
    }
 
    int rc=0; 
+   double lvl=0; 
  
+   char yoko_read_msg[512];  
+
    if (!gSimMode) { 
       // set to zero mA 
-      rc = yokogawa_interface::set_level(0.0); 
-      if (rc!=0) { 
-	 cm_msg(MERROR,"exit","Cannot set Yokogawa current to 0 mA!");
-      }
-      cm_msg(MINFO,"exit","Yokogawa set to 0 mA.");
+      // rc = yokogawa_interface::set_level(0.0); 
+      // if (rc!=0) { 
+      //    cm_msg(MERROR,"exit","Cannot set Yokogawa current to 0 mA!");
+      //    rc = check_yokogawa_comms(rc,"exit"); 
+      //    return FE_ERR_HW; 
+      // }
+      // sanity check to make sure we did what we thought we did 
+      // message the end_of_run current.
+      lvl = yokogawa_interface::get_level(); 
+      sprintf(yoko_read_msg,"End of run.  Yokogawa is set to %.3lf mA",lvl/1E-3);  
+      cm_msg(MINFO,"end_of_run",yoko_read_msg);
       // disable output 
-      rc = yokogawa_interface::set_output_state(yokogawa_interface::kDISABLED); 
-      if (rc!=0) { 
-	 cm_msg(MERROR,"exit","Cannot disable Yokogawa output!");
-      }
-      cm_msg(MINFO,"exit","Yokogawa output DISABLED.");
+      // rc = yokogawa_interface::set_output_state(yokogawa_interface::kDISABLED); 
+      // if (rc!=0) { 
+      //    cm_msg(MERROR,"exit","Cannot disable Yokogawa output!"); 
+      //    rc = check_yokogawa_comms(rc,"exit"); 
+      //    return FE_ERR_HW; 
+      // }
+      // cm_msg(MINFO,"exit","Yokogawa output DISABLED.");
    }
 
    return SUCCESS;
@@ -394,26 +465,24 @@ INT interrupt_configure(INT cmd, INT source, POINTER_T adr){
 //______________________________________________________________________________
 INT read_yoko_event(char *pevent,INT off){
 
-   cm_msg(MINFO,"read_yoko_event","Trying to read an event...");
-   cm_msg(MINFO,"read_yoko_event","Updating the current...");
+//   cm_msg(MINFO,"read_yoko_event","Trying to read an event...");
+//   cm_msg(MINFO,"read_yoko_event","Updating the current...");
    // first update the current based on the ODB value for the average field  
    int rc = update_current();
-   if (rc==0) { 
-      cm_msg(MINFO,"read_yoko_event","Done.");
-   } else { 
-      cm_msg(MINFO,"read_yoko_event","Cannot update the current!");
+   if (rc!=0) { 
+      cm_msg(MERROR,"read_yoko_event","Cannot update the current!");
    }
 
-   cm_msg(MINFO,"read_yoko_event","Reading data from device...");
+   //cm_msg(MINFO,"read_yoko_event","Reading data from device...");
    // read the current  
    read_from_device(); 
-   cm_msg(MINFO,"read_yoko_event","Done.");
+   //cm_msg(MINFO,"read_yoko_event","Done.");
 
    // now write everything to MIDAS banks 
-   cm_msg(MINFO,"read_yoko_event","Writing to MIDAS bank");
+   //cm_msg(MINFO,"read_yoko_event","Writing to MIDAS bank");
 
    static unsigned int num_events = 0; 
-   DWORD *pYokoData; 
+   DWORD *pPSFBData; 
 
    INT BufferLoad; 
    INT BufferLoad_size = sizeof(BufferLoad); 
@@ -421,7 +490,7 @@ INT read_yoko_event(char *pevent,INT off){
    // ROOT output 
    if (write_root) {
       mlock_data.lock();
-      YokoCurrent = YokoBuffer[0];
+      PSFBCurrent = PSFBBuffer[0];
       mlock_data.unlock();
       pt_norm->Fill();
       num_events++;
@@ -440,25 +509,25 @@ INT read_yoko_event(char *pevent,INT off){
    mlock_data.lock(); 
 
    // create the bank 
-   bk_create(pevent,yoko_bank_name,TID_WORD,(void **)&pYokoData);
-   // copy data into pYokoData 
-   memcpy(pYokoData, &(YokoBuffer[0]), sizeof(g2field::yokogawa_t));
+   bk_create(pevent,psfb_bank_name,TID_WORD,(void **)&pPSFBData);
+   // copy data into pPSFBData 
+   memcpy(pPSFBData, &(PSFBBuffer[0]), sizeof(g2field::psfeedback_t));
    // increment the pointer 
-   pYokoData += sizeof(g2field::yokogawa_t)/sizeof(WORD);
+   pPSFBData += sizeof(g2field::psfeedback_t)/sizeof(WORD);
    // close the event 
-   bk_close(pevent,pYokoData);
+   bk_close(pevent,pPSFBData);
 
    // some type of cleanup 
-   YokoBuffer.erase( YokoBuffer.begin() ); 
+   PSFBBuffer.erase( PSFBBuffer.begin() ); 
    // check size of readout buffer 
-   BufferLoad = YokoBuffer.size();
+   BufferLoad = PSFBBuffer.size();
 
    // unlock the thread  
    mlock_data.unlock();  
 
    const int SIZE = 200; 
    char *buf_load_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
-   sprintf(buf_load_path,"%s/Buffer Load",MONITOR_DIR); 
+   sprintf(buf_load_path,"%s/Buffer Load",MONITORS_DIR); 
 
    //update buffer load in ODB
    db_set_value(hDB,0,buf_load_path,&BufferLoad,BufferLoad_size,1,TID_INT); 
@@ -475,7 +544,7 @@ void read_from_device(){
 
    const int SIZE = 200; 
    char *read_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
-   sprintf(read_path,"%s/Read Thread Active",MONITOR_DIR); 
+   sprintf(read_path,"%s/Read Thread Active",MONITORS_DIR); 
 
    int ReadThreadActive = 1;
    mlock.lock();
@@ -483,41 +552,62 @@ void read_from_device(){
    mlock.unlock();
 
    // create a data structure    
-   g2field::yokogawa_t *yoko_data = new g2field::yokogawa_t; 
+   g2field::psfeedback_t *psfb_data = new g2field::psfeedback_t; 
+
+   int rc=0;
 
    // grab the data 
    if (!gSimMode) { 
       // real data 
-      is_enabled = yokogawa_interface::get_output_state(); 
-      mode       = yokogawa_interface::get_mode(); 
-      lvl        = yokogawa_interface::get_level(); 
+      mode = yokogawa_interface::get_mode(); 
+     // cm_msg(MINFO,"read","Yokogawa mode: %d",mode);
+      if (mode==-1) {
+         // something is wrong
+         rc         = check_yokogawa_comms(mode,"read_from_device"); 
+         is_enabled = -1; 
+         lvl        = -500E-3;   // unrealistic value  
+      } else { 
+         is_enabled = yokogawa_interface::get_output_state(); 
+         lvl        = yokogawa_interface::get_level(); 
+      } 
       // fill the data structure  
-      yoko_data->sys_clock  = 0;
-      yoko_data->gps_clock  = 0;
-      yoko_data->mode       = mode;  
-      yoko_data->is_enabled = is_enabled;  
+      psfb_data->sys_clock  = gCurrentTime;  // not sure of the difference here... 
+      psfb_data->mode       = mode;  
+      psfb_data->is_enabled = is_enabled;  
+      psfb_data->p_fdbk     = gP_coeff; 
+      psfb_data->i_fdbk     = gI_coeff; 
+      psfb_data->d_fdbk     = gD_coeff; 
       if (mode==yokogawa_interface::kVOLTAGE) {
-	 yoko_data->current = 0.; 
-	 yoko_data->voltage = lvl; 
+	 psfb_data->current = 0.; 
+	 psfb_data->voltage = lvl; 
       } else if (mode==yokogawa_interface::kCURRENT) {
-	 yoko_data->current = lvl; 
-	 yoko_data->voltage = 0.; 
+	 psfb_data->current = lvl; 
+	 psfb_data->voltage = 0.; 
       }
    } else { 
       // this is a simulation, fill with random numbers
-      yoko_data->sys_clock  = 0;
-      yoko_data->gps_clock  = 0;
-      yoko_data->current    = (double)(rand() % 100);   // random number between 0 and 100 
-      yoko_data->voltage    = 0.; 
-      yoko_data->mode       = -1;  
-      yoko_data->is_enabled = -1;  
+      psfb_data->sys_clock  = gCurrentTime;
+      psfb_data->current    = (double)(rand() % 100);   // random number between 0 and 100 
+      psfb_data->voltage    = 0.;
+      psfb_data->p_fdbk     = gP_coeff; 
+      psfb_data->i_fdbk     = gI_coeff; 
+      psfb_data->d_fdbk     = gD_coeff; 
+      psfb_data->mode       = -1;  
+      psfb_data->is_enabled = 0;  
    } 
    // fill buffer 
    mlock_data.lock(); 
-   YokoBuffer.push_back(*yoko_data); 
+   PSFBBuffer.push_back(*psfb_data); 
    mlock_data.unlock(); 
+
+   // Update ODB
+   char current_read_path[512];
+   sprintf(current_read_path,"%s/Current Value (mA)",MONITORS_DIR);
+   double current_val = lvl/1E-3;
+   db_set_value(hDB,0,current_read_path,&current_val,sizeof(current_val),1,TID_DOUBLE);
+
    // clean up for next read 
-   delete yoko_data;
+   delete psfb_data;
 
    // update read thread flag 
    ReadThreadActive = 0;
@@ -535,25 +625,166 @@ int update_current(){
    double avg_field = 0;
    int SIZE_DOUBLE  = sizeof(avg_field);  
 
+   // can't do this for some reason... 
+   // char enable_sw_path[512];
+   // BOOL IsOutputEnabled = FALSE;
+   // int SIZE_BOOL = sizeof(IsOutputEnabled);
+   // sprintf(enable_sw_path,"%s/Output Enable",SETTINGS_DIR); 
+   // db_get_value(hDB,0,enable_sw_path,&IsOutputEnabled,&SIZE_BOOL,TID_BOOL,0);
+
    const int SIZE = 100; 
    char *freq_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
-   sprintf(freq_path,"%s/Average Field",MONITOR_DIR);
-
+   sprintf(freq_path,"%s/Average Field",MONITORS_DIR);
    db_get_value(hDB,0,freq_path,&avg_field,&SIZE_DOUBLE,TID_DOUBLE, 0);
    free(freq_path);
+   avg_field *= gScaleFactor;  // convert to amps! 
  
-   // FIXME: Add code to compute proper current level
-   //        Currently just looking at difference relative to previous value, scaling by some conversion  
-   double sf  = 1; 
-   double lvl = (avg_field - gPrevAvgField)/sf;  
- 
-   if (!gSimMode) { 
-      // set the current  
-      rc = yokogawa_interface::set_level(lvl);
-      gPrevAvgField = avg_field;  
+   char current_set_path[512];
+   sprintf(current_set_path,"%s/Current Setpoint (mA)",SETTINGS_DIR);
+   double current_set;
+   db_get_value(hDB,0,current_set_path,&current_set,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   current_set *= 1E-3; // convert to amps! 
+
+   char field_set_path[512];
+   sprintf(field_set_path,"%s/Field Setpoint (Hz)",SETTINGS_DIR);
+   double field_set;
+   db_get_value(hDB,0,field_set_path,&field_set,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   field_set *= gScaleFactor; // convert to amps! 
+
+   char switch_path[512];
+   sprintf(switch_path,"%s/Feedback Active",SETTINGS_DIR);
+   BOOL IsFeedbackOn = FALSE;
+   int SIZE_BOOL = sizeof(IsFeedbackOn);
+   db_get_value(hDB,0,switch_path,&IsFeedbackOn,&SIZE_BOOL,TID_BOOL, 0);
+
+   char pc_path[512];
+   sprintf(pc_path,"%s/P Coefficient",SETTINGS_DIR);
+   double P_coeff = 0;
+   db_get_value(hDB,0,pc_path,&P_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
+
+   char ic_path[512];
+   sprintf(ic_path,"%s/I Coefficient",SETTINGS_DIR);
+   double I_coeff = 0;
+   db_get_value(hDB,0,ic_path,&I_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
+
+   char dc_path[512];
+   sprintf(dc_path,"%s/D Coefficient",SETTINGS_DIR);
+   double D_coeff = 0;
+   db_get_value(hDB,0,dc_path,&D_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
+
+   char sf_path[512];
+   sprintf(sf_path,"%s/Scale Factor (Amps_per_Hz)",SETTINGS_DIR);
+   double sf = 0;
+   db_get_value(hDB,0,sf_path,&sf,&SIZE_DOUBLE,TID_DOUBLE, 0);
+
+   double lvl   = 0;
+   gCurrentTime = get_utc_time();
+
+   // if(IsOutputEnabled){
+   //    rc = yokogawa_interface::set_output_state(yokogawa_interface::kENABLED); 
+   //    if (rc!=0) {
+   //       cm_msg(MINFO,"update","Yokogawa output ENABLED.");
+   //    } else { 
+   //       cm_msg(MINFO,"update","Cannot enable Yokogawa output!");
+   //    }
+   // }else{
+   //    rc = yokogawa_interface::set_output_state(yokogawa_interface::kDISABLED); 
+   //    if (rc!=0) {
+   //       cm_msg(MINFO,"update","Yokogawa output DISABLED.");
+   //    } else { 
+   //       cm_msg(MINFO,"update","Cannot disable Yokogawa output!");
+   //    }
+   // }
+
+   gP_coeff     = P_coeff; 
+   gI_coeff     = I_coeff; 
+   gD_coeff     = D_coeff; 
+   gSetpoint    = field_set;            // use the FIELD setpoint here!  
+   gScaleFactor = sf; 
+
+   if (IsFeedbackOn) {
+     lvl = get_new_current(avg_field);  // send in the average field (in amps); compares to setpoint  
    } else {
-      // simulation, do nothing  
+     lvl = current_set;			// If not running feedback, set the current.
+   }
+
+   if (!gSimMode) { 
+      // operational mode, check the level first  
+      if (lvl>gLowerLimit && lvl<gUpperLimit) {  
+        // the value looks good, do nothing 
+      } else {
+        if (lvl<0) lvl = 0.8*gLowerLimit; 
+        if (lvl>0) lvl = 0.8*gUpperLimit; 
+      } 
+      // checks are finished, set the current 
+      rc = yokogawa_interface::set_level(lvl);
+      if (rc!=0) { 
+         rc = check_yokogawa_comms(rc,"update_current");
+         return FE_ERR_HW;  
+      }
+   } else {
+      ;// simulation, do nothing  
    }
    return rc;  
 }
+//_____________________________________________________________________________
+double get_new_current(double meas_value){ 
+   double err  = gSetpoint - meas_value;
+   double dt   = (double)(gCurrentTime - gLastTime);
+   double derr = err - gLastErr;
+   update_p_term(err,dt,derr);
+   update_i_term(err,dt,derr);
+   update_d_term(err,dt,derr);
+   double output = gScaleFactor*( gP_term + gI_coeff*gI_term + gD_coeff*gD_term );
+   // remember values for next calculation 
+   gLastTime     = gCurrentTime;
+   gLastErr      = err;
+   return output;
+}
+//______________________________________________________________________________
+void update_p_term(double err,double dtime,double derror){
+   if (dtime >= gSampleTime) {
+      gP_term = gP_coeff*err;
+   }
+}
+//______________________________________________________________________________
+void update_i_term(double err,double dtime,double derror){
+   if (dtime >= gSampleTime) {
+      gI_term += err*dtime;
+      if (gI_term< (-1.)*gWindupGuard) {
+         gI_term = (-1.)*gWindupGuard;
+      } else if (gI_term>gWindupGuard) {
+         gI_term = gWindupGuard;
+      }
+   }
+}
+//______________________________________________________________________________
+void update_d_term(double err,double dtime,double derror){
+   gD_term = 0.;
+   if (dtime >= gSampleTime) {
+      if (dtime>0) gD_term = derror/dtime;
+   }
+}
+//______________________________________________________________________________
+unsigned long get_utc_time(){
+   struct timeb now; 
+   int rc = ftime(&now); 
+   unsigned long utc = now.time + now.millitm;
+   return utc; 
+}
+//______________________________________________________________________________
+int check_yokogawa_comms(int rc,const char *func){
+   int RC=-1,RC2=-1;
+   int err_code=0;
+   char err_msg[512]; 
+   if (rc!=0) {
+      err_code = yokogawa_interface::error_check(err_msg); 
+      cm_msg(MERROR,func,"Yokogawa communication FAILED. Error code: %d, msg: %s",err_code,err_msg);
+      RC2 = yokogawa_interface::clear_errors();
+      RC  = err_code; 
+   } else {
+      RC = rc;
+   }
+   return RC; 
+} 
 

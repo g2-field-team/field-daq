@@ -1,3 +1,11 @@
+mkdir "/Equipment/Surface Coils/Settings"
+cd "/Equipment/Surface Coils/Settings"
+create BOOL "Root Output"
+set "Root Output" false
+create STRING "Root Directory[1][256]"
+set "Root Directory" "/home/newg2/Applications/field-daq/resources/"
+
+cd
 mkdir "/Equipment/Surface Coils/Settings/Set Points"
 cd "/Equipment/Surface Coils/Settings/Set Points"
 
@@ -9,15 +17,6 @@ create DOUBLE "Bottom Set Currents[100]"
 create DOUBLE "Top Set Currents[100]"
 
 cd
-mkdir "/Equipment/Surface Coils/Settings/Calibration"
-cd "/Equipment/Surface Coils/Settings/Calibration"
-
-create DOUBLE "Bottom Intercepts[100]"
-create DOUBLE "Top Intercepts[100]"
-create DOUBLE "Bottom Slopes[100]"
-create DOUBLE "Top Slopes[100]"
-
-cd
 mkdir "/Equipment/Surface Coils/Settings/Monitoring"
 cd "/Equipment/Surface Coils/Settings/Monitoring"
 
@@ -25,7 +24,8 @@ create BOOL "Current Health"
 set "Current Health" true
 create BOOL "Temp Health"
 set "Temp Health" true
-create STRING "Problem Channel"
+create STRING "Problem Current Channel"
+create STRING "Problem Temp Channel"
 
 cd
 mkdir "/Equipment/Surface Coils/Settings/Monitoring/Currents"

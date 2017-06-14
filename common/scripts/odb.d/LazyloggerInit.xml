@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!-- created by MXML on Sat Jun 10 18:26:39 2017 -->
+<odb root="/Lazy" filename="Lazylogger.xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="/home/newg2/Packages/gm2midas/midas/odb.xsd">
+  <dir name="ToRaid">
+    <dir name="Settings">
+      <key name="Period" type="INT">10</key>
+      <key name="Maintain free space (%)" type="INT">0</key>
+      <key name="Stay behind" type="INT">0</key>
+      <key name="Alarm Class" type="STRING" size="32"></key>
+      <key name="Running condition" type="STRING" size="128">ALWAYS</key>
+      <key name="Data dir" type="STRING" size="256">/home/newg2/gm2Data/</key>
+      <key name="Data format" type="STRING" size="8">MIDAS</key>
+      <key name="Filename format" type="STRING" size="128">run%05d.*</key>
+      <key name="Backup type" type="STRING" size="8">Disk</key>
+      <key name="Execute after rewind" type="STRING" size="64"></key>
+      <key name="Path" type="STRING" size="128">/home/newg2/DataRaid/Midas/</key>
+      <key name="Capacity (Bytes)" type="FLOAT">4e+12</key>
+      <key name="List label" type="STRING" size="128">ToRaid</key>
+      <key name="Execute before writing file" type="STRING" size="64"></key>
+      <key name="Execute after writing file" type="STRING" size="64"></key>
+      <key name="Modulo.Position" type="STRING" size="8"></key>
+      <key name="Tape Data Append" type="BOOL">y</key>
+    </dir>
+    <dir name="Statistics">
+      <key name="Backup file" type="STRING" size="128">run00481_00.mid.gz.crc32c</key>
+      <key name="File size (Bytes)" type="DOUBLE">56</key>
+      <key name="KBytes copied" type="DOUBLE">56</key>
+      <key name="Total Bytes copied" type="DOUBLE">365149078239</key>
+      <key name="Copy progress (%)" type="DOUBLE">100</key>
+      <key name="Copy Rate (Bytes per s)" type="DOUBLE">0</key>
+      <key name="Backup status (%)" type="DOUBLE">9.128726993366264</key>
+      <key name="Number of Files" type="INT">1247</key>
+      <key name="Current Lazy run" type="INT">481</key>
+    </dir>
+  </dir>
+</odb>

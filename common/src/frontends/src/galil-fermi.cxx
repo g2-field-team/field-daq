@@ -143,6 +143,8 @@ typedef struct GalilDataStructD{
   double StatusArray[6];
 }GalilDataStructD;
 
+double TempCalCoefficients[6] = {24.9724 , 11.4814 , -0.64452 , 1.35996 , -0.528525 , 0.107673};
+
 INT PlungingProbeStepSize[3];
 INT PlungingProbeStepNumber[3];
 int IX,IY,IZ;
@@ -212,6 +214,13 @@ INT frontend_init()
   
   char buf[1023]; //traffic buffer
   GReturn b = G_NO_ERROR;
+	//Change the status color
+	char odbColour[32];
+	int size = sizeof(odbColour);
+	db_get_value(hDB,0,"/Equipment/GalilFermi/Common/Status Color",&odbColour,&size,TID_STRING,FALSE);
+	strcpy(odbColour, "#8A2BE2");
+	db_set_value(hDB,0,"/Equipment/GalilFermi/Common/Status Color",&odbColour,size,1,TID_STRING);
+
   b=GOpen("192.168.2.13 -s ALL -t 1000 -d",&g);
   GInfo(g, buf, sizeof(buf)); //grab connection string
 //  cout << "connection string is" << " "<<  buf << "\n";
@@ -229,15 +238,17 @@ INT frontend_init()
 
   //Initialize data base connection
   const char * host = "g2db-priv";
-  const char * dbname = "test";
-  const char * user = "daq";
+  const char * dbname = "gm2_online_prod";
+  const char * user = "gm2_writer";
   const char * password = "";
-  const char * port = "5432";
+  const char * port = "5433";
   std::string psql_con_str = std::string("host=") + std::string(host) + std::string(" dbname=")\
 			     + std::string(dbname) + std::string(" user=") + std::string(user) \
-			     + std::string(" password=") + std::string(password) + std::string(" port=")\
+			  //   + std::string(" password=") + std::string(password) 
+			     + std::string(" port=")\
 			     + std::string(port);
-//  psql_con = std::make_unique<pqxx::connection>(psql_con_str);
+  cout << psql_con_str<<endl;
+  psql_con = std::make_unique<pqxx::connection>(psql_con_str);
 
   //Set the motor switch odb values to off as default
   BOOL MOTOR_OFF = FALSE;
@@ -275,6 +286,9 @@ INT frontend_init()
   //-------------end code to communicate with Galil------------------
   PreventManualCtrl = false;
 
+	db_get_value(hDB,0,"/Equipment/GalilFermi/Common/Status Color",&odbColour,&size,TID_STRING,FALSE);
+	strcpy(odbColour, "greenLight");
+	db_set_value(hDB,0,"/Equipment/GalilFermi/Common/Status Color",&odbColour,size,1,TID_STRING);
   return SUCCESS;
 }
 
@@ -808,9 +822,20 @@ void GalilMonitor(const GCon &g){
 	    GalilDataUnit.StatusArray[j] = TRUE;
 	  }
 	}
-      }else if(Header.compare("ERROR")==0){
+      }else if(Header[0]=='?' || Header.compare("ERROR")==0){
+	BOOL Tripped = TRUE;
 	mlock.lock();
 	GCmd(g,"AB 1");
+	//Update finish labels
+	GCmd(g,"tlfinish=1");
+	GCmd(g,"grfinish=1");
+	//Terminate thread
+	GCmd(g,"HX 1");
+	//Set the motor switch odb values to off
+	BOOL MOTOR_OFF = FALSE;
+	db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Switch",&MOTOR_OFF,sizeof(MOTOR_OFF), 1 ,TID_BOOL); 
+	db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Garage Switch",&MOTOR_OFF,sizeof(MOTOR_OFF), 1 ,TID_BOOL); 
+	db_set_value(hDB,0,"/Equipment/GalilFermi/Alarms/Motion Trip",&Tripped,sizeof(Tripped), 1 ,TID_BOOL); 
 	mlock.unlock();
 	cm_msg(MINFO,"Galil Message",BufString.substr(0,foundnewline-1).c_str());
       }else{
@@ -848,6 +873,31 @@ void GalilMonitor(const GCon &g){
     mlockdata.unlock();
 
     //Update odb for monitoring
+    float T1 = GalilDataUnitD.AnalogArray[2];
+    float T2 = GalilDataUnitD.AnalogArray[3];
+    T1 = TempCalCoefficients[0] + TempCalCoefficients[1]*T1 + TempCalCoefficients[2]*pow(T1,2) + TempCalCoefficients[3]*pow(T1,3) + TempCalCoefficients[4]*pow(T1,4) + TempCalCoefficients[5]*pow(T1,5);
+    T2 = TempCalCoefficients[0] + TempCalCoefficients[1]*T2 + TempCalCoefficients[2]*pow(T2,2) + TempCalCoefficients[3]*pow(T2,3) + TempCalCoefficients[4]*pow(T2,4) + TempCalCoefficients[5]*pow(T2,5);
+    float Tension1 = GalilDataUnitD.AnalogArray[0]*4.0;
+    float Tension2 = (GalilDataUnitD.AnalogArray[1]-0.18)*4.0;
+
+    BOOL TrolleyParked = FALSE;
+    BOOL GarageIn = FALSE;
+    BOOL GarageOut = FALSE;
+    if (GalilDataUnit.PositionArray[2]>1000000){
+      TrolleyParked=TRUE;
+      GarageOut = TRUE;
+    }
+    if (GalilDataUnit.PositionArray[2]<500){
+      GarageIn = TRUE;
+    }
+
+    double EncToRad = 2.0*3.14159265358/432575.0;
+    double TrolleyPosition = 175.0 - (GalilDataUnit.PositionArray[0]-GalilDataUnit.PositionArray[1])/2.0*EncToRad*180.0/3.14159265358;
+
+    BOOL TrolleyAligned = FALSE;
+    //if (TrolleyPosition > 174.92 && TrolleyPosition < 175.08) TrolleyAligned = TRUE;
+    if (TrolleyPosition > 174.5 && TrolleyPosition < 175.5) TrolleyAligned = TRUE;
+
     mlock.lock();
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Time Stamp",&GalilDataUnit.TimeStamp,sizeof(GalilDataUnit.TimeStamp), 1 ,TID_INT); 
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Positions",&GalilDataUnit.PositionArray,sizeof(GalilDataUnit.PositionArray), 6 ,TID_INT); 
@@ -858,6 +908,17 @@ void GalilMonitor(const GCon &g){
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Limit Switches Reverse",&GalilDataUnit.LimRArray,sizeof(GalilDataUnit.LimRArray), 6 ,TID_INT);
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Status",&GalilDataUnit.StatusArray,sizeof(GalilDataUnit.StatusArray), 6 ,TID_BOOL);
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Buffer Load",&BufferLoad,sizeof(BufferLoad), 1 ,TID_INT);
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Temperature Fish",&T1,sizeof(T1), 1 ,TID_FLOAT);
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Temperature Sig",&T2,sizeof(T2), 1 ,TID_FLOAT);
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Tension Fish",&Tension1,sizeof(Tension1), 1 ,TID_FLOAT);
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Tension Sig",&Tension2,sizeof(Tension2), 1 ,TID_FLOAT);
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Trolley Parked",&TrolleyParked,sizeof(TrolleyParked), 1 ,TID_BOOL); 
+
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Interlock/Garage In",&GarageIn,sizeof(GarageIn), 1 ,TID_BOOL); 
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Interlock/Garage Out",&GarageOut,sizeof(GarageOut), 1 ,TID_BOOL); 
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Interlock/Trolley and Garage Aligned",&TrolleyAligned,sizeof(TrolleyAligned), 1 ,TID_BOOL); 
+    
+    db_set_value(hDB,0,"/Shared/Variables/Trolley/Position",&TrolleyPosition,sizeof(TrolleyPosition), 1 ,TID_DOUBLE);
 
     //Add Time, Position and Velocity to TrolleyInterface subtree
     char SourceName[256];
@@ -870,31 +931,36 @@ void GalilMonitor(const GCon &g){
     mlock.unlock();
 
     //Load to Data base
-/*    mlock.lock();
-    std::unique_ptr<pqxx::work> txnp;
-    try {
-      txnp = std::make_unique<pqxx::work>(*psql_con);
-    } catch (const pqxx::broken_connection& bc) {
-      txnp.reset();
-      cm_msg(MERROR, __FILE__, "broken connection exception %s!", bc.what());
-      // for now I will throw an exception.
-      // In future, handle this through alarm system
-      cm_yield(0);
-      throw;
+    if (i%5000==0){
+      mlock.lock();
+      char message_buffer[512];
+      sprintf(message_buffer,"{%f,%f}",T1,T2);
+
+      std::unique_ptr<pqxx::work> txnp;
+      try {
+	txnp = std::make_unique<pqxx::work>(*psql_con);
+      } catch (const pqxx::broken_connection& bc) {
+	txnp.reset();
+	cm_msg(MERROR, __FILE__, "broken connection exception %s!", bc.what());
+	// for now I will throw an exception.
+	// In future, handle this through alarm system
+	cm_yield(0);
+	throw;
+      }
+      if (txnp) {
+	// form query
+	std::string query_str =
+	  "INSERT into gm2field_monitor (name, value, time) VALUES ('";
+	query_str += "Trolley Motor Temperatures";
+	query_str += "', '";
+	query_str += string(message_buffer);
+	query_str += "', now())";
+	txnp->exec(query_str);
+	txnp->commit();
+      }
+      mlock.unlock();
     }
-    if (txnp) {
-      // form query
-      std::string query_str =
-	"INSERT into g2field-monitor (name, value, time) VALUES ('";
-      query_str += "Trolley Motor Temperatures";
-      query_str += "', '";
-      query_str += "{20.8,35.9}";
-      query_str += "', now())";
-      txnp->exec(query_str);
-      txnp->commit();
-    }
-    mlock.unlock();
-*/
+
     //Check emergencies
     //This thread is not blocking
     INT emergency_size = sizeof(emergency);
@@ -949,10 +1015,10 @@ void GalilControl(const GCon &g){
   //Variables passed to Galil system
   int destiny = 0;
   int velocity = 100;
-  double tlow = 0.4;
-  double thigh = 0.8;
+  double tlow = 0.2;
+  double thigh = 0.5;
   double ofst1 = 0.0;
-  double ofst2 = 0.0;
+  double ofst2 = 0.18;
   int garage_velocity = 1000;
  
   //Control loop
@@ -970,29 +1036,60 @@ void GalilControl(const GCon &g){
     mlock.unlock();
     char CmdBuffer[500];
 
+    //Determine whether trolley or garage motions are allowed
+    BOOL TrolleyAllowed = FALSE;
+    BOOL GarageAllowed = FALSE;
+    BOOL ExpertApprove = FALSE;
+    BOOL GarageIn = FALSE;
+    BOOL GarageOut = FALSE;
+    BOOL TrolleyAligned = FALSE;
+    BOOL CollimatorFiberHarpOut = FALSE;
+    INT sizeBOOL = sizeof(TrolleyAllowed);
+
+    mlock.lock();
+    db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Interlock/Expert Approve",&ExpertApprove,&sizeBOOL,TID_BOOL,0);
+    db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Interlock/Garage In",&GarageIn,&sizeBOOL,TID_BOOL,0);
+    db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Interlock/Garage Out",&GarageOut,&sizeBOOL,TID_BOOL,0);
+    db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Interlock/Trolley and Garage Aligned",&TrolleyAligned,&sizeBOOL,TID_BOOL,0);
+    db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Interlock/Collimator and Fiber Harps Out",&CollimatorFiberHarpOut,&sizeBOOL,TID_BOOL,0);
+    mlock.unlock();
+
+    if (ExpertApprove==TRUE && GarageIn==TRUE && CollimatorFiberHarpOut==TRUE){
+      TrolleyAllowed = TRUE;
+    }
+    if (ExpertApprove==TRUE && TrolleyAligned==TRUE && CollimatorFiberHarpOut==TRUE){
+      GarageAllowed = TRUE;
+    }
+
+    mlock.lock();
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Trolley Motion Allowed",&TrolleyAllowed,sizeof(TrolleyAllowed), 1 ,TID_BOOL); 
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Garage Motion Allowed",&GarageAllowed,sizeof(GarageAllowed), 1 ,TID_BOOL); 
+    mlock.unlock();
+
     //For trolley commands, load galil variables first
     if (command >= 1 && command <=7){
       INT Vel;
-      INT TLow;
-      INT THigh;
-      INT TOffset1;
-      INT TOffset2;
+      float TLow;
+      float THigh;
+      float TOffset1;
+      float TOffset2;
       INT GarageVel;
       INT Size_Int = sizeof(Vel);
+      INT Size_float = sizeof(TLow);
       mlock.lock();
       db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley Velocity",&Vel,&Size_Int,TID_INT,0);
-      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Range Low",&TLow,&Size_Int,TID_INT,0);
-      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Range High",&THigh,&Size_Int,TID_INT,0);
-      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Offset 1",&TOffset1,&Size_Int,TID_INT,0);
-      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Offset 2",&TOffset2,&Size_Int,TID_INT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Range Low",&TLow,&Size_float,TID_FLOAT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Range High",&THigh,&Size_float,TID_FLOAT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Offset 1",&TOffset1,&Size_float,TID_FLOAT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Tension Offset 2",&TOffset2,&Size_float,TID_FLOAT,0);
       db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Garage Velocity",&GarageVel,&Size_Int,TID_INT,0);
       mlock.unlock();
       velocity = Vel;
       garage_velocity = GarageVel;
-      tlow = static_cast<double>(TLow)/1000.0;
-      thigh = static_cast<double>(THigh)/1000.0;
-      ofst1 = static_cast<double>(TOffset1)/1000.0;
-      ofst2 = static_cast<double>(TOffset2)/1000.0;
+      tlow = static_cast<double>(TLow)/4.0;
+      thigh = static_cast<double>(THigh)/4.0;
+      ofst1 = static_cast<double>(TOffset1);
+      ofst2 = static_cast<double>(TOffset2);
       if (!PreventManualCtrl){
 	mlock.lock();
 	sprintf(CmdBuffer,"velocity=%d",velocity);
@@ -1011,11 +1108,40 @@ void GalilControl(const GCon &g){
       }else{
 	cm_msg(MINFO,"ManualCtrl","Manual control is prevented during an run.");
       }
-      //Do not execute command if corresponding motors are not ON
+      //Safety checks
+      //Do not execute command if motions are not allowed
+      if (TrolleyAllowed == FALSE){
+	if (command == 1 || command == 2 || command == 6 || command == 7){
+	  BOOL BadAttempt = TRUE;
+	  command = 0;
+	  mlock.lock();
+	  cm_msg(MINFO,"ManualCtrl","Trolley motion is not allowed. Check prerequisits.");
+	  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
+	  db_set_value(hDB,0,"/Equipment/GalilFermi/Alarms/Bad Motion Attempt",&BadAttempt,sizeof(BadAttempt), 1 ,TID_BOOL); 
+	  mlock.unlock();
+	}
+      }
+      if (GarageAllowed == FALSE){
+	if (command == 5 || command == 6 || command == 7){
+	  BOOL BadAttempt = TRUE;
+	  command = 0;
+	  mlock.lock();
+	  cm_msg(MINFO,"ManualCtrl","Garage motion is not allowed. Check prerequisits.");
+	  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
+	  db_set_value(hDB,0,"/Equipment/GalilFermi/Alarms/Bad Motion Attempt",&BadAttempt,sizeof(BadAttempt), 1 ,TID_BOOL); 
+	  mlock.unlock();
+	}
+      }
+      //Do not execute command if corresponding motors are not ON, or limit switches triggered
       BOOL MotorStatus[6];
+      INT FLimitSwitch[6];
+      INT RLimitSwitch[6];
       INT size_MotorStatus = sizeof(MotorStatus);
+      INT size_LimitSwitches = sizeof(FLimitSwitch);
       mlock.lock();
       db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Motor Status",&MotorStatus,&size_MotorStatus,TID_BOOL,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Limit Switches Forward",&FLimitSwitch,&size_LimitSwitches,TID_INT,0);
+      db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Limit Switches Reverse",&RLimitSwitch,&size_LimitSwitches,TID_INT,0);
       mlock.unlock();
       if (MotorStatus[0] == FALSE || MotorStatus[1] == FALSE){
 	if (command == 1 || command == 2 || command == 6 || command == 7){
@@ -1034,6 +1160,13 @@ void GalilControl(const GCon &g){
 	  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
 	  mlock.unlock();
 	}
+      }
+      if (FLimitSwitch[0]==0 || FLimitSwitch[1]==0 || RLimitSwitch[0]==0 || RLimitSwitch[1]==0){
+	  command = 0;
+	  mlock.lock();
+	  cm_msg(MINFO,"ManualCtrl","This command requires All trolley limit switches nonactive.");
+	  db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
+	  mlock.unlock();
       }
     }
     if (command == 1){

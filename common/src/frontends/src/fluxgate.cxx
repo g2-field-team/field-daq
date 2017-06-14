@@ -80,7 +80,7 @@ namespace {
 	TaskHandle taskHandle; //NI DAQ task identifier
 	char errBuff[2048]={'\0'};
 	//--- Channel Parameters ----------------------------------------------------//
-	int32 numChannels = g2field::kFluxNumChannels; //defined in fluxgate_utils.hh
+	int32 numChannels = AQ_TOTALCHAN; //defined in fluxgate_utils.hh
 	const char *physicalChannelDC = "Dev1/ai0:11"; //creates DC AI channels 0-11
 	float64 minVolDC = -10.0;
 	float64 maxVolDC = 10.0;
@@ -88,14 +88,18 @@ namespace {
 	float64 minVolAC = -1.0;
 	float64 maxVolAC = 1.0;
 	//--- Timing Parameters -----------------------------------------------------//
-	float64 rate = g2field::kFluxRate;
-	float64 aqTime = g2field::kFluxTime;
+	float64 aqRate = AQ_RATE;
+	float64 aqTime = AQ_TIME;
 	uInt64 sampsPerChanToAcquire = AQ_SAMPSPERCHAN;
 	//--- Readout Parameters ---------------------------------------//
 	uInt32 arraySizeInSamps = AQ_TOTALSAMPS;
 	float64 readOut[AQ_TOTALSAMPS]; //vector for writing DAQ buffer into, fixing runtime allocation for testing
 	int32 sampsRead = 0;
 	g2field::fluxgate_t data; //fluxgate data type defined in fluxgate_utils.hh
+	//--- Filter Parameters -----------------------------------------//
+	float64 effRate = AQ_RATE/FILT_BINSIZE;
+	uInt32 sampsPerChanEff = AQ_SAMPSPERCHAN/FILT_BINSIZE;
+	uInt32 effArraySize = AQ_TOTALSAMPS/FILT_BINSIZE;
 	//--- ODB Parameters --------------------------------------------//
 	HNDLE hDB, hkey;
 } //end anonymous namespace
@@ -155,21 +159,13 @@ INT begin_of_run(INT run_number, char *err){
 	
 	//get run parameters from ODB
 	cm_get_experiment_database(&hDB, NULL);
-	
-	//DC voltage parameters (nominally -10 to 10 V)
-	dbsize = sizeof(minVolDC); //size of float64
-	db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/Minimum Voltage DC",&minVolDC,&dbsize,TID_FLOAT, 0);
-	db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/Maximum Voltage DC",&maxVolDC,&dbsize,TID_FLOAT, 0);
-	//AC voltage parameters (depends on needed gain), still float64
-	db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/Minimum Voltage AC",&minVolAC,&dbsize,TID_FLOAT, 0);
-	db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/Maximum Voltage AC",&maxVolAC,&dbsize,TID_FLOAT, 0);
-	//timing parameters, still float64
-	db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/Sample Rate",&rate,&dbsize,TID_FLOAT, 0);
-	db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/Acquisition Time",&aqTime,&dbsize,TID_FLOAT, 0);
-	  
+		  
 	//setup channel and timing parameters
 	//create DC channels
-	DAQerr = DAQmxBaseCreateAIVoltageChan(taskHandle,physicalChannelDC,"Voltage",DAQmx_Val_Cfg_Default,-10,10,DAQmx_Val_Volts,NULL);
+	db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/minVolDC",&minVolDC,sizeof(minVolDC),TID_FLOAT, 0);
+	db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/maxVolDC",&maxVolDC,sizeof(maxVolDC),TID_FLOAT, 0);
+	db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/physicalChannelDC",&physicalChannelDC,sizeof(physicalChannelDC),1,TID_STRING);
+	DAQerr = DAQmxBaseCreateAIVoltageChan(taskHandle, physicalChannelDC, "Voltage", DAQmx_Val_Cfg_Default, minVolDC, maxVolDC, DAQmx_Val_Volts, NULL);
 	NIERRORCHECK_SUCCESSMSG("begin_of_run","error creating fluxgate DC channels","fluxgate DC channels created");
 /*
 	if( DAQmxFailed(DAQerr) ) {
@@ -182,6 +178,9 @@ INT begin_of_run(INT run_number, char *err){
 	}
 */	
 	//create AC channels
+	db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/minVolAC",&minVolAC,sizeof(minVolAC),TID_FLOAT, 0);
+	db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/maxVolAC",&maxVolAC,sizeof(maxVolAC),TID_FLOAT, 0);
+	db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/physicalChannelAC",&physicalChannelAC,sizeof(physicalChannelAC),1,TID_STRING);
 	DAQerr = DAQmxBaseCreateAIVoltageChan(taskHandle, physicalChannelAC, "Voltage", DAQmx_Val_Cfg_Default, minVolAC, maxVolAC, DAQmx_Val_Volts, NULL);
 	NIERRORCHECK_SUCCESSMSG("begin_of_run","error creating fluxgate AC channels","fluxgate AC channels created");
 /*
@@ -195,7 +194,11 @@ INT begin_of_run(INT run_number, char *err){
 	}
 */	
 	//setup timing
-	DAQerr = DAQmxBaseCfgSampClkTiming(taskHandle, "", AQ_RATE, DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, AQ_SAMPSPERCHAN);
+
+	db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/aqRate",&aqRate,sizeof(aqRate),1,TID_FLOAT);
+	db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/aqTime",&aqTime,sizeof(aqTime),1,TID_FLOAT);
+	db_set_value(hDB, 0, "/Equipment/Fluxgate/Settings/sampsPerChanToAcquire", &sampsPerChanToAcquire, sizeof(sampsPerChanToAcquire), 1, TID_INT);
+	DAQerr = DAQmxBaseCfgSampClkTiming(taskHandle, "", aqRate, DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, sampsPerChanToAcquire);
 	NIERRORCHECK_SUCCESSMSG("begin_of_run","error configuring fluxgate sample clock","fluxgate sample clock configured");
 /*
 	if( DAQmxFailed(DAQerr) ) {
@@ -331,6 +334,7 @@ INT read_fluxgate_event(char *pevent, INT off){
 */
 
 	// MIDAS output.
+/*
 	bk_init32(pevent);
 	bk_create(pevent, bank_name, TID_DOUBLE, (void**)&pdata);
 	// fill fluxgate data structure
@@ -340,6 +344,7 @@ INT read_fluxgate_event(char *pevent, INT off){
 		data.fg_r[ifg] = 0;
 		data.fg_theta[ifg] = 0;
 		data.fg_z[ifg] = 0;}
+	data.eff_rate = effRate;
 	memcpy(data.data,readOut, sizeof(readOut));
 	// Copy the fluxgate data.
 	memcpy(pdata, &data, sizeof(data));
@@ -347,6 +352,8 @@ INT read_fluxgate_event(char *pevent, INT off){
 	bk_close(pevent, pdata);
  
 	return bk_size(pevent);
+*/
+	return 0;
 
 }
 

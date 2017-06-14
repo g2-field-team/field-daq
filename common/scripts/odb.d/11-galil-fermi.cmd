@@ -1,8 +1,10 @@
 mkdir "/Equipment/GalilFermi/Settings"
 mkdir "/Equipment/GalilFermi/Monitors"
+mkdir "/Equipment/GalilFermi/Alarms"
 mkdir "/Equipment/GalilFermi/Settings/Auto Control"
 mkdir "/Equipment/GalilFermi/Settings/Manual Control"
 mkdir "/Equipment/GalilFermi/Settings/Emergency"
+mkdir "/Equipment/GalilFermi/Settings/Interlock"
 
 cd "/Equipment/GalilFermi/Settings/Emergency"
 create INT Abort
@@ -33,14 +35,14 @@ create INT "Limit Switches Reverse[6]"
 create BOOL "Motor Status[6]"
 create INT "Auto Motion Finished"
 create INT "Buffer Load"
+create FLOAT "Motor Temperature Fish"
+create FLOAT "Motor Temperature Sig"
+create FLOAT "Motor Tension Fish"
+create FLOAT "Motor Tension Sig"
+create BOOL "Trolley Motion Allowed"
+create BOOL "Garage Motion Allowed"
+create BOOL "Trolley Parked"
 set "Auto Motion Finished" 1
-
-mkdir "/Equipment/GalilFermi/Monitors/Trolley"
-cd "/Equipment/GalilFermi/Monitors/Trolley"
-create DOUBLE "Position"
-create DOUBLE "Velocity"
-create DOUBLE "Tensions[2]"
-
 
 cd "/Equipment/GalilFermi/Settings/Manual Control"
 create INT "Cmd"
@@ -55,10 +57,10 @@ create INT "Trolley Rel Pos"
 create INT "Trolley1 Rel Pos"
 create INT "Trolley2 Rel Pos"
 create INT "Trolley Velocity"
-create INT "Tension Range Low"
-create INT "Tension Range High"
-create INT "Tension Offset 1"
-create INT "Tension Offset 2"
+create FLOAT "Tension Range Low"
+create FLOAT "Tension Range High"
+create FLOAT "Tension Offset 1"
+create FLOAT "Tension Offset 2"
 create BOOL "Trolley Switch"
 create INT "Trolley Def Pos1"
 create INT "Trolley Def Pos2"
@@ -66,13 +68,14 @@ create INT "Garage Def Pos"
 set "Garage Switch" false
 set "Trolley Switch" false
 set "Trolley Velocity" 100
-set "Tension Range Low" 400
-set "Tension Range High" 800
-set "Tension Offset 1" 0
-set "Tension Offset 2" 0
+set "Tension Range Low" 0.8
+set "Tension Range High" 2.0
+set "Tension Offset 1" 0.0
+set "Tension Offset 2" 0.18
 set "Trolley Def Pos1" 0
 set "Trolley Def Pos2" 0
 set "Garage Def Pos" 0
+set "Garage Velocity" 1000
 cd "/Equipment/GalilFermi/Settings/Manual Control/Plunging Probe"
 create INT "Plunging Probe Abs Pos[3]"
 create INT "Plunging Probe Rel Pos[3]"
@@ -99,3 +102,13 @@ cd "/Equipment/GalilFermi/Settings/Auto Control/Plunging Probe"
 create INT "Plunging Probe Rel Pos[3]"
 create INT "Plunging Probe Step Number[3]"
 
+cd "/Equipment/GalilFermi/Settings/Interlock"
+create BOOL "Expert Approve"
+create BOOL "Garage In"
+create BOOL "Garage Out"
+create BOOL "Trolley and Garage Aligned"
+create BOOL "Collimator and Fiber Harps Out"
+
+cd "/Equipment/GalilFermi/Alarms"
+create BOOL "Motion Trip"
+create BOOL "Bad Motion Attempt"

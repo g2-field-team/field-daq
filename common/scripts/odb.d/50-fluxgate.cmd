@@ -1,41 +1,41 @@
-mkdir "/Equipment/Fluxgate/Parameters"
-cd "/Equipment/Fluxgate/Parameters"
-
-create FLOAT "Minimum Voltage DC"
-set "Minimum Voltage DC" -10.0
-create FLOAT "Maximum Voltage DC"
-set "Minimum Voltage DC" 10.0
-
-create FLOAT "Minimum Voltage AC"
-set "Minimum Voltage DC" -1.0
-create FLOAT "Maximum Voltage AC"
-set "Minimum Voltage DC" 1.0
-
-create FLOAT "Sample Rate"
-set "Sample Rate" 2000.0
-create FLOAT "Acquisition Time"
-set "Acquisition Time" 60.0
-
-mkdir "/Equipment/Fluxgate/Alarms"
-cd "/Equipment/Fluxgate/Alarms"
-
-create INT DCRails[24]
-set DCRails[*] 0
-create INT ACRails[24]
-set ACRails[*] 0
-
-create INT DCSetPoint[24]
-set DCSetPoint[*] 0
-create INT ACSetPoint[24]
-set DCSetPoint[*] 0
-
+mkdir "/Equipment/Fluxgate"
 
 mkdir "/Equipment/Fluxgate/Settings"
 cd "/Equipment/Fluxgate/Settings"
+	create FLOAT aqRate
+		set aqRate 8000
+	create FLOAT aqTime
+		set aqTime 60
+	create INT sampsPerChanToAcquire
+		set sampsPerChanToAcquire 480000
+	create STRING physicalChannelDC
+		set physicalChannelDC "Dev1/ai12:23"
+	create STRING physicalChannelAC
+		set physicalChannelAC "Dev1/ai12:23"
+	create FLOAT minVolDC
+		set minVolDC -10
+	create FLOAT maxVolDC
+		set maxVolDC 10
+	create FLOAT minVolAC
+		set minVolAC -1
+	create FLOAT maxVolAC
+		set maxVolAC 1
 
-create FLOAT "DC Setpoint Magnitude"
-set "DC Setpoint Magnitude" 10.0
-create FLOAT "AC Setpoint Magnitude"
-set "AC Setpoint Magnitude" 1.0
-create INT "FFT on"
-set "FFT on" 1
+	
+
+mkdir "/Equipment/Fluxgate/Alerts"
+cd "/Equipment/Fluxgate/Alerts"
+	create FLOAT DCSetPointMag
+		set DCSetPointMag 10.0
+	create FLOAT ACSetPointMag
+		set ACSetPointMag 1.0
+	create BOOL DCRails[24]
+		set DCRails[*] n
+	create BOOL ACRails[24]
+		set ACRails[*] n
+	create BOOL DCSetPoint[24]
+		set DCSetPoint[*] n
+	create BOOL ACSetPoint[24]
+		set DCSetPoint[*] n
+	create BOOL FFTon
+		set FFTon y
