@@ -238,15 +238,17 @@ INT frontend_init()
 
   //Initialize data base connection
   const char * host = "g2db-priv";
-  const char * dbname = "test";
-  const char * user = "daq";
+  const char * dbname = "gm2_online_prod";
+  const char * user = "gm2_writer";
   const char * password = "";
-  const char * port = "5432";
+  const char * port = "5433";
   std::string psql_con_str = std::string("host=") + std::string(host) + std::string(" dbname=")\
 			     + std::string(dbname) + std::string(" user=") + std::string(user) \
-			     + std::string(" password=") + std::string(password) + std::string(" port=")\
+			  //   + std::string(" password=") + std::string(password) 
+			     + std::string(" port=")\
 			     + std::string(port);
-//  psql_con = std::make_unique<pqxx::connection>(psql_con_str);
+  cout << psql_con_str<<endl;
+  psql_con = std::make_unique<pqxx::connection>(psql_con_str);
 
   //Set the motor switch odb values to off as default
   BOOL MOTOR_OFF = FALSE;
@@ -929,7 +931,7 @@ void GalilMonitor(const GCon &g){
     mlock.unlock();
 
     //Load to Data base
-/*    if (i%5000==0){
+    if (i%5000==0){
       mlock.lock();
       char message_buffer[512];
       sprintf(message_buffer,"{%f,%f}",T1,T2);
@@ -958,7 +960,7 @@ void GalilMonitor(const GCon &g){
       }
       mlock.unlock();
     }
-*/
+
     //Check emergencies
     //This thread is not blocking
     INT emergency_size = sizeof(emergency);
