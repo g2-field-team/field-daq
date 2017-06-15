@@ -22,7 +22,7 @@ about:  Contains parameters, structures, and helper functions for fluxgate front
 //SET parameters
 #define AQ_RATE 2000 // acquisition rate in samples per second per channel (MAKE AN INT!!!)
 #define AQ_TIME 10 // acquisiton time in seconds (MAKE AN INT!!!)
-#define AQ_TOTALCHAN 16 // total channels, including AC and DC channels
+#define AQ_TOTALCHAN 32 // total channels, including AC and DC channels
 //DERIVED paramters
 #define AQ_TIMEMS AQ_TIME*1000 // acquisition time in msec
 #define AQ_SAMPSPERCHAN AQ_RATE*AQ_TIME // number of samples to aquire per channel, equals AQ_RATE x AQ_TIME
@@ -37,13 +37,13 @@ about:  Contains parameters, structures, and helper functions for fluxgate front
 namespace g2field {
 //fluxgate struct
 	struct fluxgate_t{
-		time_t sys_time;
-		time_t gps_time;
+		Int_t sys_time;
+		Int_t gps_time;
 		Float_t fg_r[8];
 		Float_t fg_theta[8];
 		Float_t fg_z[8];
-		float64 eff_rate;
-		float64 data[AQ_TOTALSAMPS];
+		Double_t eff_rate;
+		Double_t data[AQ_TOTALSAMPS];
 	};
 	#define MAKE_FG_STRING(name) FG_HELPER(name)
 	#define FG_HELPER(name) const char * const name = "sys_clock/D:gps_clock/D:fg_r[8]/F:fg_theta[8]/F:fg_z[8]/F:data[AQ_TOTALSAMPS]/D"

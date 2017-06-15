@@ -123,7 +123,7 @@ TFile *pf;
 TTree *pt_norm;
 
 typedef struct GalilDataStruct{
-  INT TimeStamp;
+  unsigned int TimeStamp; //Galil time is unsigned int
   INT PositionArray[6];
   INT VelocityArray[6];
   INT OutputVArray[6];
@@ -509,7 +509,7 @@ INT read_event(char *pevent, INT off){
 
   for (int i=0;i<GALILREADGROUPSIZE;i++){
     mlockdata.lock();
-    GalilTrolleyDataCurrent.TimeStamp = GalilDataBuffer[i].TimeStamp;
+    GalilTrolleyDataCurrent.TimeStamp = ULong64_t(GalilDataBuffer[i].TimeStamp);
     for (int j=0;j<2;j++){
       GalilTrolleyDataCurrent.Tensions[j] = GalilDataBuffer[i].AnalogArray[j];
     }
@@ -522,7 +522,7 @@ INT read_event(char *pevent, INT off){
       GalilTrolleyDataCurrent.OutputVs[j] = GalilDataBuffer[i].OutputVArray[j];
     }
 
-    GalilPlungingProbeDataCurrent.TimeStamp = GalilDataBuffer[i].TimeStamp;
+    GalilPlungingProbeDataCurrent.TimeStamp = ULong64_t(GalilDataBuffer[i].TimeStamp);
     for (int j=0;j<3;j++){
       GalilPlungingProbeDataCurrent.Positions[j] = GalilDataBuffer[i].PositionArray[j];
       GalilPlungingProbeDataCurrent.Velocities[j] = GalilDataBuffer[i].VelocityArray[j];
@@ -542,7 +542,7 @@ INT read_event(char *pevent, INT off){
   bk_create(pevent, galil_plunging_probe_bank_name, TID_WORD, (void **)&pdataPP);
   for (int i=0;i<GALILREADGROUPSIZE;i++){
     mlockdata.lock();
-    GalilPlungingProbeDataCurrent.TimeStamp = GalilDataBuffer[i].TimeStamp;
+    GalilPlungingProbeDataCurrent.TimeStamp = ULong64_t(GalilDataBuffer[i].TimeStamp);
     for (int j=0;j<3;j++){
       GalilPlungingProbeDataCurrent.Positions[j] = GalilDataBuffer[i].PositionArray[j];
       GalilPlungingProbeDataCurrent.Velocities[j] = GalilDataBuffer[i].VelocityArray[j];
@@ -701,6 +701,7 @@ void GalilMonitor(const GCon &g){
   int i=0;
   int jj=0;
   double Time;
+  double Time0;
   //Data trigger mask
   //bit0:position
   //bit1:velocity
@@ -755,8 +756,9 @@ void GalilMonitor(const GCon &g){
 	for (int j=0;j<6;j++){
 	  iss >> GalilDataUnitD.PositionArray[j];
 	}
-	//Convert to INT
-	GalilDataUnit.TimeStamp = INT(Time);
+	//Convert to unsigned int
+	GalilDataUnit.TimeStamp = (unsigned int)(Time);
+	Time0 = double (GalilDataUnit.TimeStamp);
 	for (int j=0;j<6;j++){
 	  GalilDataUnit.PositionArray[j] = INT(GalilDataUnitD.PositionArray[j]);
 	}
@@ -899,7 +901,7 @@ void GalilMonitor(const GCon &g){
     if (TrolleyPosition > 174.5 && TrolleyPosition < 175.5) TrolleyAligned = TRUE;
 
     mlock.lock();
-    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Time Stamp",&GalilDataUnit.TimeStamp,sizeof(GalilDataUnit.TimeStamp), 1 ,TID_INT); 
+    db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Time Stamp",&Time0,sizeof(Time0), 1 ,TID_DOUBLE); 
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Positions",&GalilDataUnit.PositionArray,sizeof(GalilDataUnit.PositionArray), 6 ,TID_INT); 
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Velocities",&GalilDataUnit.VelocityArray,sizeof(GalilDataUnit.VelocityArray), 6 ,TID_INT); 
     db_set_value(hDB,0,"/Equipment/GalilFermi/Monitors/Control Voltages",&GalilDataUnit.OutputVArray,sizeof(GalilDataUnit.OutputVArray), 6 ,TID_INT); 
@@ -925,7 +927,7 @@ void GalilMonitor(const GCon &g){
     INT SourceName_size = sizeof(SourceName);
     sprintf(SourceName,"Galil-Fermi");
     db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Source",SourceName,SourceName_size,1,TID_STRING);
-    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Time Stamp",&GalilDataUnit.TimeStamp,sizeof(GalilDataUnit.TimeStamp), 1 ,TID_INT); 
+    db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Time Stamp",&Time0,sizeof(Time0), 1 ,TID_DOUBLE); 
     db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Positions",&GalilDataUnit.PositionArray,sizeof(GalilDataUnit.PositionArray), 6 ,TID_INT); 
     db_set_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Velocities",&GalilDataUnit.VelocityArray,sizeof(GalilDataUnit.VelocityArray), 6 ,TID_INT); 
     mlock.unlock();
@@ -1111,7 +1113,7 @@ void GalilControl(const GCon &g){
       //Safety checks
       //Do not execute command if motions are not allowed
       if (TrolleyAllowed == FALSE){
-	if (command == 1 || command == 2 || command == 6 || command == 7){
+	if (command == 1 || command == 2){
 	  BOOL BadAttempt = TRUE;
 	  command = 0;
 	  mlock.lock();

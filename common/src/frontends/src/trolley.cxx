@@ -1115,7 +1115,7 @@ void ReadFromDevice(){
     db_get_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Source",SourceName,&SourceName_size,TID_STRING,0);
     double GalilTime = 0.0;
     INT GalilTime_size = sizeof(GalilTime);
-    db_get_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Time Stamp",&GalilTime,&GalilTime_size,TID_INT, 0);
+    db_get_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Time Stamp",&GalilTime,&GalilTime_size,TID_DOUBLE, 0);
     INT GalilPositions[6];
     INT GalilVelocities[6];
     INT GalilPos_size = sizeof(GalilPositions);

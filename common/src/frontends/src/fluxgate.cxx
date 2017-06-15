@@ -7,6 +7,7 @@ About:  Addresses NI PCIe daq card, reads multiple channels of data, performs si
 #include <unistd.h>
 #include <stdio.h>
 #include <iostream>
+#include <fstream>
 #include <stdlib.h>
 #include <string>
 #include <sys/time.h>
@@ -81,10 +82,10 @@ namespace {
 	char errBuff[2048]={'\0'};
 	//--- Channel Parameters ----------------------------------------------------//
 	int32 numChannels = AQ_TOTALCHAN; //defined in fluxgate_utils.hh
-	const char *physicalChannelDC = "Dev1/ai0:11"; //creates DC AI channels 0-11
+	const char *physicalChannelDC = "Dev1/ai0:31"; //creates DC AI channels 16-27
 	float64 minVolDC = -10.0;
 	float64 maxVolDC = 10.0;
-	const char *physicalChannelAC = "Dev1/ai12:15"; //creates AC AI channels 12-15
+	const char *physicalChannelAC = "Dev1/ai12:15"; //creates AC AI channels 28-31
 	float64 minVolAC = -1.0;
 	float64 maxVolAC = 1.0;
 	//--- Timing Parameters -----------------------------------------------------//
@@ -122,14 +123,6 @@ namespace {
 INT frontend_init() {
 	DAQerr = DAQmxBaseCreateTask("",&taskHandle);
 	NIERRORCHECK_SUCCESSMSG("frontend_init","error creating fluxgate task","fluxgate task created");
-/*	if( DAQmxFailed(DAQerr) ) {
-		DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
-		cm_msg(MERROR,"frontend_init",errBuff);
-	}
-	else {
-		cm_msg(MINFO,"frontend_init","fluxgate DAQ task created");
-	}
-*/
 	return SUCCESS;
 }
 
@@ -181,8 +174,8 @@ INT begin_of_run(INT run_number, char *err){
 	//db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/minVolAC",&minVolAC,sizeof(minVolAC),TID_FLOAT, 0);
 	//db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/maxVolAC",&maxVolAC,sizeof(maxVolAC),TID_FLOAT, 0);
 	db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/physicalChannelAC",&physicalChannelAC,sizeof(physicalChannelAC),1,TID_STRING);
-	DAQerr = DAQmxBaseCreateAIVoltageChan(taskHandle, physicalChannelAC, "Voltage", DAQmx_Val_Cfg_Default, minVolAC, maxVolAC, DAQmx_Val_Volts, NULL);
-	NIERRORCHECK_SUCCESSMSG("begin_of_run","error creating fluxgate AC channels","fluxgate AC channels created");
+//	DAQerr = DAQmxBaseCreateAIVoltageChan(taskHandle, physicalChannelAC, "Voltage", DAQmx_Val_Cfg_Default, minVolAC, maxVolAC, DAQmx_Val_Volts, NULL);
+//	NIERRORCHECK_SUCCESSMSG("begin_of_run","error creating fluxgate AC channels","fluxgate AC channels created");
 /*
 	if( DAQmxFailed(DAQerr) ) {
 		DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
@@ -296,67 +289,59 @@ INT interrupt_configure(INT cmd, INT source, PTYPE adr){
 
 //--- Event readout -------------------------------------------------*/
 INT read_fluxgate_event(char *pevent, INT off){
+
 	DWORD *pdata;
-	// Let MIDAS allocate the struct.
+
 	//setup nidaq acquisition
 	//DAQerr = DAQmxBaseReadAnalogF64(taskHandle,numSampsPerChan,timeout,fillMode,data,arraySizeInSamps,&sampsRead,NULL);
 	DAQerr = DAQmxBaseReadAnalogF64(taskHandle, sampsPerChanToAcquire, aqTime + 5, DAQmx_Val_GroupByChannel, readOut, arraySizeInSamps, &sampsRead, NULL);	
 	NIERRORCHECK_NOSUCCESSMSG("read_fluxgate_event","error reading fluxgate event");
-/*
-	if( DAQmxFailed(DAQerr) ) {
-		DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
-		cm_msg(MERROR,"read_fluxgate_event","error reading fluxgate event");
-		cm_msg(MERROR,"read_fluxgate_event",errBuff);
-	} else {
-		cm_msg(MINFO,"read_fluxgate_event","fluxgate DAQ event read");
-	}
-*/
-	//debugging output
-	std::cout << readOut[0] << std::endl << readOut[100] << std::endl << readOut[10000];
 
 	//restart DAQ task
 	DAQerr = DAQmxBaseStopTask(taskHandle);
 	NIERRORCHECK_NOSUCCESSMSG("read_fluxgate_event","error restarting (stop) fluxgate task");
-/*
-	if( DAQmxFailed(DAQerr) ) {
-		DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
-
-		cm_msg(MERROR,"read_fluxgate_event","error restarting (stop) fluxgate task");
-		cm_msg(MERROR,"read_fluxgate_event",errBuff);
-	}
-*/
 	DAQerr = DAQmxBaseStartTask(taskHandle);
 	NIERRORCHECK_NOSUCCESSMSG("read_fluxgate_event","error restarting (start) fluxgate task");
-/*
-	if( DAQmxFailed(DAQerr) ) {
-		DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
-
-		cm_msg(MERROR,"read_fluxgate_event","error restarting (start) fluxgate task");
-		cm_msg(MERROR,"read_fluxgate_event",errBuff);
-	}
-*/
 
 	// MIDAS output.
-/*
-	bk_init32(pevent);
-	bk_create(pevent, bank_name, TID_DOUBLE, (void**)&pdata);
+
 	// fill fluxgate data structure
-	time(&data.sys_time);
-	time(&data.gps_time); //CHANGE THIS TO GPS TIME
+	data.sys_time = 0;
+	data.gps_time = 0; //CHANGE THIS TO GPS TIME
 	for(int ifg = 0; ifg < 8; ++ifg){ //fluxgate positions, needs to be read from odb
 		data.fg_r[ifg] = 0;
 		data.fg_theta[ifg] = 0;
 		data.fg_z[ifg] = 0;}
 	data.eff_rate = effRate;
-	memcpy(data.data,readOut, sizeof(readOut));
-	// Copy the fluxgate data.
-	memcpy(pdata, &data, sizeof(data));
-	pdata += sizeof(data) / sizeof(DWORD);
-	bk_close(pevent, pdata);
- 
-	return bk_size(pevent);
+
+	//memcpy(data.data,&readOut, sizeof(readOut));
+
+	for (int ii = 0; ii < arraySizeInSamps; ii++){
+		data.data[ii] = readOut[ii];
+	}
+
+//------Copy the fluxgate data.
+
+/*------Write to debug file
+	std::fstream debugFile;	
+	debugFile.open("test.aetb",std::fstream::out);
+	write a csv style file
+	for(int row = 0; row < sampsPerChanToAcquire; row++){
+		for(int col = 0; col < 32; col++){
+			debugFile << data.data[col*sampsPerChanToAcquire + row];
+			if(col!=15){debugFile << ",";}
+		}
+		debugFile << std::endl;
+	}
+	debugFile.close();
 */
-	return 0;
+//	MIDAS output
+	bk_init32(pevent);
+	bk_create(pevent, bank_name, TID_WORD, (void**)&pdata);
+//	memcpy(pdata, &data, sizeof(data));
+	pdata += sizeof(data) / sizeof(WORD);
+	bk_close(pevent, pdata);
+	return bk_size(pevent);
+//	return 0;
 
 }
-
