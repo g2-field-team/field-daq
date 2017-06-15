@@ -642,7 +642,7 @@ int update_parameters(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_fi
    sprintf(freq_path,"%s/uniform_mean_nmr_freq",SHARED_DIR);
    db_get_value(hDB,0,freq_path,&FIELD_AVG,&SIZE_DOUBLE,TID_DOUBLE, 0);
    free(freq_path);
-   avg_field  = FIELD_AVG*1E-3*gScaleFactor;  // convert from kHz -> Hz -> Amps 
+   avg_field  = FIELD_AVG*1E+3*gScaleFactor;  // convert from kHz -> Hz -> Amps 
 
    double CURRENT=0; 
    char current_set_path[512];
@@ -651,10 +651,10 @@ int update_parameters(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_fi
    current_setpoint = CURRENT*1E-3; // convert to amps! 
 
    char field_set_path[512];
-   sprintf(field_set_path,"%s/Field Setpoint (Hz)",SETTINGS_DIR);
+   sprintf(field_set_path,"%s/Field Setpoint (kHz)",SETTINGS_DIR);
    double field_setpoint=0;
    db_get_value(hDB,0,field_set_path,&field_setpoint,&SIZE_DOUBLE,TID_DOUBLE, 0);
-   field_setpoint *= gScaleFactor; // convert to amps! 
+   field_setpoint *= 1E+3*gScaleFactor; // convert from kHz -> Hz -> amps! 
 
    char switch_path[512];
    sprintf(switch_path,"%s/Feedback Active",SETTINGS_DIR);
@@ -717,64 +717,6 @@ int update_current(){
       cm_msg(MERROR,"update_current",err_msg);
       IsFeedbackOn = false;  // just to be safe, turn off feedback if we can't read from the ODB 
    }
- 
-   // double avg_field = 0;
-   // int SIZE_DOUBLE  = sizeof(avg_field);  
-
-   // // grab average field from fixed probes 
-   // const int SIZE = 100; 
-   // char *freq_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
-   // sprintf(freq_path,"%s/uniform_mean_nmr_freq",SHARED_DIR);
-   // db_get_value(hDB,0,freq_path,&avg_field,&SIZE_DOUBLE,TID_DOUBLE, 0);
-   // free(freq_path);
-   // avg_field *= 1E+3;          // convert from kHz to Hz! 
-   // avg_field *= gScaleFactor;  // convert from Hz to amps! 
- 
-   // char current_set_path[512];
-   // sprintf(current_set_path,"%s/Current Setpoint (mA)",SETTINGS_DIR);
-   // double current_set;
-   // db_get_value(hDB,0,current_set_path,&current_set,&SIZE_DOUBLE,TID_DOUBLE, 0);
-   // current_set *= 1E-3; // convert to amps! 
-
-   // char field_set_path[512];
-   // sprintf(field_set_path,"%s/Field Setpoint (Hz)",SETTINGS_DIR);
-   // double field_set;
-   // db_get_value(hDB,0,field_set_path,&field_set,&SIZE_DOUBLE,TID_DOUBLE, 0);
-   // field_set *= gScaleFactor; // convert to amps! 
-
-   // char switch_path[512];
-   // sprintf(switch_path,"%s/Feedback Active",SETTINGS_DIR);
-   // BOOL IsFeedbackOn = FALSE;
-   // int SIZE_BOOL = sizeof(IsFeedbackOn);
-   // db_get_value(hDB,0,switch_path,&IsFeedbackOn,&SIZE_BOOL,TID_BOOL, 0);
-
-   // char pc_path[512];
-   // sprintf(pc_path,"%s/P Coefficient",SETTINGS_DIR);
-   // double P_coeff = 0;
-   // db_get_value(hDB,0,pc_path,&P_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
-
-   // char ic_path[512];
-   // sprintf(ic_path,"%s/I Coefficient",SETTINGS_DIR);
-   // double I_coeff = 0;
-   // db_get_value(hDB,0,ic_path,&I_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
-
-   // char dc_path[512];
-   // sprintf(dc_path,"%s/D Coefficient",SETTINGS_DIR);
-   // double D_coeff = 0;
-   // db_get_value(hDB,0,dc_path,&D_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
-
-   // char sf_path[512];
-   // sprintf(sf_path,"%s/Scale Factor (Amps_per_Hz)",SETTINGS_DIR);
-   // double sf = 0;
-   // db_get_value(hDB,0,sf_path,&sf,&SIZE_DOUBLE,TID_DOUBLE, 0);
-
-   // double lvl   = 0;
-
-   // gP_coeff     = P_coeff; 
-   // gI_coeff     = I_coeff; 
-   // gD_coeff     = D_coeff; 
-   // gSetpoint    = field_set;            // use the FIELD setpoint here!  
-   // gScaleFactor = sf; 
 
    gCurrentTime = get_utc_time();
 
