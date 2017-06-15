@@ -58,7 +58,7 @@ create FLOAT "I Monitors"
 mkdir "/Equipment/TrolleyInterface/Monitors/Extra"
 cd "/Equipment/TrolleyInterface/Monitors/Extra"
 create STRING "Source[1][256]"
-create INT "Time Stamp"
+create DOUBLE "Time Stamp"
 create INT "Positions[6]"
 create INT "Velocities[6]"
 
