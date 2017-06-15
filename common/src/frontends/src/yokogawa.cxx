@@ -635,7 +635,8 @@ int update_parameters(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_fi
    double sf = 0;
    int SIZE_DOUBLE  = sizeof(sf);  
    db_get_value(hDB,0,sf_path,&sf,&SIZE_DOUBLE,TID_DOUBLE, 0);
-
+   gScaleFactor = sf; 
+ 
    double FIELD_AVG=0;
    const int SIZE = 100; 
    char *freq_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
@@ -655,6 +656,7 @@ int update_parameters(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_fi
    double field_setpoint=0;
    db_get_value(hDB,0,field_set_path,&field_setpoint,&SIZE_DOUBLE,TID_DOUBLE, 0);
    field_setpoint *= 1E+3*gScaleFactor; // convert from kHz -> Hz -> amps! 
+   gSetpoint       = field_setpoint;    // use the FIELD setpoint here!  
 
    char switch_path[512];
    sprintf(switch_path,"%s/Feedback Active",SETTINGS_DIR);
@@ -665,16 +667,19 @@ int update_parameters(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_fi
    sprintf(pc_path,"%s/P Coefficient",SETTINGS_DIR);
    double P_coeff = 0;
    db_get_value(hDB,0,pc_path,&P_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   gP_coeff = P_coeff; 
 
    char ic_path[512];
    sprintf(ic_path,"%s/I Coefficient",SETTINGS_DIR);
    double I_coeff = 0;
    db_get_value(hDB,0,ic_path,&I_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   gI_coeff = I_coeff; 
 
    char dc_path[512];
    sprintf(dc_path,"%s/D Coefficient",SETTINGS_DIR);
    double D_coeff = 0;
    db_get_value(hDB,0,dc_path,&D_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   gD_coeff = D_coeff; 
 
    // if(IsOutputEnabled){
    //    rc = yokogawa_interface::set_output_state(yokogawa_interface::kENABLED); 
@@ -691,12 +696,6 @@ int update_parameters(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_fi
    //       cm_msg(MINFO,"update","Cannot disable Yokogawa output!");
    //    }
    // }
-
-   gP_coeff     = P_coeff; 
-   gI_coeff     = I_coeff; 
-   gD_coeff     = D_coeff; 
-   gSetpoint    = field_setpoint;  // use the FIELD setpoint here!  
-   gScaleFactor = sf; 
 
    return 0; 
 
