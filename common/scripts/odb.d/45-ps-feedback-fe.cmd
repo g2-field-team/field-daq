@@ -15,10 +15,8 @@ create BOOL "Feedback Active"
 set "Feedback Active" false
 create DOUBLE "Current Setpoint (mA)"
 set "Current Setpoint (mA)" 0.000
-create DOUBLE "Field Setpoint (Hz)"
-set "Field Setpoint (Hz)" 0.000
-create DOUBLE "Field Readout Value"
-set "Field Readout Value" 0.000
+create DOUBLE "Field Setpoint (kHz)"
+set "Field Setpoint (kHz)" 0.000
 create DOUBLE "P Coefficient"
 set "P Coefficient" 0.000
 create DOUBLE "I Coefficient"
@@ -34,7 +32,5 @@ create INT "Buffer Load"
 set "Buffer Load" 0
 create BOOL "Read Thread Active"
 set "Read Thread Active" false
-create DOUBLE "Average Field"
-set "Average Field" 0.00
 create DOUBLE "Current Value (mA)"
 set "Current Value (mA)" 0.00

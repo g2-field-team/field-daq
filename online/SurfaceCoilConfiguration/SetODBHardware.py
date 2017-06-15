@@ -1,9 +1,11 @@
 import json
 import midas
+import sys
 
-#Read the configuration file in
-#Access data as data["###"]
-data = json.loads(open('JsonFiles/HardwareLayout.json').read())
+#Read the configuration file in                                                                                         
+#Access data as data["###"]                                                                                             
+filename = str(sys.argv[1])
+data = json.loads(open(filename).read())
 
 #Set up to access odb
 odb = midas.ODB('g2-field')

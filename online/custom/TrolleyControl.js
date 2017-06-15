@@ -81,15 +81,15 @@ function loadTrolley()   {
 	mjsonrpc_error_alert(error);
 	});
   mjsonrpc_db_get_values(["/Equipment/TrolleyInterface/Monitors/Interface/V15neg Min","/Equipment/TrolleyInterface/Monitors/Interface/V15neg Max","/Equipment/TrolleyInterface/Monitors/Interface/V15pos Min","/Equipment/TrolleyInterface/Monitors/Interface/V15pos Max","/Equipment/TrolleyInterface/Monitors/Interface/v5 Min","/Equipment/TrolleyInterface/Monitors/Interface/v5 Max","/Equipment/TrolleyInterface/Monitors/Interface/v33 Min","/Equipment/TrolleyInterface/Monitors/Interface/v33 Max","/Equipment/TrolleyInterface/Monitors/Interface/V Monitors","/Equipment/TrolleyInterface/Monitors/Interface/I Monitors"]).then(function(rpc) {
-      var V15negMin= Number(rpc.result.data[0]);
-      var V15negMax= Number(rpc.result.data[1]);
-      document.getElementById("Interface15VNegMin").innerHTML = V15negMin.toFixed(3);
-      document.getElementById("Interface15VNegMax").innerHTML = V15negMax.toFixed(3);
-
-      var V15posMin= Number(rpc.result.data[2]);
-      var V15posMax= Number(rpc.result.data[3]);
+      var V15posMin= Number(rpc.result.data[0]);
+      var V15posMax= Number(rpc.result.data[1]);
       document.getElementById("Interface15VPosMin").innerHTML = V15posMin.toFixed(3);
       document.getElementById("Interface15VPosMax").innerHTML = V15posMax.toFixed(3);
+
+      var V15negMin= Number(rpc.result.data[2]);
+      var V15negMax= Number(rpc.result.data[3]);
+      document.getElementById("Interface15VNegMin").innerHTML = V15negMin.toFixed(3);
+      document.getElementById("Interface15VNegMax").innerHTML = V15negMax.toFixed(3);
 
       var V5Min= Number(rpc.result.data[4]);
       var V5Max= Number(rpc.result.data[5]);
