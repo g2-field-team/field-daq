@@ -11,6 +11,7 @@ About:  Addresses NI PCIe daq card, reads multiple channels of data, performs si
 #include <stdlib.h>
 #include <string>
 #include <sys/time.h>
+#include <iomanip>
 #include <ctime>
 #include "midas.h"
 #include <NIDAQmxBase.h> //NI drivers for daq card
@@ -37,11 +38,11 @@ extern "C" {
 	// A frontend status page is displayed with this frequency in ms.
 	INT display_period = 1000;
 	// maximum event size produced by this frontend
-	INT max_event_size = 0x8000; // 32 kB @EXAMPLE - adjust if neeeded
+	INT max_event_size = 0x800000; // 32 kB @EXAMPLE - adjust if neeeded
 	// maximum event size for fragmented events (EQ_FRAGMENTED)
 	INT max_event_size_frag = 0x800000; // DEPRECATED
 	// buffer size to hold events
-	INT event_buffer_size = 0x800000;
+	INT event_buffer_size = 0x8000000;
 	// Function declarations
 	INT frontend_init();
 	INT frontend_exit();
@@ -153,11 +154,11 @@ INT begin_of_run(INT run_number, char *err){
 	//get run parameters from ODB
 	cm_get_experiment_database(&hDB, NULL);
 		  
-	//setup channel and timing parameters
-	//create DC channels
-	//db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/minVolDC",&minVolDC,sizeof(minVolDC),TID_FLOAT, 0);
-	//db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/maxVolDC",&maxVolDC,sizeof(maxVolDC),TID_FLOAT, 0);
-	db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/physicalChannelDC",&physicalChannelDC,sizeof(physicalChannelDC),1,TID_STRING);
+//	setup channel and timing parameters
+//	create DC channels
+//	db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/minVolDC",&minVolDC,sizeof(minVolDC),TID_FLOAT, 0);
+//	db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/maxVolDC",&maxVolDC,sizeof(maxVolDC),TID_FLOAT, 0);
+//	db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/physicalChannelDC",&physicalChannelDC,sizeof(physicalChannelDC),1,TID_STRING);
 	DAQerr = DAQmxBaseCreateAIVoltageChan(taskHandle, physicalChannelDC, "Voltage", DAQmx_Val_Cfg_Default, minVolDC, maxVolDC, DAQmx_Val_Volts, NULL);
 	NIERRORCHECK_SUCCESSMSG("begin_of_run","error creating fluxgate DC channels","fluxgate DC channels created");
 /*
@@ -170,10 +171,10 @@ INT begin_of_run(INT run_number, char *err){
 		cm_msg(MINFO,"begin_of_run","fluxgate DC channels created");
 	}
 */	
-	//create AC channels
-	//db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/minVolAC",&minVolAC,sizeof(minVolAC),TID_FLOAT, 0);
-	//db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/maxVolAC",&maxVolAC,sizeof(maxVolAC),TID_FLOAT, 0);
-	db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/physicalChannelAC",&physicalChannelAC,sizeof(physicalChannelAC),1,TID_STRING);
+//	create AC channels
+//	db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/minVolAC",&minVolAC,floatSize,TID_FLOAT, 0);
+//	db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/maxVolAC",&maxVolAC,sizeof(maxVolAC),TID_FLOAT, 0);
+//	db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/physicalChannelAC",&physicalChannelAC,sizeof(physicalChannelAC),1,TID_STRING);
 //	DAQerr = DAQmxBaseCreateAIVoltageChan(taskHandle, physicalChannelAC, "Voltage", DAQmx_Val_Cfg_Default, minVolAC, maxVolAC, DAQmx_Val_Volts, NULL);
 //	NIERRORCHECK_SUCCESSMSG("begin_of_run","error creating fluxgate AC channels","fluxgate AC channels created");
 /*
@@ -292,54 +293,70 @@ INT read_fluxgate_event(char *pevent, INT off){
 
 	DWORD *pdata;
 
-	//setup nidaq acquisition
-	//DAQerr = DAQmxBaseReadAnalogF64(taskHandle,numSampsPerChan,timeout,fillMode,data,arraySizeInSamps,&sampsRead,NULL);
+//-----	setup nidaq acquisition
 	DAQerr = DAQmxBaseReadAnalogF64(taskHandle, sampsPerChanToAcquire, aqTime + 5, DAQmx_Val_GroupByChannel, readOut, arraySizeInSamps, &sampsRead, NULL);	
 	NIERRORCHECK_NOSUCCESSMSG("read_fluxgate_event","error reading fluxgate event");
 
-	//restart DAQ task
+//-----	restart DAQ task
 	DAQerr = DAQmxBaseStopTask(taskHandle);
 	NIERRORCHECK_NOSUCCESSMSG("read_fluxgate_event","error restarting (stop) fluxgate task");
 	DAQerr = DAQmxBaseStartTask(taskHandle);
 	NIERRORCHECK_NOSUCCESSMSG("read_fluxgate_event","error restarting (start) fluxgate task");
 
-	// MIDAS output.
+//-----	MIDAS output.
 
-	// fill fluxgate data structure
-	data.sys_time = 0;
-	data.gps_time = 0; //CHANGE THIS TO GPS TIME
+//-----	fill fluxgate data structure
+	data.sys_time = 1;
+	data.gps_time = 2; //CHANGE THIS TO GPS TIME
 	for(int ifg = 0; ifg < 8; ++ifg){ //fluxgate positions, needs to be read from odb
-		data.fg_r[ifg] = 0;
-		data.fg_theta[ifg] = 0;
-		data.fg_z[ifg] = 0;}
+		data.fg_r[ifg] = 3;
+		data.fg_theta[ifg] = 4;
+		data.fg_z[ifg] = 5;}
 	data.eff_rate = effRate;
 
-	//memcpy(data.data,&readOut, sizeof(readOut));
+//	memcpy(data.data,&readOut, sizeof(readOut));
 
 	for (int ii = 0; ii < arraySizeInSamps; ii++){
 		data.data[ii] = readOut[ii];
 	}
 
-//------Copy the fluxgate data.
+//-----	Copy the fluxgate data.
 
-/*------Write to debug file
-	std::fstream debugFile;	
-	debugFile.open("test.aetb",std::fstream::out);
-	write a csv style file
-	for(int row = 0; row < sampsPerChanToAcquire; row++){
-		for(int col = 0; col < 32; col++){
-			debugFile << data.data[col*sampsPerChanToAcquire + row];
-			if(col!=15){debugFile << ",";}
-		}
-		debugFile << std::endl;
+//-----	Write to debug file
+	bool writeDebug;
+	int writeDebugSize = sizeof(writeDebug);
+	db_find_key(hDB,0,"/Equipment/Fluxgate/Settings/writeDebug",&hkey);
+	if(hkey == NULL){
+		writeDebug = TRUE;
+	}else{
+		db_get_data(hDB,hkey,&writeDebug,&writeDebugSize,TID_BOOL);
 	}
-	debugFile.close();
-*/
-//	MIDAS output
+	if(writeDebug){
+		time_t rawTime;
+		struct tm * timeinfo;
+		char timeBuffer[80];
+		time(&rawTime);
+		timeinfo = localtime(&rawTime);
+		strftime(timeBuffer,sizeof(timeBuffer),"/home/newg2/aetb/flux_%d-%m-%Y_%H-%M-%S.csv",timeinfo);
+		std::string debugFileName(timeBuffer);
+		std::fstream debugFile;	
+		debugFile.open(debugFileName,std::fstream::out);
+//-----	write a csv style file
+		for(int row = 0; row < sampsPerChanToAcquire; row++){
+			for(int col = 0; col < numChannels; col++){
+				debugFile << data.data[col*sampsPerChanToAcquire + row];
+				if(col!=numChannels-1){debugFile << ",";}
+			}
+			debugFile << std::endl;
+		}
+		debugFile.close();
+	}
+
+//-----	MIDAS output
 	bk_init32(pevent);
-	bk_create(pevent, bank_name, TID_WORD, (void**)&pdata);
-//	memcpy(pdata, &data, sizeof(data));
-	pdata += sizeof(data) / sizeof(WORD);
+	bk_create(pevent, bank_name, TID_DWORD, (void**)&pdata);
+	memcpy(pdata, &data, sizeof(data));
+	pdata += sizeof(data) / sizeof(DWORD);
 	bk_close(pevent, pdata);
 	return bk_size(pevent);
 //	return 0;
