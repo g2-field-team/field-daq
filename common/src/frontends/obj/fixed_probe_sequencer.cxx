@@ -458,8 +458,23 @@ void FixedProbeSequencer::TriggerLoop()
 	  
 	  LogDebug("TriggerLoop: muxes configured, triggers fired");
 	  mux_round_configured_ = true;
+	  
+	  uint count = 0;
 
 	  while (!got_round_data_ && go_time_) {
+	    
+	    // If one second passes, flush and re-trigger.
+	    if (count++ * hw::short_sleep > 1e6) {
+
+	      workers_.FlushEventData();
+
+	      for (auto &trg : dio_triggers_) {
+		trg->FireTriggers();
+	      }
+
+	      count = 0;
+	    }
+	    
 	    ThreadSleepShort();
 	  };
 	  
