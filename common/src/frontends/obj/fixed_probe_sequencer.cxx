@@ -505,12 +505,12 @@ void FixedProbeSequencer::BuilderLoop()
 
   LogDebug("BuilderLoop: launched");
 
-  std::vector<double> tm(NMR_FID_LENGTH_ONLINE, 0.0);
-  std::vector<double> wf(NMR_FID_LENGTH_ONLINE, 0.0);
+  std::vector<double> tm(NMR_FID_LENGTH_ONLINE / 2, 0.0);
+  std::vector<double> wf(NMR_FID_LENGTH_ONLINE / 2, 0.0);
   std::vector<int> indices;
 
-  for (int i = 0; i < NMR_FID_LENGTH_ONLINE; ++i) {
-    tm[i] = i * NMR_SAMPLE_PERIOD;
+  for (int i = 0; i < NMR_FID_LENGTH_ONLINE / 2; ++i) {
+    tm[i] = i * NMR_SAMPLE_PERIOD * 2;
   }
 
   while (thread_live_) {
@@ -605,9 +605,14 @@ void FixedProbeSequencer::BuilderLoop()
 
                 LogDebug("BuilderLoop: analyzing FID %i", idx);
 
-                std::copy(&bundle.trace[idx][0],
-                          &bundle.trace[idx][NMR_FID_LENGTH_ONLINE],
-                          wf.begin());
+		// Skip spikes in 3302
+		for (uint i = 0; i < NMR_FID_LENGTH_ONLINE/2; ++i) {
+		  wf[i] = bundle.trace[idx][2 * i + 1];
+		}
+
+                // std::copy(&bundle.trace[idx][0],
+                //           &bundle.trace[idx][NMR_FID_LENGTH_ONLINE],
+                //           wf.begin());
 
                 // Extract the FID frequency and some diagnostic params.
                 if (use_fast_fids_class_) {
