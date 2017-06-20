@@ -10,8 +10,6 @@ $Id$
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "midas.h"
-#include "mcstd.h"
 #include <iostream>
 #include <string>
 #include <cstring>
@@ -24,6 +22,10 @@ $Id$
 #include <thread>
 #include <mutex>
 
+#include "midas.h"
+#include "mcstd.h"
+
+#include "g2field/common.hh"
 #include "g2field/YokogawaInterface.hh"
 #include "g2field/core/field_structs.hh"
 #include "g2field/core/field_constants.hh"
@@ -127,6 +129,8 @@ TTree *pt_norm;
 g2field::psfeedback_t PSFBCurrent;            // current value of yokogawa data 
 vector<g2field::psfeedback_t> PSFBBuffer;     // vector of yokogawa data 
 BOOL gSimMode = false;
+// test data
+BOOL gWriteTestData = true; 
 // hardware limits 
 double gLowerLimit = -200E-3; 
 double gUpperLimit =  200E-3; 
@@ -160,12 +164,15 @@ double get_new_current(double meas_value);             // get new current based 
 int update_current();                                  // update the current on the Yokogawa 
 int check_yokogawa_comms(int rc,const char *func);     // check on the yokogawa communication; run error check if necessary 
 int update_parameters(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_field); 
+int write_to_file(unsigned long time,double x);        // testing some variables  
+
 unsigned long get_utc_time();                          // UTC time in milliseconds 
 
 const char * const psfb_bank_name = "PSFB";     // 4 letters, try to make sensible
 const char * const SETTINGS_DIR   = "/Equipment/PS Feedback/Settings";
 const char * const MONITORS_DIR   = "/Equipment/PS Feedback/Monitors";
 const char * const SHARED_DIR     = "/Shared/Variables/PS Feedback";
+const char * const TEST_DIR       = "/home/newg2/Workspace/dflay_root_ana/input/"; 
 
 /********************************************************************\
   Callback routines for system transitions
@@ -718,6 +725,9 @@ int update_current(){
    }
 
    gCurrentTime = get_utc_time();
+   if(gWriteTestData){ 
+      rc = write_to_file(gCurrentTime,avg_field);
+   }
 
    double lvl=0;
    if (IsFeedbackOn) {
@@ -785,9 +795,10 @@ void update_d_term(double err,double dtime,double derror){
 }
 //______________________________________________________________________________
 unsigned long get_utc_time(){
-   struct timeb now; 
-   int rc = ftime(&now); 
-   unsigned long utc = now.time + now.millitm;
+   unsigned long utc = hw::systime_us(); 
+   // struct timeb now; 
+   // int rc = ftime(&now); 
+   // unsigned long utc = now.time + now.millitm;
    return utc; 
 }
 //______________________________________________________________________________
@@ -806,4 +817,22 @@ int check_yokogawa_comms(int rc,const char *func){
    }
    return RC; 
 } 
+//______________________________________________________________________________
+int write_to_file(unsigned long time,double x){
+   char myStr[512],filepath[512],write_str[512];
+   int RunNumber=0;
+   int RunNumber_size = sizeof(RunNumber); 
+   db_get_value(hDB,0,"/Runinfo/Run number",&RunNumber,&RunNumber_size,TID_INT, 0);
+   sprintf(filepath,"%s/filtered_mean_nmr_freq_%05d.csv",TEST_DIR,RunNumber);   
+   ofstream outfile;
+   outfile.open(filepath,ios::app); 
+   if ( outfile.fail() ){
+      sprintf(myStr,"Cannot write to the file: %s.",filepath);
+      cm_msg(MERROR,"write_to_file",myStr); 
+      return 1; 
+   } else {
+      sprintf(write_str,"%u,%.3lf",time,x); 
+      outfile << write_str << std::endl;
+   } 
+}
 
