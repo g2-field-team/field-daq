@@ -729,9 +729,17 @@ void update_feedback_params()
   BOOL flag;
   double freq[nprobes] = {0};
   double ferr[nprobes] = {0};
+  double fid_snr[nprobes] = {0};
+  double fid_len[nprobes] = {0};
   double health_thresh = 10.0;
   double uniform_mean_freq = 0.0;
   double weighted_mean_freq = 0.0;
+  double filtered_mean_freq = 0.0;
+  double fid_snr_avg = 0.0;
+  double fid_snr_stdev = 0.0;
+  double fid_len_avg = 0.0;
+  double fid_len_stdev = 0.0;
+
 
   std::string outfile = "/home/newg2/Applications/PSFeedback/input/fixed-probe-data.csv";
   std::string lockfile = "/home/newg2/Applications/PSFeedback/input/fixed-probe-data.lock";
@@ -754,6 +762,9 @@ void update_feedback_params()
     db_create_key(hDB, 0, str, TID_DOUBLE);
 
     snprintf(str, sizeof(str), "%s/weighted_mean_nmr_freq", stub);
+    db_create_key(hDB, 0, str, TID_DOUBLE);
+
+    snprintf(str, sizeof(str), "%s/filtered_mean_nmr_freq", stub);
     db_create_key(hDB, 0, str, TID_DOUBLE);
 
     snprintf(str, sizeof(str), "%s/using_freq_zc", stub);
@@ -783,6 +794,7 @@ void update_feedback_params()
   
   double w_sum = 0.0;
   double u_sum = 0.0;
+  double f_sum = 0.0;
 
   for (int i = 0; i < nprobes; ++i) {
     
@@ -796,6 +808,9 @@ void update_feedback_params()
       ferr[i] = data.ferr[i];
     }
 
+    fid_snr[i] = data.fid_snr[i];
+    fid_len[i] = data.fid_len[i];
+   
     if (data.health[i] > health_thresh) {
       uniform_mean_freq += freq[i];
       weighted_mean_freq += freq[i] / (ferr[i] + 0.001);
@@ -805,11 +820,32 @@ void update_feedback_params()
     }
   }
 
-  uniform_mean_freq /= u_sum;
-  weighted_mean_freq /= w_sum;
-
-  out << uniform_mean_freq << ",";
+  uniform_mean_freq /= u_sum;                                                                              
+  weighted_mean_freq /= w_sum;                                                                                        
+                                                                                                                  
+  out << uniform_mean_freq << ",";                                                                                
   out << 1.0 << ",";
+
+  //Calculate mean and st. dev of fid length and snr
+  fid_snr_avg = fid::mean_arr<double[nprobes]>(fid_snr);
+  fid_len_avg = fid::mean_arr<double[nprobes]>(fid_len);
+  
+  fid_snr_stdev = fid::stdev_arr<double[nprobes]>(fid_snr);
+  fid_len_stdev = fid::stdev_arr<double[nprobes]>(fid_len);
+
+  for(int i = 0;i < nprobes; i++){
+    BOOL freq_check = freq[i] >= 10.0 && freq[i] <= 100.0;
+    BOOL ferr_check = ferr[i] <= 0.1;
+    BOOL snr_check = fid_snr[i] >= fid_snr_avg - 3*fid_snr_stdev && fid_snr[i] <= fid_snr_avg + 3*fid_snr_stdev;
+    BOOL len_check = fid_len[i] >= fid_len_avg - 3*fid_len_stdev && fid_len[i] <= fid_len_avg + 3*fid_len_stdev;
+    
+    if(freq_check && ferr_check && snr_check && len_check){
+      filtered_mean_freq += freq[i];
+      f_sum += 1.0;
+    }
+  }
+
+  filtered_mean_freq /= f_sum;
 
   snprintf(str, sizeof(str), "%s/weighted_mean_nmr_freq", stub);
   db_set_value(hDB, 0, str, 
@@ -821,6 +857,12 @@ void update_feedback_params()
   db_set_value(hDB, 0, str, 
 	       &uniform_mean_freq, 
 	       sizeof(uniform_mean_freq), 
+	       1, TID_DOUBLE);
+
+  snprintf(str, sizeof(str), "%s/filtered_mean_nmr_freq", stub);
+  db_set_value(hDB, 0, str,
+	       &filtered_mean_freq,
+	       sizeof(filtered_mean_freq),
 	       1, TID_DOUBLE);
 
   snprintf(str, sizeof(str), "%s/nmr_freq_array", stub);

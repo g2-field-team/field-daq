@@ -640,7 +640,7 @@ int update_parameters(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_fi
    double FIELD_AVG=0;
    const int SIZE = 100; 
    char *freq_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
-   sprintf(freq_path,"%s/uniform_mean_nmr_freq",SHARED_DIR);
+   sprintf(freq_path,"%s/filtered_mean_nmr_freq",SHARED_DIR);
    db_get_value(hDB,0,freq_path,&FIELD_AVG,&SIZE_DOUBLE,TID_DOUBLE, 0);
    free(freq_path);
    avg_field  = FIELD_AVG*1E+3*gScaleFactor;  // convert from kHz -> Hz -> Amps 
