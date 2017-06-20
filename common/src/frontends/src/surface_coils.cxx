@@ -857,25 +857,13 @@ void ReadCurrents(){
 	requester1.send(message1);
 	//std::cout << "Sent the set points to crate 1" << std::endl;
 
-	zmq::message_t reply1;
-	if(!requester1.recv(&reply1)){
-	  cm_msg(MINFO, "ReadCurrents", "Crate 1 never responded");
-	  return FE_ERR_HW;
-	}
-	//else std::cout << "set Points were received by crate 1" << std::endl;
 
 	//message 2
 	/*zmq::message_t message2 (buffer.size());
 	  std::copy(buffer.begin(), buffer.end(), (char *)message2.data());
 	  requester2.send(message2);
 	//std::cout << "Sent the set points to crate 2" << std::endl;
-
-	zmq::message_t reply2;
-	if(!requester2.recv(&reply2)){
-	cm_msg(MINFO, "ReadCurrents", "Crate 2 never responded");
-	return FE_ERR_HW;
-	}
-	//else std::cout << "set Points were received by crate 2" << std::endl;*/
+	*/
 
 	//message 3
 	zmq::message_t message3 (buffer.size());
@@ -883,12 +871,7 @@ void ReadCurrents(){
 	requester3.send(message3);
 	//std::cout << "Sent the set points to crate 3" << std::endl;
 
-	zmq::message_t reply3;
-	if(!requester3.recv(&reply3)){
-	  cm_msg(MINFO, "ReadCurrents", "Crate 3 never responded");
-	  return FE_ERR_HW;
-	}
-	//else std::cout << "set Points were received by crate 3" << std::endl;
+
 
 	//message 4
 	/*zmq::message_t message4 (buffer.size());
@@ -896,31 +879,55 @@ void ReadCurrents(){
 	  requester4.send(message4);
 	//std::cout << "Sent the set points to crate 4" << std::endl;
 
-	zmq::message_t reply4;
-	if(!requester4.recv(&reply4)){
-	cm_msg(MINFO, "ReadCurrents", "Crate 4 never responded");
-	return FE_ERR_HW;
-	}
-	//else std::cout << "set Points were received by crate 4" << std::endl;*/
-
 	//message 5
 	/*zmq::message_t message5 (buffer.size());
 	  std::copy(buffer.begin(), buffer.end(), (char *)message5.data());
 	  requester3.send(message5);
 	//std::cout << "Sent the set points to crate 5" << std::endl;
 
-	zmq::message_t reply5;
-	if(!requester5.recv(&reply5)){
-	cm_msg(MINFO, "ReadCurrents", "Crate 5 never responded");
-	return FE_ERR_HW;
-	}
-	//else std::cout << "set Points were received by crate 5" << std::endl;*/
 
 	//message 6
 	/*zmq::message_t message6 (buffer.size());
 	  std::copy(buffer.begin(), buffer.end(), (char *)message6.data());
 	  requester6.send(message6);
-	//std::cout << "Sent the set points to crate 6" << std::endl;
+	  //std::cout << "Sent the set points to crate 6" << std::endl;*/
+
+	//Receive messages
+	zmq::message_t reply1;
+        if(!requester1.recv(&reply1)){
+          cm_msg(MINFO, "ReadCurrents", "Crate 1 never responded");
+          return FE_ERR_HW;
+        }
+        //else std::cout << "set Points were received by crate 1" << std::endl; 
+
+	/*zmq::message_t reply2;
+        if(!requester2.recv(&reply2)){
+          cm_msg(MINFO, "ReadCurrents", "Crate 2 never responded");
+          return FE_ERR_HW;
+        }
+        //else std::cout << "set Points were received by crate 2" << std::endl; 
+	*/
+	
+	zmq::message_t reply3;
+        if(!requester1.recv(&reply3)){
+          cm_msg(MINFO, "ReadCurrents", "Crate 3 never responded");
+          return FE_ERR_HW;
+        }
+        //else std::cout << "set Points were received by crate 3" << std::endl; 
+
+	/*zmq::message_t reply4;
+        if(!requester4.recv(&reply4)){
+          cm_msg(MINFO, "ReadCurrents", "Crate 4 never responded");
+          return FE_ERR_HW;
+        }
+        //else std::cout << "set Points were received by crate 4" << std::endl; 
+
+	zmq::message_t reply5;
+        if(!requester5.recv(&reply5)){
+          cm_msg(MINFO, "ReadCurrents", "Crate 5 never responded");
+          return FE_ERR_HW;
+        }
+        //else std::cout << "set Points were received by crate 5" << std::endl; 
 
 	zmq::message_t reply6;
 	if(!requester6.recv(&reply6)){
@@ -1013,7 +1020,7 @@ void ReadCurrents(){
     mlock.lock(); 
     for(int i=0;i<nCoils;i++){
       //bottom currents            
-      if(std::abs(dataUnit.bot_currents[i]-bot_set_values[i]) >= setPoint){
+      if(std::abs(dataUnit.bot_currents[i]-bot_set_values[i]) >= setPoint && dataUnit.bot_currents[i]!=0.0){
 
 
 	char str[256];
@@ -1031,7 +1038,7 @@ void ReadCurrents(){
 
 
       //top currents                
-      if(std::abs(dataUnit.top_currents[i]-top_set_values[i]) >= setPoint){
+      if(std::abs(dataUnit.top_currents[i]-top_set_values[i]) >= setPoint dataUnit.top_currents[i]!=0.0){
 
 	char str[256];
 	current_health = 0;
