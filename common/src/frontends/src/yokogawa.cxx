@@ -726,7 +726,7 @@ int update_current(){
 
    gCurrentTime = get_utc_time();
    if(gWriteTestData){ 
-      rc = write_to_file(gCurrentTime,avg_field);
+      rc = write_to_file(gCurrentTime,avg_field/gScaleFactor);  // converting the field value back to Hz 
    }
 
    double lvl=0;
@@ -795,7 +795,7 @@ void update_d_term(double err,double dtime,double derror){
 }
 //______________________________________________________________________________
 unsigned long get_utc_time(){
-   unsigned long utc = hw::systime_us(); 
+   unsigned long utc = hw::systime_us()*1E+3; 
    // struct timeb now; 
    // int rc = ftime(&now); 
    // unsigned long utc = now.time + now.millitm;
@@ -831,7 +831,7 @@ int write_to_file(unsigned long time,double x){
       cm_msg(MERROR,"write_to_file",myStr); 
       return 1; 
    } else {
-      sprintf(write_str,"%u,%.3lf",time,x); 
+      sprintf(write_str,"%lu,%.3lf",time,x); 
       outfile << write_str << std::endl;
    } 
 }
