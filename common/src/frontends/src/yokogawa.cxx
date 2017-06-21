@@ -164,7 +164,7 @@ double get_new_current(double meas_value);             // get new current based 
 int update_current();                                  // update the current on the Yokogawa 
 int check_yokogawa_comms(int rc,const char *func);     // check on the yokogawa communication; run error check if necessary 
 int update_parameters(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_field); 
-int write_to_file(unsigned long time,double x);        // testing some variables  
+int write_to_file(unsigned long time,double x,double y);   // testing some variables  
 
 unsigned long get_utc_time();                          // UTC time in milliseconds 
 
@@ -650,7 +650,7 @@ int update_parameters(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_fi
    sprintf(freq_path,"%s/filtered_mean_nmr_freq",SHARED_DIR);
    db_get_value(hDB,0,freq_path,&FIELD_AVG,&SIZE_DOUBLE,TID_DOUBLE, 0);
    free(freq_path);
-   avg_field  = FIELD_AVG*1E+3*gScaleFactor;  // convert from kHz -> Hz -> Amps 
+   avg_field  = FIELD_AVG*1E+3;  // convert from kHz -> Hz  
 
    double CURRENT=0; 
    char current_set_path[512];
@@ -662,7 +662,7 @@ int update_parameters(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_fi
    sprintf(field_set_path,"%s/Field Setpoint (kHz)",SETTINGS_DIR);
    double field_setpoint=0;
    db_get_value(hDB,0,field_set_path,&field_setpoint,&SIZE_DOUBLE,TID_DOUBLE, 0);
-   field_setpoint *= 1E+3*gScaleFactor; // convert from kHz -> Hz -> amps! 
+   field_setpoint *= 1E+3;              // convert from kHz -> Hz -> amps! 
    gSetpoint       = field_setpoint;    // use the FIELD setpoint here!  
 
    char switch_path[512];
@@ -711,6 +711,7 @@ int update_parameters(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_fi
 int update_current(){
    // update the current on the yokogawa based on the ODB
    int rc=-1;
+   double lvl=0; 
 
    BOOL IsFeedbackOn = false; 
    double current_setpoint=0,avg_field=0; 
@@ -724,12 +725,12 @@ int update_current(){
       IsFeedbackOn = false;  // just to be safe, turn off feedback if we can't read from the ODB 
    }
 
+   lvl = get_new_current(avg_field);
    gCurrentTime = get_utc_time();
    if(gWriteTestData){ 
-      rc = write_to_file(gCurrentTime,avg_field/gScaleFactor);  // converting the field value back to Hz 
+      rc = write_to_file(gCurrentTime,avg_field,lvl);  // converting the field value back to Hz 
    }
 
-   double lvl=0;
    if (IsFeedbackOn) {
      lvl = get_new_current(avg_field);  // send in the average field (in amps); compares to setpoint  
    } else {
@@ -758,7 +759,7 @@ int update_current(){
 //_____________________________________________________________________________
 double get_new_current(double meas_value){ 
    double err  = gSetpoint - meas_value;
-   double dt   = (double)(gCurrentTime - gLastTime);
+   double dt   = (double)(gCurrentTime - gLastTime)/1E+9; // puts this in seconds 
    double derr = err - gLastErr;
    update_p_term(err,dt,derr);
    update_i_term(err,dt,derr);
@@ -818,7 +819,7 @@ int check_yokogawa_comms(int rc,const char *func){
    return RC; 
 } 
 //______________________________________________________________________________
-int write_to_file(unsigned long time,double x){
+int write_to_file(unsigned long time,double x,double y){
    char myStr[512],filepath[512],write_str[512];
    int RunNumber=0;
    int RunNumber_size = sizeof(RunNumber); 
@@ -831,7 +832,7 @@ int write_to_file(unsigned long time,double x){
       cm_msg(MERROR,"write_to_file",myStr); 
       return 1; 
    } else {
-      sprintf(write_str,"%lu,%.3lf",time,x); 
+      sprintf(write_str,"%lu,%.3E,%.3E",time,x,y); 
       outfile << write_str << std::endl;
    } 
 }
