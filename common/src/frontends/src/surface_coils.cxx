@@ -151,12 +151,12 @@ namespace{
   //Subscriber listens for messages from all beaglebones. Message are sent by publishers
   //on each beaglebone
   zmq::context_t context(1);
-  zmq::socket_t requester1(context, ZMQ_REQ);
+  /* zmq::socket_t requester1(context, ZMQ_REQ);
   //zmq::socket_t requester2(context, ZMQ_REQ);
   zmq::socket_t requester3(context, ZMQ_REQ);
-  /*zmq::socket_t requester4(context, ZMQ_REQ);
+  zmq::socket_t requester4(context, ZMQ_REQ);
   zmq::socket_t requester5(context, ZMQ_REQ);
-  zmq::socket_t requester6(context, ZMQ_REQ);*/
+  //zmq::socket_t requester6(context, ZMQ_REQ);*/
   zmq::socket_t subscriber(context, ZMQ_SUB);
 
   std::thread read_thread;
@@ -189,6 +189,8 @@ namespace{
     Double_t bot_temps[nCoils];
     Double_t top_temps[nCoils];
   };
+
+  unpacked_data dataUnit;
 
   //Holds the data until it is written to file
   std::vector<unpacked_data> dataBuffer;
@@ -277,7 +279,7 @@ INT frontend_init()
   mlock.unlock();
 
   //Get bottom set currents
-  mlock.lock();
+  /*mlock.lock();
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Bottom Set Currents", &hkey);      
    
   if(hkey == NULL){      
@@ -307,15 +309,18 @@ INT frontend_init()
   setPoint = 0;                                                               
   int setpt_size = sizeof(setPoint);                             
   db_get_data(hDB, hkey, &setPoint, &setpt_size, TID_DOUBLE);        
-                             
+  mlock.unlock();
+
+  */                         
   //Get the highest allowed temp       
+  mlock.lock();
   db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Allowed Temperature", &hkey);       
   high_temp = 0;                                                   
   int temp_size = sizeof(high_temp);                     
   db_get_data(hDB, hkey, &high_temp, &temp_size, TID_DOUBLE);
  
   mlock.unlock();
-
+  /*
   //Now that we have the current set points, package them into a json object to be sent to beaglebones  
   mlock.lock();
   request["000"] = setPoint;            
@@ -343,7 +348,7 @@ INT frontend_init()
   //Set all requesters to have no linger time
   //Set all requesters to time out after 2 seconds
   //Bind to the correct ports
-
+  std::cout << "Binding to beaglebone 1" << std::endl;
   requester1.setsockopt(ZMQ_LINGER, 0);     
   requester1.setsockopt(ZMQ_RCVTIMEO, 60000);           
   requester1.bind("tcp://*:5551");               
@@ -361,20 +366,23 @@ INT frontend_init()
   cm_msg(MINFO, "init", "Bound to beaglebone 3");
   std::cout << "Bound to beaglebone 3" << std::endl;
 
-  //requester4.setsockopt(ZMQ_LINGER, 0);  
-  //requester4.setsockopt(ZMQ_RCVTIMEO, 60000);         
-  //requester4.bind("tcp://*:5554");                
-  //cm_msg(MINFO, "init", "Bound to beaglebone 4");
+  requester4.setsockopt(ZMQ_LINGER, 0);  
+  requester4.setsockopt(ZMQ_RCVTIMEO, 60000);         
+  requester4.bind("tcp://*:5554");                
+  cm_msg(MINFO, "init", "Bound to beaglebone 4");
+  std::cout << "Bound to beaglebone 4" << std::endl;
 
-  //requester5.setsockopt(ZMQ_LINGER, 0); 
-  //requester5.setsockopt(ZMQ_RCVTIMEO, 60000);      
-  //requester5.bind("tcp://*:5552");             
-  //cm_msg(MINFO, "init", "Bound to beaglebone 5");
-
+  requester5.setsockopt(ZMQ_LINGER, 0); 
+  requester5.setsockopt(ZMQ_RCVTIMEO, 60000);      
+  requester5.bind("tcp://*:5555");             
+  cm_msg(MINFO, "init", "Bound to beaglebone 5");
+  std::cout << "Bound to beaglebone 5 " << std::endl;
+  
   //requester6.setsockopt(ZMQ_LINGER, 0);      
   //requester6.setsockopt(ZMQ_RCVTIMEO, 60000);     
   //requester6.bind("tcp://*:5556");               
   //cm_msg(MINFO, "init", "Bound to beaglebone 6"); 
+  */
 
   //Now bind subscriber to receive data being pushed by beaglebones    
   //Subscribe to all incoming data 
@@ -383,7 +391,7 @@ INT frontend_init()
 
   subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
   subscriber.setsockopt(ZMQ_LINGER, 0);
-  subscriber.setsockopt(ZMQ_RCVTIMEO, 20000);
+  subscriber.setsockopt(ZMQ_RCVTIMEO, 120000);
   subscriber.bind("tcp://*:5550");
   cm_msg(MINFO,"init","Bound to surface coil subscribe socket");
   std::cout << "Bound to subscribe socket" << std::endl;
@@ -392,7 +400,7 @@ INT frontend_init()
   //Define a zmq message and fill it with the contents of buffer
   //Send the message
   //Define a zmq reply and wait for a response. If no reply received, return an error
-
+  /*
   std::string buffer = request.dump();              
 
   //Send messages
@@ -405,19 +413,19 @@ INT frontend_init()
   /*zmq::message_t message2 (buffer.size());
   std::copy(buffer.begin(), buffer.end(), (char *)message2.data());
   requester2.send(message2);*/
-  
+  /*
   //message 3
   zmq::message_t message3 (buffer.size());                   
   std::copy(buffer.begin(), buffer.end(), (char *)message3.data());      
   requester3.send(message3);                  
   
   //message 4
-  /*zmq::message_t message4 (buffer.size());                    
+  zmq::message_t message4 (buffer.size());                    
   std::copy(buffer.begin(), buffer.end(), (char *)message4.data());  
   requester4.send(message4);                 
                                                                       
   //message 5
-  /*zmq::message_t message5 (buffer.size());                 
+  zmq::message_t message5 (buffer.size());                 
   std::copy(buffer.begin(), buffer.end(), (char *)message5.data());   
   requester5.send(message5);                       
                                                                  
@@ -426,7 +434,7 @@ INT frontend_init()
   std::copy(buffer.begin(), buffer.end(), (char *)message6.data());  
   requester6.send(message6);            
   */
-
+  /*
   //Receive messages
   zmq::message_t reply1;
   if(!requester1.recv(&reply1)){
@@ -441,7 +449,7 @@ INT frontend_init()
     return FE_ERR_HW;
   }
   cm_msg(MINFO, "frontend_init", "set points were received by crate 2");*/
-
+  /*
   zmq::message_t reply3;
   if(!requester3.recv(&reply3)){
     cm_msg(MINFO, "frontend_init", "Crate 3 never responded");
@@ -449,7 +457,7 @@ INT frontend_init()
   }
   cm_msg(MINFO, "frontend_init", "set points were received by crate 3");
 
-  /*zmq::message_t reply4;
+  zmq::message_t reply4;
   if(!requester4.recv(&reply4)){
     cm_msg(MINFO, "frontend_init", "Crate 4 never responded");
     return FE_ERR_HW;
@@ -463,14 +471,14 @@ INT frontend_init()
   }
   cm_msg(MINFO, "frontend_init", "set points were received by crate 5");
 
-  zmq::message_t reply6;
+  /*zmq::message_t reply6;
   if(!requester6.recv(&reply6)){
     cm_msg(MINFO, "frontend_init", "Crate 6 never responded");
     return FE_ERR_HW;
   }
   cm_msg(MINFO, "frontend_init", "set points were received by crate 6");*/
 
-  cm_msg(MINFO, "begin_of_run", "Surface coil currents all set");
+  //cm_msg(MINFO, "begin_of_run", "Surface coil currents all set");
   
   //Set FrontendActive to True
   mlock.lock();
@@ -495,6 +503,14 @@ INT frontend_init()
 //--- Frontend Exit ---------------------------------------------------------//
 INT frontend_exit()
 {
+  /*requester1.unbind("tcp://*:5551");
+  //requester2.unbind("tcp://*:5552");
+  requester3.unbind("tcp://*:5553");
+  requester4.unbind("tcp://*:5554");
+  requester5.unbind("tcp://*:5555");
+  //requester6.unbind("tcp://*:5556");*/
+  subscriber.unbind("tcp://*:5550");
+
   //Set FrontendActive to False. Will stop the thread
   mlock.lock();
   FrontendActive = false;
@@ -521,6 +537,8 @@ sets up the root tree.
 */
 INT begin_of_run(INT run_number, char *error)
 {
+  std::cout << "In BOR" << std::endl;
+
   using namespace boost;
   //ODB parameters
   HNDLE hDB, hkey;
@@ -591,6 +609,11 @@ INT begin_of_run(INT run_number, char *error)
   
   cm_msg(MLOG, "begin of run", "Completed successfully");
 
+  /*
+  std::cout << "BOR set points" << std::endl;
+  for(int i=0;i<100;i++) std::cout << bot_set_values[i] << std::endl;
+  std::cout << "Finished BOR" << std::endl;
+  */
   return SUCCESS;
 }
 
@@ -787,6 +810,7 @@ void ReadCurrents(){
     mlock.unlock();
     if(!localFrontendActive) break;
 
+    /*
     mlock.lock();
     //Get the current set points from ODB
     //Get bottom set currents
@@ -795,6 +819,9 @@ void ReadCurrents(){
       cm_msg(MERROR, "ReadCurrents", "unable to find Bottom Set Currents key");
     }
 
+    std::cout << "Before checking ODB, comparison set currents" << std::endl;
+    for(int i=0;i<15;i++) std::cout << "Thread: " << bot_comp_values[i] << std::endl;
+
     for(int i=0;i<nCoils;i++){
       bot_comp_values[i] = 0;
       top_comp_values[i] = 0;
@@ -802,6 +829,9 @@ void ReadCurrents(){
 
     int bot_comp_size = sizeof(bot_comp_values);
     db_get_data(hDB, hkey, &bot_comp_values, &bot_comp_size, TID_DOUBLE);
+
+    std::cout << "Got the comparison set currents" << std::endl;
+    for(int i=0;i<15;i++) std::cout << "Thread " << bot_comp_values[i] << std::endl;
 
     //Get top set currents            
     db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Top Set Currents", &hkey);
@@ -821,7 +851,8 @@ void ReadCurrents(){
 
     //Compare these values to the previous set points. If any 1 current is different, update the actual set point arrays and send the values to the beaglebones
     for(int i=0;i<nCoils;i++){
-      if(bot_comp_values[i] != bot_set_values[i] || top_comp_values[i] != top_set_values[i]){
+      if((fabs(bot_comp_values[i] - bot_set_values[i]) > 1e-6) || (fabs(top_comp_values[i] - top_set_values[i]) > 1e-6)){
+	usleep(5000000); //Make sure ODB is fully updated
 	for(int j=0;j<nCoils;j++){
 	  bot_set_values[j] = bot_comp_values[j];
 	  top_set_values[j] = top_comp_values[j];
@@ -855,7 +886,7 @@ void ReadCurrents(){
 	zmq::message_t message1 (buffer.size());
 	std::copy(buffer.begin(), buffer.end(), (char *)message1.data());
 	requester1.send(message1);
-	//std::cout << "Sent the set points to crate 1" << std::endl;
+	std::cout << "Sent the set points to crate 1" << std::endl;
 
 
 	//message 2
@@ -864,26 +895,26 @@ void ReadCurrents(){
 	  requester2.send(message2);
 	//std::cout << "Sent the set points to crate 2" << std::endl;
 	*/
-
+    /*
 	//message 3
 	zmq::message_t message3 (buffer.size());
 	std::copy(buffer.begin(), buffer.end(), (char *)message3.data());
 	requester3.send(message3);
-	//std::cout << "Sent the set points to crate 3" << std::endl;
+	std::cout << "Sent the set points to crate 3" << std::endl;
 
 
 
 	//message 4
-	/*zmq::message_t message4 (buffer.size());
-	  std::copy(buffer.begin(), buffer.end(), (char *)message4.data());
-	  requester4.send(message4);
-	//std::cout << "Sent the set points to crate 4" << std::endl;
+	zmq::message_t message4 (buffer.size());
+	std::copy(buffer.begin(), buffer.end(), (char *)message4.data());
+	requester4.send(message4);
+	std::cout << "Sent the set points to crate 4" << std::endl;
 
 	//message 5
-	/*zmq::message_t message5 (buffer.size());
-	  std::copy(buffer.begin(), buffer.end(), (char *)message5.data());
-	  requester3.send(message5);
-	//std::cout << "Sent the set points to crate 5" << std::endl;
+	zmq::message_t message5 (buffer.size());
+	std::copy(buffer.begin(), buffer.end(), (char *)message5.data());
+	requester5.send(message5);
+	std::cout << "Sent the set points to crate 5" << std::endl;
 
 
 	//message 6
@@ -892,13 +923,13 @@ void ReadCurrents(){
 	  requester6.send(message6);
 	  //std::cout << "Sent the set points to crate 6" << std::endl;*/
 
-	//Receive messages
+    /*	//Receive messages
 	zmq::message_t reply1;
         if(!requester1.recv(&reply1)){
           cm_msg(MINFO, "ReadCurrents", "Crate 1 never responded");
           return FE_ERR_HW;
         }
-        //else std::cout << "set Points were received by crate 1" << std::endl; 
+        else std::cout << "set Points were received by crate 1" << std::endl; 
 
 	/*zmq::message_t reply2;
         if(!requester2.recv(&reply2)){
@@ -908,48 +939,48 @@ void ReadCurrents(){
         //else std::cout << "set Points were received by crate 2" << std::endl; 
 	*/
 	
-	zmq::message_t reply3;
-        if(!requester1.recv(&reply3)){
+    /*	zmq::message_t reply3;
+        if(!requester3.recv(&reply3)){
           cm_msg(MINFO, "ReadCurrents", "Crate 3 never responded");
           return FE_ERR_HW;
         }
-        //else std::cout << "set Points were received by crate 3" << std::endl; 
+        else std::cout << "set Points were received by crate 3" << std::endl; 
 
-	/*zmq::message_t reply4;
+	zmq::message_t reply4;
         if(!requester4.recv(&reply4)){
           cm_msg(MINFO, "ReadCurrents", "Crate 4 never responded");
           return FE_ERR_HW;
         }
-        //else std::cout << "set Points were received by crate 4" << std::endl; 
+        else std::cout << "set Points were received by crate 4" << std::endl; 
 
 	zmq::message_t reply5;
         if(!requester5.recv(&reply5)){
           cm_msg(MINFO, "ReadCurrents", "Crate 5 never responded");
           return FE_ERR_HW;
         }
-        //else std::cout << "set Points were received by crate 5" << std::endl; 
+        else std::cout << "set Points were received by crate 5" << std::endl; 
 
-	zmq::message_t reply6;
+	/*zmq::message_t reply6;
 	if(!requester6.recv(&reply6)){
 	cm_msg(MINFO, "ReadCurrents", "Crate 6 never responded");
 	return FE_ERR_HW;
 	}
 	//else std::cout << "set Points were received by crate 6" << std::endl;*/
 
-	break;
+    /*	break;
       }
-    }
+    }*/
 
     //make an instance of the struct
-    unpacked_data dataUnit;
+
 
     //Initialize arrays to hold data sent from beaglebones                
-    for(int i=0;i<nCoils;i++){
+    /*  for(int i=0;i<nCoils;i++){
       dataUnit.bot_currents[i] = 0.0;
       dataUnit.top_currents[i] = 0.0;
       dataUnit.bot_temps[i] = 0.0;
       dataUnit.top_temps[i] = 0.0;
-    }
+      }*/
 
     //Receive values from beaglebones             
     bool st = false; //status of receiving data             
@@ -1004,12 +1035,13 @@ void ReadCurrents(){
     mlock.unlock();
 
     mlock.lock();
-    //Update values in odb   
+    //Update values in odb.
     db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Currents/Bottom Currents", &dataUnit.bot_currents, sizeof(dataUnit.bot_currents), 100, TID_DOUBLE);
-    db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Currents/Top Currents", &dataUnit.top_currents, sizeof(dataUnit.top_currents), 100, TID_DOUBLE);
     db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Temperatures/Bottom Temps", &dataUnit.bot_temps, sizeof(dataUnit.bot_temps), 100, TID_DOUBLE);
+    db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Currents/Top Currents", &dataUnit.top_currents, sizeof(dataUnit.top_currents), 100, TID_DOUBLE);
     db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Temperatures/Top Temps", &dataUnit.top_temps, sizeof(dataUnit.top_temps), 100, TID_DOUBLE);
     mlock.unlock();
+   
 
     //Check values vs. set points/allowed difference and temperature   
     //Will set alarm if something is bad
@@ -1020,7 +1052,7 @@ void ReadCurrents(){
     mlock.lock(); 
     for(int i=0;i<nCoils;i++){
       //bottom currents            
-      if(std::abs(dataUnit.bot_currents[i]-bot_set_values[i]) >= setPoint && dataUnit.bot_currents[i]!=0.0){
+      /*      if(std::abs(dataUnit.bot_currents[i]-bot_set_values[i]) >= setPoint && dataUnit.bot_currents[i]!=0.0){
 
 
 	char str[256];
@@ -1032,13 +1064,13 @@ void ReadCurrents(){
 
 	db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Current Health", &current_health, sizeof(current_health), 1, TID_BOOL);
 	db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Problem Current Channel", str, sizeof(str), 1, TID_STRING);
-	cm_msg(MINFO, "read_surface_coils", "Bottom current out of spec");
+	//cm_msg(MINFO, "read_surface_coils", "Bottom current out of spec");
 
-      }
+	}*/
 
 
       //top currents                
-      if(std::abs(dataUnit.top_currents[i]-top_set_values[i]) >= setPoint dataUnit.top_currents[i]!=0.0){
+      /*if(std::abs(dataUnit.top_currents[i]-top_set_values[i]) >= setPoint && dataUnit.top_currents[i]!=0.0){
 
 	char str[256];
 	current_health = 0;
@@ -1048,8 +1080,8 @@ void ReadCurrents(){
 
 	db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Current Health", &current_health, sizeof(current_health), 1, TID_BOOL);
 	db_set_value(hDB, 0, "/Equipment/Surface Coils/Settings/Monitoring/Problem Current Channel", str, sizeof(str), 1, TID_STRING);
-	cm_msg(MINFO, "read_surface_coils", "Top current out of spec");
-      }
+	//cm_msg(MINFO, "read_surface_coils", "Top current out of spec");
+	}*/
 
       //bottom temps       
       if(dataUnit.bot_temps[i] > high_temp){
