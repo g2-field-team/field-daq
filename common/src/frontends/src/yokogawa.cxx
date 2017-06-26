@@ -758,7 +758,10 @@ int update_current(BOOL IsFeedbackOn,double current_setpoint,double avg_field){
 
    // eps = get_new_current(avg_field);
    if(gWriteTestData){ 
-      rc = write_to_file(gCurrentTime,avg_field,eps);  // converting the field value back to Hz 
+      eps = (-1.)*pidLoop->Update(gCurrentTime,avg_field);    
+      rc  = write_to_file(gCurrentTime,avg_field,eps);   
+      // reset before we do any real calculation... 
+      eps = 0.;
    }
 
    // old way
