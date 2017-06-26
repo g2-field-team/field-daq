@@ -136,7 +136,8 @@ BOOL gSimMode = false;
 BOOL gWriteTestData = false; 
 // hardware limits 
 double gLowerLimit = -200E-3; // in Amps  
-double gUpperLimit =  200E-3; // in Amps   
+double gUpperLimit =  200E-3; // in Amps  
+// field change limit  
 double gFieldLimit =  100;    // 100 Hz => 1.62 ppm  
 // PID Terms 
 // P, I, D coefficients 
@@ -147,28 +148,29 @@ double gFieldLimit =  100;    // 100 Hz => 1.62 ppm
 // double gP_term=0;
 // double gI_term=0;
 // double gD_term=0;
-int    gCounter=0;
+// misc terms 
 // double gSetpoint=0;
 // double gIntErr=0;
 // double gLastErr=0;
+int    gCounter=0;
 double gWindupGuard=20.;  
 double gSampleTime=10E-3; // 10 ms  
 double gScaleFactor=1.0;  // in Amps/Hz 
 // other terms we need to keep track of 
 double gTotalCurrent=0;
 double gLastCurrent=0;
-double gLastAvgField;  
+double gLastAvgField=0;  
 // time variables 
 unsigned long gCurrentTime=0;
 unsigned long gLastTime=0; 
 
 // my functions 
 void read_from_device();                               // pull data from the Yokogawa 
-void update_p_term(double err,double dt,double derr);  // update P term 
-void update_i_term(double err,double dt,double derr);  // update I term 
-void update_d_term(double err,double dt,double derr);  // update D term 
-
-double get_new_current(double meas_value);             // get new current based on PID  
+// void update_p_term(double err,double dt,double derr);  // update P term 
+// void update_i_term(double err,double dt,double derr);  // update I term 
+// void update_d_term(double err,double dt,double derr);  // update D term 
+// 
+// double get_new_current(double meas_value);             // get new current based on PID  
 
 int update_current(BOOL IsFeedbackOn,double current_setpoint,double avg_field);  // update current on the yokogawa 
 int check_yokogawa_comms(int rc,const char *func);     // check on the yokogawa communication; run error check if necessary 
@@ -238,7 +240,7 @@ INT frontend_init(){
    gTotalCurrent = 0;  
    gLastCurrent  = 0;
    // reset bad correction counter to zero 
-   // gCounter      = 0; 
+   gCounter      = 0; 
 
    pidLoop = new g2field::PID(); 
    pidLoop->SetPID(0,0,0); 
@@ -774,15 +776,20 @@ int update_current(BOOL IsFeedbackOn,double current_setpoint,double avg_field){
 
    // using PID class 
    if (IsFeedbackOn) {
-     if( fabs(field_change)>gFieldLimit) { 
+     if( fabs(field_change)>gFieldLimit && gCounter>1) { 
+        // change in field is too large and it's not the first time we try to change 
+        // the current on the yokogawa. 
 	sprintf(msg,"The field changed by %.3lf Hz!  Will NOT change the current on the Yokogawa",field_change); 
 	cm_msg(MERROR,"update_current",msg);
         eps = 0.; 
      } else {
-	eps = pidLoop->Update(gCurrentTime,avg_field);  // send in the average field (in amps); compares to setpoint   
+	// send in the average field (in Hz); compares to setpoint 
+        // scale result by -1 to counteract what the Bruker tries to do to stabilize its output. 
+	eps = (-1.)*pidLoop->Update(gCurrentTime,avg_field);    
      }
      gTotalCurrent += eps;
-     lvl = gTotalCurrent; 
+     lvl            = gTotalCurrent; 
+     gCounter++; 
    } else {
      lvl = current_setpoint;		// If not running feedback, set the current.
    }
