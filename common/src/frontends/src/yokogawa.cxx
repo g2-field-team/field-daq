@@ -736,7 +736,8 @@ int update_current(BOOL IsFeedbackOn,double current_setpoint,double avg_field){
    
    gCurrentTime = get_utc_time();
 
-   eps = get_new_current(avg_field);
+   eps = 0;
+   // eps = get_new_current(avg_field);
    if(gWriteTestData){ 
       rc = write_to_file(gCurrentTime,avg_field,eps);  // converting the field value back to Hz 
    }
@@ -790,8 +791,8 @@ double get_new_current(double meas_value){
       sprintf(msg,"The field changed by %.3lf Hz!  Will NOT change the current on the Yokogawa",err); 
       cm_msg(MERROR,"get_new_current",msg);
       output = 0.;  
-      gCounter++; 
    }
+   gCounter++; 
    // remember values for next calculation 
    gLastTime     = gCurrentTime;
    gLastErr      = err;
