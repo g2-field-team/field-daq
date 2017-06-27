@@ -99,7 +99,7 @@ extern "C" {
 	"MIDAS",                  /* format */
 	TRUE,                     /* enabled */
 	RO_RUNNING,               /* read when running and on odb */
-	1000,                     /* period (read every 1000 ms) */
+	5000,                     /* period (read every 5000 ms) */
 	0,                        /* stop run after this event limit */
 	0,                        /* number of sub events */
 	0,                        /* log history, logged once per minute */
@@ -140,18 +140,6 @@ double gUpperLimit =  200E-3; // in Amps
 // field change limit  
 double gFieldLimit =  100;    // 100 Hz => 1.62 ppm  
 // PID Terms 
-// P, I, D coefficients 
-// double gP_coeff=0;
-// double gI_coeff=0;
-// double gD_coeff=0;
-// // P, I, D terms 
-// double gP_term=0;
-// double gI_term=0;
-// double gD_term=0;
-// misc terms 
-// double gSetpoint=0;
-// double gIntErr=0;
-// double gLastErr=0;
 int    gCounter=0;
 double gWindupGuard=20.;  
 double gSampleTime=10E-3; // 10 ms  
@@ -166,11 +154,6 @@ unsigned long gLastTime=0;
 
 // my functions 
 void read_from_device();                               // pull data from the Yokogawa 
-// void update_p_term(double err,double dt,double derr);  // update P term 
-// void update_i_term(double err,double dt,double derr);  // update I term 
-// void update_d_term(double err,double dt,double derr);  // update D term 
-// 
-// double get_new_current(double meas_value);             // get new current based on PID  
 
 int update_current(BOOL IsFeedbackOn,double current_setpoint,double avg_field);  // update current on the yokogawa 
 int check_yokogawa_comms(int rc,const char *func);     // check on the yokogawa communication; run error check if necessary 
@@ -696,7 +679,6 @@ int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,doubl
    double field_setpoint=0;
    db_get_value(hDB,0,field_set_path,&field_setpoint,&SIZE_DOUBLE,TID_DOUBLE, 0);
    field_setpoint *= 1E+3;              // convert from kHz -> Hz! 
-   // gSetpoint       = field_setpoint;    // use the FIELD setpoint here!  
    pidLoop->SetSetpoint(field_setpoint); 
 
    char switch_path[512];
@@ -712,21 +694,18 @@ int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,doubl
    sprintf(pc_path,"%s/P Coefficient",SETTINGS_DIR);
    double P_coeff = 0;
    db_get_value(hDB,0,pc_path,&P_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
-   // gP_coeff = P_coeff;
    pidLoop->SetPCoeff(P_coeff);  
 
    char ic_path[512];
    sprintf(ic_path,"%s/I Coefficient",SETTINGS_DIR);
    double I_coeff = 0;
    db_get_value(hDB,0,ic_path,&I_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
-   // gI_coeff = I_coeff; 
    pidLoop->SetICoeff(I_coeff);  
 
    char dc_path[512];
    sprintf(dc_path,"%s/D Coefficient",SETTINGS_DIR);
    double D_coeff = 0;
    db_get_value(hDB,0,dc_path,&D_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
-   // gD_coeff = D_coeff;
    pidLoop->SetDCoeff(D_coeff);  
 
    // if(IsOutputEnabled){
@@ -755,23 +734,15 @@ int update_current(BOOL IsFeedbackOn,double current_setpoint,double avg_field){
    double lvl=0,eps=0,test_sum=0; 
    
    gCurrentTime = get_utc_time();
+   double time_sec = gCurrentTime/1E+9; 
 
    // eps = get_new_current(avg_field);
    if(gWriteTestData){ 
-      eps = (-1.)*pidLoop->Update(gCurrentTime,avg_field);    
+      eps = pidLoop->Update(time_sec,avg_field);    
       rc  = write_to_file(gCurrentTime,avg_field,eps);   
       // reset before we do any real calculation... 
       eps = 0.;
    }
-
-   // old way
-   // if (IsFeedbackOn) {
-   //   eps = get_new_current(avg_field);  // send in the average field (in amps); compares to setpoint   
-   //   gTotalCurrent += eps;
-   //   lvl = gTotalCurrent; 
-   // } else {
-   //   lvl = current_setpoint;		// If not running feedback, set the current.
-   // }
 
    double field_change = avg_field - gLastAvgField; 
 
@@ -779,7 +750,7 @@ int update_current(BOOL IsFeedbackOn,double current_setpoint,double avg_field){
 
    // using PID class 
    if (IsFeedbackOn) {
-     if( fabs(field_change)>gFieldLimit && gCounter>1) { 
+     if( (fabs(field_change)>gFieldLimit) && gCounter>1 ) { 
         // change in field is too large and it's not the first time we try to change 
         // the current on the yokogawa. 
 	sprintf(msg,"The field changed by %.3lf Hz!  Will NOT change the current on the Yokogawa",field_change); 
@@ -788,7 +759,7 @@ int update_current(BOOL IsFeedbackOn,double current_setpoint,double avg_field){
      } else {
 	// send in the average field (in Hz); compares to setpoint 
         // scale result by -1 to counteract what the Bruker tries to do to stabilize its output. 
-	eps = (-1.)*pidLoop->Update(gCurrentTime,avg_field);    
+	eps = pidLoop->Update(time_sec,avg_field);    
      }
      gTotalCurrent += eps;
      lvl            = gTotalCurrent; 
@@ -821,56 +792,6 @@ int update_current(BOOL IsFeedbackOn,double current_setpoint,double avg_field){
 
    return rc;  
 }
-// //_____________________________________________________________________________
-// double get_new_current(double meas_value){
-//    char msg[200];  
-//    double err  = gSetpoint - meas_value;
-//    double dt   = (double)(gCurrentTime - gLastTime)/1E+9; // puts this in seconds 
-//    double derr = err - gLastErr;
-//    update_p_term(err,dt,derr);
-//    update_i_term(err,dt,derr);
-//    update_d_term(err,dt,derr);
-//    double output = gScaleFactor*( gP_term + gI_coeff*gI_term + gD_coeff*gD_term );
-//    // check the new current
-//    // if the change in the field (err) is too large, 
-//    // set the output of this function to zero.
-//    // a large change is allowed once (i.e., the first time we compute the current) 
-//    if( (fabs(err)>gFieldLimit) && (gCounter>1) ) {
-//       sprintf(msg,"The field changed by %.3lf Hz!  Will NOT change the current on the Yokogawa",err); 
-//       cm_msg(MERROR,"get_new_current",msg);
-//       output = 0.;  
-//    }
-//    gCounter++; 
-//    // remember values for next calculation 
-//    gLastTime     = gCurrentTime;
-//    gLastErr      = err;
-// 
-//    return output;
-// }
-// //______________________________________________________________________________
-// void update_p_term(double err,double dtime,double derror){
-//    if (dtime >= gSampleTime) {
-//       gP_term = gP_coeff*err;
-//    }
-// }
-// //______________________________________________________________________________
-// void update_i_term(double err,double dtime,double derror){
-//    if (dtime >= gSampleTime) {
-//       gI_term += err*dtime;
-//       if (gI_term< (-1.)*gWindupGuard) {
-//          gI_term = (-1.)*gWindupGuard;
-//       } else if (gI_term>gWindupGuard) {
-//          gI_term = gWindupGuard;
-//       }
-//    }
-// }
-// //______________________________________________________________________________
-// void update_d_term(double err,double dtime,double derror){
-//    gD_term = 0.;
-//    if (dtime >= gSampleTime) {
-//       if (dtime>0) gD_term = derror/dtime;
-//    }
-// }
 //______________________________________________________________________________
 unsigned long get_utc_time(){
    unsigned long utc = hw::systime_us()*1E+3; 
@@ -909,7 +830,7 @@ int write_to_file(unsigned long time,double x,double y){
       cm_msg(MERROR,"write_to_file",myStr); 
       return 1; 
    } else {
-      sprintf(write_str,"%lu,%.3E,%.3E",time,x,y); 
+      sprintf(write_str,"%lu,%.10E,%.10E",time,x,y); 
       outfile << write_str << std::endl;
    } 
 }
