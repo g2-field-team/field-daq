@@ -698,7 +698,7 @@ int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,doubl
    int probeNum = -1;
    int SIZE_INT = sizeof(probeNum); 
    sprintf(pn_path,"%s/Probe Number for Field Avg",SETTINGS_DIR);
-   db_get_value(hDB,0,pn_path,&probeNum,&SIZE_INT,TID_BOOL, 0);
+   db_get_value(hDB,0,pn_path,&probeNum,&SIZE_INT,TID_INT, 0);
    gProbeNum = probeNum-1;   // probe 100 => index 99 
 
    char pc_path[512];
