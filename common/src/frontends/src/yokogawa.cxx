@@ -144,6 +144,8 @@ int    gCounter=0;
 double gWindupGuard=20.;  
 double gSampleTime=10E-3; // 10 ms  
 // other terms we need to keep track of 
+int gProbeNum = -1;
+BOOL gUseSingleProbe = false;  
 double gTotalCurrent=0;
 double gLastCurrent=0;
 double gLastAvgField=0;  
@@ -686,6 +688,17 @@ int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,doubl
    sprintf(test_flag_path,"%s/Write Test File",SETTINGS_DIR);
    db_get_value(hDB,0,test_flag_path,&gWriteTestData,&SIZE_BOOL,TID_BOOL, 0);
 
+   char pr_path[512];
+   sprintf(pr_path,"%s/Use Single Probe for Field Avg",SETTINGS_DIR);
+   db_get_value(hDB,0,pr_path,&gUseSingleProbe,&SIZE_BOOL,TID_BOOL, 0);
+
+   char pn_path[512];
+   int probeNum = -1;
+   int SIZE_INT = sizeof(probeNum); 
+   sprintf(pn_path,"%s/Probe Number for Field Avg",SETTINGS_DIR);
+   db_get_value(hDB,0,pn_path,&probeNum,&SIZE_INT,TID_BOOL, 0);
+   gProbeNum = probeNum-1;   // probe 100 => index 99 
+
    char pc_path[512];
    sprintf(pc_path,"%s/P Coefficient",SETTINGS_DIR);
    double P_coeff = 0;
@@ -728,14 +741,29 @@ int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,doubl
 //______________________________________________________________________________
 int check_average_field_ODB(double &avg_field){
    // check to see if the average field has changed  
-   int rc=0;  // no field change  
+   int rc=0;  // no field change
+
+   // get all probe frequencies  
+   const int NPROBES = 378;
+   double probeFreq[NPROBES]; 
+   int ARR_SIZE = sizeof(probeFreq); 
+
+   // grab all probe frequencies 
+   const int SIZE = 100; 
+   char arr_path[SIZE]; 
+   sprintf(arr_path,"%s/nmr_freq_array",SHARED_DIR); 
+   db_get_value(hDB,0,arr_path,&probeFreq,&ARR_SIZE,TID_DOUBLE,0);
+ 
+   // get filtered mean frequency  
+   char freq_path[SIZE]; 
    double FIELD_AVG=0;
    int SIZE_DOUBLE = sizeof(FIELD_AVG);  
-   const int SIZE = 100; 
-   char *freq_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
    sprintf(freq_path,"%s/filtered_mean_nmr_freq",SHARED_DIR);
    db_get_value(hDB,0,freq_path,&FIELD_AVG,&SIZE_DOUBLE,TID_DOUBLE, 0);
-   free(freq_path);
+
+   // are we using a single probe for the field average? 
+   if (gUseSingleProbe) FIELD_AVG = probeFreq[gProbeNum]; 
+   
    FIELD_AVG *= 1E+3;   // convert from kHz -> Hz 
 
    if (avg_field != gLastAvgField ) {
