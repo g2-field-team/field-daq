@@ -99,7 +99,7 @@ extern "C" {
 	"MIDAS",                  /* format */
 	TRUE,                     /* enabled */
 	RO_RUNNING,               /* read when running and on odb */
-	5000,                     /* period (read every 5000 ms) */
+	1000,                     /* period (read every 4000 ms) */
 	0,                        /* stop run after this event limit */
 	0,                        /* number of sub events */
 	0,                        /* log history, logged once per minute */
@@ -143,7 +143,6 @@ double gFieldLimit =  100;    // 100 Hz => 1.62 ppm
 int    gCounter=0;
 double gWindupGuard=20.;  
 double gSampleTime=10E-3; // 10 ms  
-double gScaleFactor=1.0;  // in Amps/Hz 
 // other terms we need to keep track of 
 double gTotalCurrent=0;
 double gLastCurrent=0;
@@ -153,14 +152,15 @@ unsigned long gCurrentTime=0;
 unsigned long gLastTime=0; 
 
 // my functions 
-void read_from_device();                               // pull data from the Yokogawa 
+void read_from_device();                                   // pull data from the Yokogawa 
 
-int update_current(BOOL IsFeedbackOn,double current_setpoint,double avg_field);  // update current on the yokogawa 
-int check_yokogawa_comms(int rc,const char *func);     // check on the yokogawa communication; run error check if necessary 
-int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_field); 
-int write_to_file(unsigned long time,double x,double y);   // testing some variables  
+int update_current(BOOL IsFieldUpdated,BOOL IsFeedbackOn,double current_setpoint,double avg_field);  // update current on the yokogawa 
+int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_field);       // update pars from ODB  
+int check_average_field_ODB(double &avg_field);            // update average field from ODB 
+int check_yokogawa_comms(int rc,const char *func);         // check on the yokogawa communication; run error check if necessary 
+int write_to_file(unsigned long time,double x,double y);   // print test data to file   
 
-unsigned long get_utc_time();                          // UTC time in milliseconds 
+unsigned long get_utc_time();                              // UTC time in milliseconds 
 
 const char * const psfb_bank_name = "PSFB";     // 4 letters, try to make sensible
 const char * const SETTINGS_DIR   = "/Equipment/PS Feedback/Settings";
@@ -487,18 +487,22 @@ INT read_yoko_event(char *pevent,INT off){
    BOOL IsFeedbackOn = false;
    double current_setpoint=0,avg_field=0; 
 
+   BOOL IsFieldUpdated = false;
+
    rc = update_parameters_from_ODB(IsFeedbackOn,current_setpoint,avg_field);
-   if (rc!=0) { 
+   if (rc>1) { 
       cm_msg(MERROR,"read_yoko_event","Cannot read parameters from ODB!");
       IsFeedbackOn = false; 
    }
 
+   // check to see if the field was updated 
+   if (rc==1) IsFieldUpdated = true; 
+
    // determine the new current to set on the Yokogawa 
-   rc = update_current(IsFeedbackOn,current_setpoint,avg_field);
+   rc = update_current(IsFieldUpdated,IsFeedbackOn,current_setpoint,avg_field);
    if (rc!=0) { 
       cm_msg(MERROR,"read_yoko_event","Cannot update the current!");
    }
-
 
    // read the current on the Yokogawa   
    read_from_device(); 
@@ -657,16 +661,8 @@ int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,doubl
    double sf = 0;
    int SIZE_DOUBLE  = sizeof(sf);  
    db_get_value(hDB,0,sf_path,&sf,&SIZE_DOUBLE,TID_DOUBLE, 0);
-   gScaleFactor = 1./(sf*1E+6);  // converts to Amps/Hz 
-   pidLoop->SetScaleFactor(gScaleFactor); 
- 
-   double FIELD_AVG=0;
-   const int SIZE = 100; 
-   char *freq_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
-   sprintf(freq_path,"%s/filtered_mean_nmr_freq",SHARED_DIR);
-   db_get_value(hDB,0,freq_path,&FIELD_AVG,&SIZE_DOUBLE,TID_DOUBLE, 0);
-   free(freq_path);
-   avg_field  = FIELD_AVG*1E+3;  // convert from kHz -> Hz  
+   double sf_Amps_per_Hz = 1./(sf*1E+6);   
+   pidLoop->SetScaleFactor(sf_Amps_per_Hz); 
 
    double CURRENT=0; 
    char current_set_path[512];
@@ -724,11 +720,34 @@ int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,doubl
    //    }
    // }
 
-   return 0; 
+   int rc = check_average_field_ODB(avg_field); 
+
+   return rc; 
 
 }
 //______________________________________________________________________________
-int update_current(BOOL IsFeedbackOn,double current_setpoint,double avg_field){
+int check_average_field_ODB(double &avg_field){
+   // check to see if the average field has changed  
+   int rc=0;  // no field change  
+   double FIELD_AVG=0;
+   int SIZE_DOUBLE = sizeof(FIELD_AVG);  
+   const int SIZE = 100; 
+   char *freq_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
+   sprintf(freq_path,"%s/filtered_mean_nmr_freq",SHARED_DIR);
+   db_get_value(hDB,0,freq_path,&FIELD_AVG,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   free(freq_path);
+   FIELD_AVG *= 1E+3;   // convert from kHz -> Hz 
+
+   if (avg_field != gLastAvgField ) {
+      // average field changed!  
+      avg_field  = FIELD_AVG;  // convert from kHz -> Hz 
+      rc = 1;
+   } 
+ 
+   return rc;  
+}
+//______________________________________________________________________________
+int update_current(BOOL IsFieldUpdated,BOOL IsFeedbackOn,double current_setpoint,double avg_field){
    // update the current on the yokogawa based on the ODB
    int rc=-1;
    double lvl=0,eps=0,test_sum=0; 
@@ -748,26 +767,33 @@ int update_current(BOOL IsFeedbackOn,double current_setpoint,double avg_field){
 
    char msg[200];  
 
-   // using PID class 
+   // Update the current to set 
+   // check if feedback is on and the average field value changed
    if (IsFeedbackOn) {
-     if( (fabs(field_change)>gFieldLimit) && gCounter>1 ) { 
-        // change in field is too large and it's not the first time we try to change 
-        // the current on the yokogawa. 
-	sprintf(msg,"The field changed by %.3lf Hz!  Will NOT change the current on the Yokogawa",field_change); 
-	cm_msg(MERROR,"update_current",msg);
-        eps = 0.; 
-     } else {
-	// send in the average field (in Hz); compares to setpoint 
-        // scale result by -1 to counteract what the Bruker tries to do to stabilize its output. 
-	eps = pidLoop->Update(time_sec,avg_field);    
-     }
-     gTotalCurrent += eps;
-     lvl            = gTotalCurrent; 
-     gCounter++; 
+      if (IsFieldUpdated) {
+         // the field was updated; so we try to change the current
+         // otherwise, leave the current as is for now  
+	 if( (fabs(field_change)>gFieldLimit) && gCounter>1 ) { 
+	    // change in field is too large and it's not the first time we try to change 
+	    // the current on the yokogawa. 
+	    sprintf(msg,"The field changed by %.3lf Hz!  Will NOT change the current on the Yokogawa",field_change); 
+	    cm_msg(MERROR,"update_current",msg);
+	    eps = 0.; 
+	 } else {
+	    // send in the average field (in Hz); compares to setpoint 
+	    // scale result by -1 to counteract what the Bruker tries to do to stabilize its output. 
+	    eps = pidLoop->Update(time_sec,avg_field);    
+	 }
+	 gTotalCurrent += eps;
+	 gCounter++;                    // count the update since we possibly changed the current 
+      } 
+      lvl = gTotalCurrent;              // assign the total current to the level we'll set  
    } else {
-     lvl = current_setpoint;		// If not running feedback, set the current.
+      lvl = current_setpoint;		// If not running feedback, use the current_setpoint  
    }
    
+   // now check the current we'll set
+   // does it meet the hardware limits? 
    if (!gSimMode) { 
       // operational mode, check the level first  
       if (lvl>gLowerLimit && lvl<gUpperLimit) {  
@@ -833,5 +859,6 @@ int write_to_file(unsigned long time,double x,double y){
       sprintf(write_str,"%lu,%.10E,%.10E",time,x,y); 
       outfile << write_str << std::endl;
    } 
+   return 0; 
 }
 
