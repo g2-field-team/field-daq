@@ -152,6 +152,7 @@ double gLastAvgField=0;
 // time variables 
 unsigned long gCurrentTime=0;
 unsigned long gLastTime=0; 
+double gFieldUpdateTime=0; 
 
 // my functions 
 void read_from_device();                                   // pull data from the Yokogawa 
@@ -160,7 +161,8 @@ int update_current(BOOL IsFieldUpdated,BOOL IsFeedbackOn,double current_setpoint
 int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_field);       // update pars from ODB  
 int check_average_field_ODB(double &avg_field);            // update average field from ODB 
 int check_yokogawa_comms(int rc,const char *func);         // check on the yokogawa communication; run error check if necessary 
-int write_to_file(const char *tag,unsigned long time,double x,double y,double z); 
+int write_to_file(const char *tag,unsigned long time,double x,double y,double z);                    // print test data to file 
+int write_to_file(const char *tag,double time,double x);   // another print function           
 
 unsigned long get_utc_time();                              // UTC time in milliseconds 
 
@@ -761,6 +763,13 @@ int check_average_field_ODB(double &avg_field){
    sprintf(freq_path,"%s/filtered_mean_nmr_freq",SHARED_DIR);
    db_get_value(hDB,0,freq_path,&FIELD_AVG,&SIZE_DOUBLE,TID_DOUBLE, 0);
 
+   // get time of updated frequency  
+   char time_path[SIZE]; 
+   double TIME=0;
+   sprintf(time_path,"%s/time_of_update",SHARED_DIR);
+   db_get_value(hDB,0,freq_path,&TIME,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   gFieldUpdateTime = TIME; 
+
    // are we using a single probe for the field average? 
    if (gUseSingleProbe) FIELD_AVG = probeFreq[gProbeNum]; 
    
@@ -789,10 +798,13 @@ int update_current(BOOL IsFieldUpdated,BOOL IsFeedbackOn,double current_setpoint
    // eps = get_new_current(avg_field);
    if(gWriteTestData && !IsFeedbackOn){ 
       eps = pidLoop->Update(time_sec,avg_field);    
-      rc  = write_to_file("fdbk-off",gCurrentTime,avg_field,theSetpoint,eps);   
+      rc  = write_to_file("fdbk-off"    ,gCurrentTime,avg_field,theSetpoint,eps);   
       // reset before we do any real calculation... 
       eps = 0.;
    }
+
+   // write the field data regardless of feedback being on or off  
+   if (gWriteTestData) rc = write_to_file("field-update",gFieldUpdateTime,avg_field);   
 
    double field_change = avg_field - gLastAvgField; 
 
@@ -818,7 +830,7 @@ int update_current(BOOL IsFieldUpdated,BOOL IsFeedbackOn,double current_setpoint
 	 gCounter++;                    // count the update since we possibly changed the current 
       } 
       lvl = gTotalCurrent;              // assign the total current to the level we'll set  
-      if(gWriteTestData) rc = write_to_file("fdbk-on",gCurrentTime,avg_field,theSetpoint,lvl);   
+      if (gWriteTestData) rc = write_to_file("fdbk-on",gCurrentTime,avg_field,theSetpoint,lvl);   
    } else {
       lvl = current_setpoint;		// If not running feedback, use the current_setpoint  
    }
@@ -888,6 +900,25 @@ int write_to_file(const char *tag,unsigned long time,double x,double y,double z)
       return 1; 
    } else {
       sprintf(write_str,"%lu,%.10E,%.10E,%.10E",time,x,y,z); 
+      outfile << write_str << std::endl;
+   } 
+   return 0; 
+}
+//______________________________________________________________________________
+int write_to_file(const char *tag,double time,double x){
+   char myStr[512],filepath[512],write_str[512];
+   int RunNumber=0;
+   int RunNumber_size = sizeof(RunNumber); 
+   db_get_value(hDB,0,"/Runinfo/Run number",&RunNumber,&RunNumber_size,TID_INT, 0);
+   sprintf(filepath,"%s/%s_%05d.csv",TEST_DIR,tag,RunNumber);   
+   ofstream outfile;
+   outfile.open(filepath,ios::app); 
+   if ( outfile.fail() ){
+      sprintf(myStr,"Cannot write to the file: %s.",filepath);
+      cm_msg(MERROR,"write_to_file",myStr); 
+      return 1; 
+   } else {
+      sprintf(write_str,"%.3E,%.10E",time,x); 
       outfile << write_str << std::endl;
    } 
    return 0; 
