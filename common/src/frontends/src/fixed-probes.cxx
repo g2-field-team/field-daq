@@ -735,11 +735,11 @@ void update_feedback_params()
   double uniform_mean_freq = 0.0;
   double weighted_mean_freq = 0.0;
   double filtered_mean_freq = 0.0;
+  double time_of_update = 0.0; 
   double fid_snr_avg = 0.0;
   double fid_snr_stdev = 0.0;
   double fid_len_avg = 0.0;
   double fid_len_stdev = 0.0;
-
 
   std::string outfile = "/home/newg2/Applications/PSFeedback/input/fixed-probe-data.csv";
   std::string lockfile = "/home/newg2/Applications/PSFeedback/input/fixed-probe-data.lock";
@@ -765,6 +765,9 @@ void update_feedback_params()
     db_create_key(hDB, 0, str, TID_DOUBLE);
 
     snprintf(str, sizeof(str), "%s/filtered_mean_nmr_freq", stub);
+    db_create_key(hDB, 0, str, TID_DOUBLE);
+
+    snprintf(str, sizeof(str), "%s/time_of_update", stub);
     db_create_key(hDB, 0, str, TID_DOUBLE);
 
     snprintf(str, sizeof(str), "%s/using_freq_zc", stub);
@@ -847,6 +850,8 @@ void update_feedback_params()
 
   filtered_mean_freq /= f_sum;
 
+  time_of_update = hw::systime_us() * 1000; 
+
   snprintf(str, sizeof(str), "%s/weighted_mean_nmr_freq", stub);
   db_set_value(hDB, 0, str, 
 	       &weighted_mean_freq, 
@@ -864,6 +869,12 @@ void update_feedback_params()
 	       &filtered_mean_freq,
 	       sizeof(filtered_mean_freq),
 	       1, TID_DOUBLE);
+
+  snprintf(str, sizeof(str), "%s/time_of_update", stub); 
+  db_set_value(hDB, 0, str,
+               &time_of_update,
+               sizeof(time_of_update),
+               1,TID_DOUBLE); 
 
   snprintf(str, sizeof(str), "%s/nmr_freq_array", stub);
   db_set_value(hDB, 0, str, &freq, sizeof(freq), 
