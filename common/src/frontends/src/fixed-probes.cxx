@@ -850,7 +850,7 @@ void update_feedback_params()
 
   filtered_mean_freq /= f_sum;
 
-  time_of_update = hw::systime_us() * 1000; 
+  time_of_update = (hw::systime_us() * 1000)/1E+9;   // convert to seconds 
 
   snprintf(str, sizeof(str), "%s/weighted_mean_nmr_freq", stub);
   db_set_value(hDB, 0, str, 
