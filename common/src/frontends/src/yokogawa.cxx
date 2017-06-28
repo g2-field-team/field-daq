@@ -139,6 +139,7 @@ double gLowerLimit = -200E-3; // in Amps
 double gUpperLimit =  200E-3; // in Amps  
 // field change limit  
 double gFieldLimit = 0;       // in Hz; if the change in the field is above this value, we ignore updating the current    
+double gSmallFieldLimit = 1.5; 
 // PID Terms 
 int    gCounter=0;
 double gWindupGuard=20.;  
@@ -715,12 +716,6 @@ int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,doubl
    sprintf(thr_path,"%s/Feedback Threshold (Hz)",SETTINGS_DIR); 
    db_get_value(hDB,0,thr_path,&gFieldLimit,&SIZE_DOUBLE,TID_DOUBLE,0); 
 
-   // char msg[512]; 
-   // if(gUseSingleProbe){
-   //    sprintf(msg,"Now using probe %d for field average",probeNum);
-   //    cm_msg(MINFO,"update_parameters_from_ODB",msg);
-   // }
-
    char pc_path[512];
    sprintf(pc_path,"%s/P Coefficient",SETTINGS_DIR);
    double P_coeff = 0;
@@ -786,20 +781,6 @@ int check_average_field_ODB(double &avg_field){
    sprintf(arr_path,"%s/nmr_freq_array",SHARED_DIR); 
    db_get_value(hDB,0,arr_path,probeFreq,&ARR_SIZE,TID_DOUBLE,0);
 
-   // alternate method 
-   // HNDLE hkey; 
-   // db_find_key(hDB, 0,arr_path, &hkey);                                   
-   // if(hkey == NULL){            
-   //    cm_msg(MERROR, "check_average_field_ODB","unable to find nmr_freq_array key");
-   // }                                      
-   // db_get_data(hDB, hkey, &probeFreq, &ARR_SIZE, TID_DOUBLE); 
-
-   // char msg[512]; 
-   // if(gUseSingleProbe){
-   //    sprintf(msg,"Probe %d: %.5lf kHz",gProbeNum+1,probeFreq[gProbeNum]);
-   //    cm_msg(MINFO,"update_parameters_from_ODB",msg);
-   // }
-
    // get filtered mean frequency  
    char freq_path[SIZE]; 
    double FIELD_AVG=0;
@@ -851,9 +832,22 @@ int update_current(BOOL IsFieldUpdated,BOOL IsFeedbackOn,double current_setpoint
    unsigned long time_of_update = (unsigned long)gFieldUpdateTime;
    if (gWriteTestData) rc = write_to_file("field-update",time_of_update,avg_field);   
 
-   double field_change = avg_field - gLastAvgField; 
+   double field_change     = avg_field - gLastAvgField; 
+   double abs_field_change = fabs(field_change); 
 
    char msg[200];  
+   
+   double err_term     = pidLoop->GetSetpoint() - avg_field; 
+   double abs_err_term = fabs(err_term); 
+
+   bool IsSmallFieldCorr = false;  
+   double delta=0;    
+   if (abs_err_term>gSmallFieldLimit) {
+      // if the change in the field is bigger than the small field limit
+      // apply a small correction that is the small field limit (with the correct sign)  
+      delta = ( abs_err_term/abs_err_term)*gSmallFieldLimit;
+      IsSmallFieldCorr = true;  
+   } 
 
    // Update the current to set 
    // check if feedback is on and the average field value changed
@@ -861,17 +855,19 @@ int update_current(BOOL IsFieldUpdated,BOOL IsFeedbackOn,double current_setpoint
       if (IsFieldUpdated) {
          // the field was updated; so we try to change the current
          // otherwise, leave the current as is for now  
-	 if( (fabs(field_change)>gFieldLimit) && gCounter>1 ) { 
+	 if( (abs_field_change>=gFieldLimit) && gCounter>1 ) { 
 	    // change in field is too large and it's not the first time we try to change 
 	    // the current on the yokogawa. 
 	    sprintf(msg,"The field changed by %.3lf Hz!  Will NOT change the current on the Yokogawa",field_change); 
 	    cm_msg(MERROR,"update_current",msg);
 	    eps = 0.; 
-	 } else {
+	 } else { 
+            // ok, the field change is smaller than the field limit.  let's use the PID loop. 
 	    // send in the average field (in Hz); compares to setpoint 
 	    eps = pidLoop->Update(time_sec,avg_field);    
 	 }
 	 gTotalCurrent = eps;
+         if(IsSmallFieldCorr) gTotalCurrent += delta; 
 	 gCounter++;                    // count the update since we possibly changed the current 
       } 
       lvl = gTotalCurrent;              // assign the total current to the level we'll set  
