@@ -31,6 +31,8 @@ create BOOL "Use Single Probe for Field Avg"
 set "Use Single Probe for Field Avg" false
 create INT "Probe Number for Field Avg"
 set "Probe Number for Field Avg" -1 
+create DOUBLE "Feedback Threshold (Hz)"
+set "Feedback Threshold (Hz)" 100.00 
 
 cd "/Equipment/PS Feedback/Monitors"
 
