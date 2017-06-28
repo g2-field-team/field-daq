@@ -148,7 +148,7 @@ int gProbeNum = -1;
 BOOL gUseSingleProbe = false;  
 double gTotalCurrent=0;
 double gLastCurrent=0;
-double gLastAvgField=0;  
+double gLastAvgField=-100;  
 // time variables 
 unsigned long gCurrentTime=0;
 unsigned long gLastTime=0; 
@@ -227,7 +227,9 @@ INT frontend_init(){
    gTotalCurrent = 0;  
    gLastCurrent  = 0;
    // reset bad correction counter to zero 
-   gCounter      = 0; 
+   gCounter      = 0;
+   // reset last avg field 
+   gLastAvgField = -100;  
 
    pidLoop = new g2field::PID(); 
    pidLoop->SetPID(0,0,0); 
@@ -701,6 +703,12 @@ int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,doubl
    db_get_value(hDB,0,pn_path,&probeNum,&SIZE_INT,TID_INT, 0);
    gProbeNum = probeNum-1;   // probe 100 => index 99 
 
+   // char msg[512]; 
+   // if(gUseSingleProbe){
+   //    sprintf(msg,"Now using probe %d for field average",probeNum);
+   //    cm_msg(MINFO,"update_parameters_from_ODB",msg);
+   // }
+
    char pc_path[512];
    sprintf(pc_path,"%s/P Coefficient",SETTINGS_DIR);
    double P_coeff = 0;
@@ -735,7 +743,9 @@ int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,doubl
    //    }
    // }
 
-   int rc = check_average_field_ODB(avg_field); 
+   double AVG=0;
+   int rc = check_average_field_ODB(AVG);
+   avg_field = AVG;  
 
    return rc; 
 
@@ -747,15 +757,30 @@ int check_average_field_ODB(double &avg_field){
 
    // get all probe frequencies  
    const int NPROBES = 378;
-   double probeFreq[NPROBES]; 
-   int ARR_SIZE = sizeof(probeFreq); 
+   double probeFreq[NPROBES];
+   for(int i=0;i<NPROBES;i++) probeFreq[i] = 0.;  
+   INT ARR_SIZE = sizeof(probeFreq); 
 
    // grab all probe frequencies 
-   const int SIZE = 100; 
+   const int SIZE = 512; 
    char arr_path[SIZE]; 
    sprintf(arr_path,"%s/nmr_freq_array",SHARED_DIR); 
-   db_get_value(hDB,0,arr_path,&probeFreq,&ARR_SIZE,TID_DOUBLE,0);
- 
+   db_get_value(hDB,0,arr_path,probeFreq,&ARR_SIZE,TID_DOUBLE,0);
+
+   // alternate method 
+   // HNDLE hkey; 
+   // db_find_key(hDB, 0,arr_path, &hkey);                                   
+   // if(hkey == NULL){            
+   //    cm_msg(MERROR, "check_average_field_ODB","unable to find nmr_freq_array key");
+   // }                                      
+   // db_get_data(hDB, hkey, &probeFreq, &ARR_SIZE, TID_DOUBLE); 
+
+   // char msg[512]; 
+   // if(gUseSingleProbe){
+   //    sprintf(msg,"Probe %d: %.5lf kHz",gProbeNum+1,probeFreq[gProbeNum]);
+   //    cm_msg(MINFO,"update_parameters_from_ODB",msg);
+   // }
+
    // get filtered mean frequency  
    char freq_path[SIZE]; 
    double FIELD_AVG=0;
@@ -826,7 +851,7 @@ int update_current(BOOL IsFieldUpdated,BOOL IsFeedbackOn,double current_setpoint
 	    // send in the average field (in Hz); compares to setpoint 
 	    eps = pidLoop->Update(time_sec,avg_field);    
 	 }
-	 gTotalCurrent += eps;
+	 gTotalCurrent = eps;
 	 gCounter++;                    // count the update since we possibly changed the current 
       } 
       lvl = gTotalCurrent;              // assign the total current to the level we'll set  
