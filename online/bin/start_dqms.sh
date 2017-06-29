@@ -16,15 +16,15 @@ for dqm in "${EXPT_DQM[@]}"; do
     sleep 0.05
     screen -dmS $artscname
     sleep 0.05
-    screen -S $nodescname -p 0 -rX stuff ". ~/gm2Dev.sh $(printf \\r)"
-    screen -S $artscname -p 0 -rX stuff ". ~/gm2Dev.sh $(printf \\r)"
+    screen -S $nodescname -p 0 -rX stuff ". ~/online_env.sh $(printf \\r)"
+    screen -S $artscname -p 0 -rX stuff ". ~/online_env.sh $(printf \\r)"
     sleep 5
-    screen -S $nodescname -p 0 -rX stuff "cd /home/newg2/gm2Dev/gm2Dev_v7_05_00/srcs/gm2dqm/node $(printf \\r)"
+    screen -S $nodescname -p 0 -rX stuff "cd /home/newg2/Workplace/Online/art/OnlineDev_v7_06_00/srcs/gm2dqm/node $(printf \\r)"
     screen -S $artscname -p 0 -rX stuff "cd /home/newg2/Workplace/Online $(printf \\r)"
     sleep 0.05
 #    screen -S $nodescname -p 0 -rX stuff "export NODE_ENV=production"
     screen -S $nodescname -p 0 -rX stuff "node ${dqmpage}.js $(printf \\r)"
-    screen -S $artscname -p 0 -rX stuff "gm2 -c ${dqmname}-dqm-online.fcl $(printf \\r)"
+    screen -S $artscname -p 0 -rX stuff "gm2 -c fcl/${dqmname}-dqm-online.fcl $(printf \\r)"
 
 done
 # end script

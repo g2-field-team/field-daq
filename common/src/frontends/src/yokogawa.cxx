@@ -30,6 +30,8 @@ $Id$
 #include "g2field/core/field_structs.hh"
 #include "g2field/core/field_constants.hh"
 
+#include "PID.hh"
+
 #include "TTree.h"
 #include "TFile.h"
 
@@ -97,7 +99,7 @@ extern "C" {
 	"MIDAS",                  /* format */
 	TRUE,                     /* enabled */
 	RO_RUNNING,               /* read when running and on odb */
-	1000,                     /* period (read every 1000 ms) */
+	1000,                     /* period (read every 4000 ms) */
 	0,                        /* stop run after this event limit */
 	0,                        /* number of sub events */
 	0,                        /* log history, logged once per minute */
@@ -127,50 +129,45 @@ TFile *pf;
 TTree *pt_norm;
 // my data structures and variables  
 g2field::psfeedback_t PSFBCurrent;            // current value of yokogawa data 
+g2field::PID *pidLoop; 
 vector<g2field::psfeedback_t> PSFBBuffer;     // vector of yokogawa data 
 BOOL gSimMode = false;
 // test data
 BOOL gWriteTestData = false; 
 // hardware limits 
 double gLowerLimit = -200E-3; // in Amps  
-double gUpperLimit =  200E-3; // in Amps   
-double gFieldLimit =  100;    // 100 Hz => 1.62 ppm  
-// P, I, D coefficients 
-double gP_coeff=0;
-double gI_coeff=0;
-double gD_coeff=0;
-// P, I, D terms 
-double gP_term=0;
-double gI_term=0;
-double gD_term=0;
-// other terms we need to keep track of 
-int    gCounter=0; 
-double gTotalCurrent=0;
-double gLastCurrent=0; 
-double gSetpoint=0;
-double gLastErr=0;
-double gIntErr=0;
+double gUpperLimit =  200E-3; // in Amps  
+// field change limit  
+double gFieldLimit = 0;        // in Hz; if the change in the field is above this value, we ignore updating the current    
+double gSmallFieldLimit = 1.5; // in Hz; apply a small correction of 1.5*ScaleFactor if bigger than this 
+// PID Terms 
+int    gCounter=0;
 double gWindupGuard=20.;  
 double gSampleTime=10E-3; // 10 ms  
-double gScaleFactor=1.0;  // in Amps/Hz 
+// other terms we need to keep track of 
+int gEventCounter=0; 
+int gProbeNum = -1;
+BOOL gUseSingleProbe = false; 
+BOOL gIsFeedbackOn = false; 
+double gTotalCurrent=0;
+double gLastCurrent=0;
+double gLastAvgField=-100;  
 // time variables 
 unsigned long gCurrentTime=0;
 unsigned long gLastTime=0; 
+double gFieldUpdateTime=0; 
 
 // my functions 
-void read_from_device();                               // pull data from the Yokogawa 
-void update_p_term(double err,double dt,double derr);  // update P term 
-void update_i_term(double err,double dt,double derr);  // update I term 
-void update_d_term(double err,double dt,double derr);  // update D term 
+void read_from_device();                                   // pull data from the Yokogawa 
 
-double get_new_current(double meas_value);             // get new current based on PID  
+int update_current(BOOL IsFieldUpdated,double current_setpoint,double avg_field);  // update current on the yokogawa 
+int update_parameters_from_ODB(double &current_setpoint,double &avg_field);       // update pars from ODB  
+int check_average_field_ODB(double &avg_field);            // update average field from ODB 
+int check_yokogawa_comms(int rc,const char *func);         // check on the yokogawa communication; run error check if necessary 
+int write_to_file(const char *tag,unsigned long time,double x,double y,double z);                    // print test data to file 
+int write_to_file(const char *tag,unsigned long time,double x);   // another print function           
 
-int update_current(BOOL IsFeedbackOn,double current_setpoint,double avg_field);  // update current on the yokogawa 
-int check_yokogawa_comms(int rc,const char *func);     // check on the yokogawa communication; run error check if necessary 
-int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_field); 
-int write_to_file(unsigned long time,double x,double y);   // testing some variables  
-
-unsigned long get_utc_time();                          // UTC time in milliseconds 
+unsigned long get_utc_time();                              // UTC time in milliseconds 
 
 const char * const psfb_bank_name = "PSFB";     // 4 letters, try to make sensible
 const char * const SETTINGS_DIR   = "/Equipment/PS Feedback/Settings";
@@ -233,7 +230,16 @@ INT frontend_init(){
    gTotalCurrent = 0;  
    gLastCurrent  = 0;
    // reset bad correction counter to zero 
-   gCounter      = 0;  
+   gEventCounter = 0;
+   gCounter      = 0;
+   // reset last avg field 
+   gLastAvgField = -100; 
+   gFieldLimit   = 0;  
+
+   pidLoop = new g2field::PID(); 
+   pidLoop->SetPID(0,0,0); 
+   pidLoop->SetSampleTime(gSampleTime);  
+   pidLoop->SetWindupGuard(gWindupGuard);  
 
    if (!gSimMode) {
       // taking real data, grab the IP address  
@@ -322,6 +328,8 @@ INT frontend_exit(){
          }
       }
    }
+
+   delete pidLoop; 
 
    return SUCCESS;
 }
@@ -487,17 +495,21 @@ INT read_yoko_event(char *pevent,INT off){
    int rc=1; 
 
    // update parameters from ODB 
-   BOOL IsFeedbackOn = false;
    double current_setpoint=0,avg_field=0; 
 
-   rc = update_parameters_from_ODB(IsFeedbackOn,current_setpoint,avg_field);
-   if (rc!=0) { 
+   BOOL IsFieldUpdated = false;
+
+   rc = update_parameters_from_ODB(current_setpoint,avg_field);
+   if (rc>1) { 
       cm_msg(MERROR,"read_yoko_event","Cannot read parameters from ODB!");
-      IsFeedbackOn = false; 
+      gIsFeedbackOn = false; 
    }
 
+   // check to see if the field was updated 
+   if (rc==1) IsFieldUpdated = true; 
+
    // determine the new current to set on the Yokogawa 
-   rc = update_current(IsFeedbackOn,current_setpoint,avg_field);
+   rc = update_current(IsFieldUpdated,current_setpoint,avg_field);
    if (rc!=0) { 
       cm_msg(MERROR,"read_yoko_event","Cannot update the current!");
    }
@@ -559,6 +571,9 @@ INT read_yoko_event(char *pevent,INT off){
    db_set_value(hDB,0,buf_load_path,&BufferLoad,BufferLoad_size,1,TID_INT); 
    free(buf_load_path);  
 
+   // increment event counter 
+   gEventCounter++; 
+
    return bk_size(pevent); 
 }
 //______________________________________________________________________________
@@ -600,9 +615,9 @@ void read_from_device(){
       psfb_data->sys_clock  = gCurrentTime;  // not sure of the difference here... 
       psfb_data->mode       = mode;  
       psfb_data->is_enabled = is_enabled;  
-      psfb_data->p_fdbk     = gP_coeff; 
-      psfb_data->i_fdbk     = gI_coeff; 
-      psfb_data->d_fdbk     = gD_coeff; 
+      psfb_data->p_fdbk     = pidLoop->GetPCoeff(); // gP_coeff; 
+      psfb_data->i_fdbk     = pidLoop->GetICoeff(); // gI_coeff; 
+      psfb_data->d_fdbk     = pidLoop->GetDCoeff(); // gD_coeff; 
       if (mode==yokogawa_interface::kVOLTAGE) {
 	 psfb_data->current = 0.; 
 	 psfb_data->voltage = lvl; 
@@ -610,16 +625,18 @@ void read_from_device(){
 	 psfb_data->current = lvl; 
 	 psfb_data->voltage = 0.; 
       }
+      psfb_data->fdbk_state = (int)gIsFeedbackOn; 
    } else { 
       // this is a simulation, fill with random numbers
       psfb_data->sys_clock  = gCurrentTime;
       psfb_data->current    = (double)(rand() % 100);   // random number between 0 and 100 
       psfb_data->voltage    = 0.;
-      psfb_data->p_fdbk     = gP_coeff; 
-      psfb_data->i_fdbk     = gI_coeff; 
-      psfb_data->d_fdbk     = gD_coeff; 
+      psfb_data->p_fdbk     = pidLoop->GetPCoeff(); // gP_coeff; 
+      psfb_data->i_fdbk     = pidLoop->GetICoeff(); // gI_coeff; 
+      psfb_data->d_fdbk     = pidLoop->GetDCoeff(); // gD_coeff; 
       psfb_data->mode       = -1;  
       psfb_data->is_enabled = 0;  
+      psfb_data->fdbk_state = 0; 
    } 
    // fill buffer 
    mlock_data.lock(); 
@@ -632,6 +649,8 @@ void read_from_device(){
    double current_val = lvl/1E-3;
    db_set_value(hDB,0,current_read_path,&current_val,sizeof(current_val),1,TID_DOUBLE);
 
+   if (gWriteTestData) write_to_file("yoko-readout",gCurrentTime,lvl); 
+ 
    // clean up for next read 
    delete psfb_data;
 
@@ -644,7 +663,7 @@ void read_from_device(){
 
 }
 //______________________________________________________________________________
-int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_field){
+int update_parameters_from_ODB(double &current_setpoint,double &avg_field){
    // update values from the ODB 
 
    // can't do this for some reason... 
@@ -659,15 +678,8 @@ int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,doubl
    double sf = 0;
    int SIZE_DOUBLE  = sizeof(sf);  
    db_get_value(hDB,0,sf_path,&sf,&SIZE_DOUBLE,TID_DOUBLE, 0);
-   gScaleFactor = 1./(sf*1E+6);  // converts to Amps/Hz 
- 
-   double FIELD_AVG=0;
-   const int SIZE = 100; 
-   char *freq_path = (char *)malloc( sizeof(char)*(SIZE+1) ); 
-   sprintf(freq_path,"%s/filtered_mean_nmr_freq",SHARED_DIR);
-   db_get_value(hDB,0,freq_path,&FIELD_AVG,&SIZE_DOUBLE,TID_DOUBLE, 0);
-   free(freq_path);
-   avg_field  = FIELD_AVG*1E+3;  // convert from kHz -> Hz  
+   double sf_Amps_per_Hz = 1./(sf*1E+6);   
+   pidLoop->SetScaleFactor(sf_Amps_per_Hz); 
 
    double CURRENT=0; 
    char current_set_path[512];
@@ -680,34 +692,49 @@ int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,doubl
    double field_setpoint=0;
    db_get_value(hDB,0,field_set_path,&field_setpoint,&SIZE_DOUBLE,TID_DOUBLE, 0);
    field_setpoint *= 1E+3;              // convert from kHz -> Hz! 
-   gSetpoint       = field_setpoint;    // use the FIELD setpoint here!  
+   // pidLoop->SetSetpoint(field_setpoint); 
 
    char switch_path[512];
    sprintf(switch_path,"%s/Feedback Active",SETTINGS_DIR);
-   int SIZE_BOOL = sizeof(IsFeedbackOn);
-   db_get_value(hDB,0,switch_path,&IsFeedbackOn,&SIZE_BOOL,TID_BOOL, 0);
+   int SIZE_BOOL = sizeof(gIsFeedbackOn);
+   db_get_value(hDB,0,switch_path,&gIsFeedbackOn,&SIZE_BOOL,TID_BOOL, 0);
 
    char test_flag_path[512];
    sprintf(test_flag_path,"%s/Write Test File",SETTINGS_DIR);
    db_get_value(hDB,0,test_flag_path,&gWriteTestData,&SIZE_BOOL,TID_BOOL, 0);
 
+   char pr_path[512];
+   sprintf(pr_path,"%s/Use Single Probe for Field Avg",SETTINGS_DIR);
+   db_get_value(hDB,0,pr_path,&gUseSingleProbe,&SIZE_BOOL,TID_BOOL, 0);
+
+   char pn_path[512];
+   int probeNum = -1;
+   int SIZE_INT = sizeof(probeNum); 
+   sprintf(pn_path,"%s/Probe Number for Field Avg",SETTINGS_DIR);
+   db_get_value(hDB,0,pn_path,&probeNum,&SIZE_INT,TID_INT, 0);
+   gProbeNum = probeNum-1;   // probe 100 => index 99 
+
+   char thr_path[512]; 
+   sprintf(thr_path,"%s/Feedback Threshold (Hz)",SETTINGS_DIR); 
+   db_get_value(hDB,0,thr_path,&gFieldLimit,&SIZE_DOUBLE,TID_DOUBLE,0); 
+
    char pc_path[512];
    sprintf(pc_path,"%s/P Coefficient",SETTINGS_DIR);
    double P_coeff = 0;
    db_get_value(hDB,0,pc_path,&P_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
-   gP_coeff = P_coeff; 
+   pidLoop->SetPCoeff(P_coeff);  
 
    char ic_path[512];
    sprintf(ic_path,"%s/I Coefficient",SETTINGS_DIR);
    double I_coeff = 0;
    db_get_value(hDB,0,ic_path,&I_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
-   gI_coeff = I_coeff; 
+   pidLoop->SetICoeff(I_coeff);  
 
    char dc_path[512];
    sprintf(dc_path,"%s/D Coefficient",SETTINGS_DIR);
    double D_coeff = 0;
    db_get_value(hDB,0,dc_path,&D_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
-   gD_coeff = D_coeff; 
+   pidLoop->SetDCoeff(D_coeff);  
 
    // if(IsOutputEnabled){
    //    rc = yokogawa_interface::set_output_state(yokogawa_interface::kENABLED); 
@@ -725,30 +752,143 @@ int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,doubl
    //    }
    // }
 
-   return 0; 
+   double AVG=0;
+   int rc = check_average_field_ODB(AVG);
+   avg_field = AVG;  
+
+   char msg[512]; 
+
+   // Use first event to set the field setpoint 
+   if (gEventCounter==0) {
+      pidLoop->SetSetpoint(avg_field); 
+      sprintf(msg,"The setpoint is %.3lf kHz",avg_field/1E+3); 
+      cm_msg(MINFO,"update_parameters_from_ODB",msg);
+   } else { 
+      // pidLoop->SetSetpoint(field_setpoint); 
+   }
+
+   return rc; 
 
 }
 //______________________________________________________________________________
-int update_current(BOOL IsFeedbackOn,double current_setpoint,double avg_field){
+int check_average_field_ODB(double &avg_field){
+   // check to see if the average field has changed  
+   int rc=0;  // no field change
+
+   // get all probe frequencies  
+   const int NPROBES = 378;
+   double probeFreq[NPROBES];
+   for(int i=0;i<NPROBES;i++) probeFreq[i] = 0.;  
+   INT ARR_SIZE = sizeof(probeFreq); 
+
+   // grab all probe frequencies 
+   const int SIZE = 512; 
+   char arr_path[SIZE]; 
+   sprintf(arr_path,"%s/nmr_freq_array",SHARED_DIR); 
+   db_get_value(hDB,0,arr_path,probeFreq,&ARR_SIZE,TID_DOUBLE,0);
+
+   // get filtered mean frequency  
+   char freq_path[SIZE]; 
+   double FIELD_AVG=0;
+   int SIZE_DOUBLE = sizeof(FIELD_AVG);  
+   sprintf(freq_path,"%s/filtered_mean_nmr_freq",SHARED_DIR);
+   db_get_value(hDB,0,freq_path,&FIELD_AVG,&SIZE_DOUBLE,TID_DOUBLE, 0);
+
+   // get time of updated frequency  
+   char time_path[SIZE]; 
+   double TIME=0;
+   sprintf(time_path,"%s/time_of_update",SHARED_DIR);
+   db_get_value(hDB,0,freq_path,&TIME,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   gFieldUpdateTime = TIME; 
+
+   // are we using a single probe for the field average? 
+   if (gUseSingleProbe) FIELD_AVG = probeFreq[gProbeNum]; 
+   
+   FIELD_AVG *= 1E+3;   // convert from kHz -> Hz 
+
+   if (avg_field != gLastAvgField ) {
+      // average field changed!  
+      avg_field  = FIELD_AVG;  // convert from kHz -> Hz 
+      rc = 1;
+   } 
+ 
+   return rc;  
+}
+//______________________________________________________________________________
+int update_current(BOOL IsFieldUpdated,double current_setpoint,double avg_field){
    // update the current on the yokogawa based on the ODB
    int rc=-1;
    double lvl=0,eps=0,test_sum=0; 
    
    gCurrentTime = get_utc_time();
+   double time_sec = gCurrentTime/1E+9; 
 
-   eps = get_new_current(avg_field);
-   if(gWriteTestData){ 
-      rc = write_to_file(gCurrentTime,avg_field,eps);  // converting the field value back to Hz 
+   // get the setpoint for printing to file
+   double theSetpoint = pidLoop->GetSetpoint(); 
+
+   // eps = get_new_current(avg_field);
+   if(gWriteTestData && !gIsFeedbackOn){ 
+      eps = pidLoop->Update(time_sec,avg_field);    
+      rc  = write_to_file("fdbk-off"    ,gCurrentTime,avg_field,theSetpoint,eps);   
+      // reset before we do any real calculation... 
+      eps = 0.;
    }
 
-   if (IsFeedbackOn) {
-     eps = get_new_current(avg_field);  // send in the average field (in amps); compares to setpoint   
-     gTotalCurrent += eps;
-     lvl = gTotalCurrent; 
+   // write the field data regardless of feedback being on or off  
+   unsigned long time_of_update = (unsigned long)gFieldUpdateTime;
+   if (gWriteTestData) rc = write_to_file("field-update",time_of_update,avg_field);   
+
+   double field_change     = avg_field - gLastAvgField; 
+   double abs_field_change = fabs(field_change); 
+
+   char msg[200];  
+   
+   double err_term     = theSetpoint - avg_field; 
+   double abs_err_term = fabs(err_term); 
+
+   bool IsSmallFieldCorr = false;  
+   double delta=0;    
+   if (abs_err_term>gSmallFieldLimit) {
+      // if the change in the field is bigger than the small field limit
+      // apply a small correction that is the small field limit (with the correct sign)  
+      delta = (abs_err_term/abs_err_term)*gSmallFieldLimit*pidLoop->GetScaleFactor();   // scale factor puts us in Amps 
+      IsSmallFieldCorr = true;  
+   } 
+
+   // Update the current to set 
+   // check if feedback is on and the average field value changed
+   if (gIsFeedbackOn) {
+      if (IsFieldUpdated) {
+         // the field was updated; so we try to change the current
+         // otherwise, leave the current as is for now  
+	 if( (abs_field_change>=gFieldLimit) && gCounter>1 ) { 
+	    // change in field is too large and it's not the first time we try to change 
+	    // the current on the yokogawa. 
+	    sprintf(msg,"The field changed by %.3lf Hz!  Will NOT change the current on the Yokogawa",field_change); 
+	    cm_msg(MERROR,"update_current",msg);
+	    eps = 0.; 
+	 } else { 
+            // ok, the field change is smaller than the field limit.  let's use the PID loop. 
+	    // send in the average field (in Hz); compares to setpoint 
+	    // eps = pidLoop->Update(time_sec,avg_field);    
+	 }
+	 // gTotalCurrent = eps;
+         if(IsSmallFieldCorr){
+            strcpy(msg,""); 
+	    sprintf(msg,"Accumulating small change of %.3lf A",delta); 
+	    cm_msg(MINFO,"update_current",msg);
+	    gTotalCurrent += delta;
+         } 
+	 gCounter++;                    // count the update since we possibly changed the current 
+      } 
+      lvl = gTotalCurrent;              // assign the total current to the level we'll set  
+      if (gWriteTestData) rc = write_to_file("fdbk-on",gCurrentTime,avg_field,theSetpoint,lvl);   
    } else {
-     lvl = current_setpoint;		// If not running feedback, set the current.
+      lvl = current_setpoint;		// If not running feedback, use the current_setpoint  
    }
-
+   
+   // now check the current we'll set
+   // does it meet the hardware limits? 
    if (!gSimMode) { 
       // operational mode, check the level first  
       if (lvl>gLowerLimit && lvl<gUpperLimit) {  
@@ -767,60 +907,11 @@ int update_current(BOOL IsFeedbackOn,double current_setpoint,double avg_field){
       // simulation, do nothing  
    }
    
-   // keep track of the last current if we ever need it... 
-   gLastCurrent = gTotalCurrent; 
+   // keep track of the last current and field if we ever need it... 
+   gLastCurrent  = gTotalCurrent; 
+   gLastAvgField = avg_field;
 
    return rc;  
-}
-//_____________________________________________________________________________
-double get_new_current(double meas_value){
-   char msg[200];  
-   double err  = gSetpoint - meas_value;
-   double dt   = (double)(gCurrentTime - gLastTime)/1E+9; // puts this in seconds 
-   double derr = err - gLastErr;
-   update_p_term(err,dt,derr);
-   update_i_term(err,dt,derr);
-   update_d_term(err,dt,derr);
-   double output = gScaleFactor*( gP_term + gI_coeff*gI_term + gD_coeff*gD_term );
-   // check the new current
-   // if the change in the field (err) is too large, 
-   // set the output of this function to zero.
-   // a large change is allowed once (i.e., the first time we compute the current) 
-   if( (fabs(err)>gFieldLimit) && (gCounter>1) ) {
-      sprintf(msg,"The field changed by %.3lf Hz!  Will NOT change the current on the Yokogawa",err); 
-      cm_msg(MERROR,"get_new_current",msg);
-      output = 0.;  
-      gCounter++; 
-   }
-   // remember values for next calculation 
-   gLastTime     = gCurrentTime;
-   gLastErr      = err;
-
-   return output;
-}
-//______________________________________________________________________________
-void update_p_term(double err,double dtime,double derror){
-   if (dtime >= gSampleTime) {
-      gP_term = gP_coeff*err;
-   }
-}
-//______________________________________________________________________________
-void update_i_term(double err,double dtime,double derror){
-   if (dtime >= gSampleTime) {
-      gI_term += err*dtime;
-      if (gI_term< (-1.)*gWindupGuard) {
-         gI_term = (-1.)*gWindupGuard;
-      } else if (gI_term>gWindupGuard) {
-         gI_term = gWindupGuard;
-      }
-   }
-}
-//______________________________________________________________________________
-void update_d_term(double err,double dtime,double derror){
-   gD_term = 0.;
-   if (dtime >= gSampleTime) {
-      if (dtime>0) gD_term = derror/dtime;
-   }
 }
 //______________________________________________________________________________
 unsigned long get_utc_time(){
@@ -847,12 +938,12 @@ int check_yokogawa_comms(int rc,const char *func){
    return RC; 
 } 
 //______________________________________________________________________________
-int write_to_file(unsigned long time,double x,double y){
+int write_to_file(const char *tag,unsigned long time,double x,double y,double z){
    char myStr[512],filepath[512],write_str[512];
    int RunNumber=0;
    int RunNumber_size = sizeof(RunNumber); 
    db_get_value(hDB,0,"/Runinfo/Run number",&RunNumber,&RunNumber_size,TID_INT, 0);
-   sprintf(filepath,"%s/filtered_mean_nmr_freq_%05d.csv",TEST_DIR,RunNumber);   
+   sprintf(filepath,"%s/%s_%05d.csv",TEST_DIR,tag,RunNumber);   
    ofstream outfile;
    outfile.open(filepath,ios::app); 
    if ( outfile.fail() ){
@@ -860,8 +951,28 @@ int write_to_file(unsigned long time,double x,double y){
       cm_msg(MERROR,"write_to_file",myStr); 
       return 1; 
    } else {
-      sprintf(write_str,"%lu,%.3E,%.3E",time,x,y); 
+      sprintf(write_str,"%lu,%.10E,%.10E,%.10E",time,x,y,z); 
       outfile << write_str << std::endl;
    } 
+   return 0; 
+}
+//______________________________________________________________________________
+int write_to_file(const char *tag,unsigned long time,double x){
+   char myStr[512],filepath[512],write_str[512];
+   int RunNumber=0;
+   int RunNumber_size = sizeof(RunNumber); 
+   db_get_value(hDB,0,"/Runinfo/Run number",&RunNumber,&RunNumber_size,TID_INT, 0);
+   sprintf(filepath,"%s/%s_%05d.csv",TEST_DIR,tag,RunNumber);   
+   ofstream outfile;
+   outfile.open(filepath,ios::app); 
+   if ( outfile.fail() ){
+      sprintf(myStr,"Cannot write to the file: %s.",filepath);
+      cm_msg(MERROR,"write_to_file",myStr); 
+      return 1; 
+   } else {
+      sprintf(write_str,"%lu,%.10E",time,x); 
+      outfile << write_str << std::endl;
+   } 
+   return 0; 
 }
 

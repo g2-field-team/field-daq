@@ -6,13 +6,15 @@ cd "/Equipment/PS Feedback/Settings"
 create STRING "IP address[1][256]"
 set "IP address" "192.168.5.160"
 create BOOL "Root Output"
-set "Root Output" false
+set "Root Output" true 
 create STRING "Root Dir[1][256]"
 set "Root Dir" "/home/newg2/Applications/field-daq/resources/root/"
 create BOOL "Simulation Mode"
 set "Simulation Mode" false
 create BOOL "Feedback Active"
 set "Feedback Active" false
+create BOOL "Write Test File"
+set "Write Test File" false
 create DOUBLE "Current Setpoint (mA)"
 set "Current Setpoint (mA)" 0.000
 create DOUBLE "Field Setpoint (kHz)"
@@ -23,8 +25,14 @@ create DOUBLE "I Coefficient"
 set "I Coefficient" 0.000
 create DOUBLE "D Coefficient"
 set "D Coefficient" 0.000
-create DOUBLE "Scale Factor (Amps_per_Hz)"
-set "Scale Factor (Amps_per_Hz)" 1.000
+create DOUBLE "Scale Factor (kHz per mA)"
+set "Scale Factor (kHz per mA)" 1.000
+create BOOL "Use Single Probe for Field Avg"
+set "Use Single Probe for Field Avg" false
+create INT "Probe Number for Field Avg"
+set "Probe Number for Field Avg" -1 
+create DOUBLE "Feedback Threshold (Hz)"
+set "Feedback Threshold (Hz)" 100.00 
 
 cd "/Equipment/PS Feedback/Monitors"
 
