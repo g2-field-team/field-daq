@@ -82,7 +82,7 @@ namespace {
   char errBuff[2048]={'\0'};
   //--- Channel Parameters ----------------------------------------------------//
   int32 numChannels = AQ_TOTALCHAN; //defined in fluxgate_utils.hh
-  const char *physicalChannelDC = "Dev1/ai0:31"; //creates DC AI channels 16-27
+  const char *physicalChannelDC = "Dev1/ai0:15"; //creates DC AI channels 16-27
   float64 minVolDC = -10.0;
   float64 maxVolDC = 10.0;
   const char *physicalChannelAC = "Dev1/ai12:15"; //creates AC AI channels 28-31
@@ -145,7 +145,6 @@ INT frontend_exit(){
 INT begin_of_run(INT run_number, char *err){
 
   // ODB parameters
-    HNDLE hDB, hkey;
     char str[256];
     int dbsize;
     BOOL flag;
@@ -160,63 +159,26 @@ INT begin_of_run(INT run_number, char *err){
 //  db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/physicalChannelDC",&physicalChannelDC,sizeof(physicalChannelDC),1,TID_STRING);
   DAQerr = DAQmxBaseCreateAIVoltageChan(taskHandle, physicalChannelDC, "Voltage", DAQmx_Val_Cfg_Default, minVolDC, maxVolDC, DAQmx_Val_Volts, NULL);
   NIERRORCHECK_SUCCESSMSG("begin_of_run","error creating fluxgate DC channels","fluxgate DC channels created");
-/*
-  if( DAQmxFailed(DAQerr) ) {
-    DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
-    cm_msg(MERROR,"begin_of_run","error creating fluxgate DC channels");
-    cm_msg(MERROR,"begin_of_run",errBuff);
-  }
-  else {
-    cm_msg(MINFO,"begin_of_run","fluxgate DC channels created");
-  }
-*/  
+
 //  create AC channels
 //  db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/minVolAC",&minVolAC,floatSize,TID_FLOAT, 0);
 //  db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/maxVolAC",&maxVolAC,sizeof(maxVolAC),TID_FLOAT, 0);
 //  db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/physicalChannelAC",&physicalChannelAC,sizeof(physicalChannelAC),1,TID_STRING);
 //  DAQerr = DAQmxBaseCreateAIVoltageChan(taskHandle, physicalChannelAC, "Voltage", DAQmx_Val_Cfg_Default, minVolAC, maxVolAC, DAQmx_Val_Volts, NULL);
 //  NIERRORCHECK_SUCCESSMSG("begin_of_run","error creating fluxgate AC channels","fluxgate AC channels created");
-/*
-  if( DAQmxFailed(DAQerr) ) {
-    DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
-    cm_msg(MERROR,"begin_of_run","error creating fluxgate AC channels");
-    cm_msg(MERROR,"begin_of_run",errBuff);
-  }
-  else {
-    cm_msg(MINFO,"begin_of_run","fluxgate AC channels created");
-  }
-*/  
-  //setup timing
+
+//setup timing
 
   db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/aqRate",&aqRate,sizeof(aqRate),1,TID_FLOAT);
   db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/aqTime",&aqTime,sizeof(aqTime),1,TID_FLOAT);
-  db_set_value(hDB, 0, "/Equipment/Fluxgate/Settings/sampsPerChanToAcquire", &sampsPerChanToAcquire, sizeof(sampsPerChanToAcquire), 1, TID_INT);
+  db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/sampsPerChanToAcquire", &sampsPerChanToAcquire, sizeof(sampsPerChanToAcquire), 1, TID_INT);
   DAQerr = DAQmxBaseCfgSampClkTiming(taskHandle, "", aqRate, DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, sampsPerChanToAcquire);
   NIERRORCHECK_SUCCESSMSG("begin_of_run","error configuring fluxgate sample clock","fluxgate sample clock configured");
-/*
-  if( DAQmxFailed(DAQerr) ) {
-    DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
-    cm_msg(MERROR,"begin_of_run","error configuring fluxgate sample clock");
-    cm_msg(MERROR,"begin_of_run",errBuff);
-  }
-  else {
-    cm_msg(MINFO,"begin_of_run","fluxgate sample clock configured");
-  }
-*/
+
   //start task
   DAQerr = DAQmxBaseStartTask(taskHandle);
   NIERRORCHECK_NOSUCCESSMSG("begin_of_run","error starting fluxgate task");
-/*
-  if( DAQmxFailed(DAQerr) ) {
-    DAQmxBaseGetExtendedErrorInfo(errBuff,2048);
 
-    cm_msg(MERROR,"begin_of_run","error starting fluxgate task");
-    cm_msg(MERROR,"begin_of_run",errBuff);
-  }
-  else {
-    cm_msg(MINFO,"begin_of_run","fluxgate task started");
-  }
-*/
   return SUCCESS;
 }
 
@@ -322,14 +284,15 @@ INT read_fluxgate_event(char *pevent, INT off){
 //-----  Copy the fluxgate data.
 
 //-----  Write to debug file
-  bool writeDebug;
+  BOOL writeDebug = TRUE;
   int writeDebugSize = sizeof(writeDebug);
-  db_find_key(hDB,0,"/Equipment/Fluxgate/Settings/writeDebug",&hkey);
-  if(!hkey){
-    writeDebug = TRUE;
-  }else{
-    db_get_data(hDB,hkey,&writeDebug,&writeDebugSize,TID_BOOL);
-  }
+//  db_find_key(hDB,0,"/Equipment/Fluxgate/Settings/writeDebug",&hkey);
+//  if(!hkey){
+//    writeDebug = TRUE;
+//  }else{
+//    db_get_data(hDB,hkey,&writeDebug,&writeDebugSize,TID_BOOL);
+//  }
+  db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/writeDebug",&writeDebug,&writeDebugSize,TID_BOOL,0);
   if(writeDebug){
 /*    time_t rawTime;
     struct tm * timeinfo;
