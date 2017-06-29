@@ -138,8 +138,8 @@ BOOL gWriteTestData = false;
 double gLowerLimit = -200E-3; // in Amps  
 double gUpperLimit =  200E-3; // in Amps  
 // field change limit  
-double gFieldLimit = 0;       // in Hz; if the change in the field is above this value, we ignore updating the current    
-double gSmallFieldLimit = 1.5; 
+double gFieldLimit = 0;        // in Hz; if the change in the field is above this value, we ignore updating the current    
+double gSmallFieldLimit = 1.5; // in Hz; apply a small correction of 1.5*ScaleFactor if bigger than this 
 // PID Terms 
 int    gCounter=0;
 double gWindupGuard=20.;  
@@ -147,7 +147,8 @@ double gSampleTime=10E-3; // 10 ms
 // other terms we need to keep track of 
 int gEventCounter=0; 
 int gProbeNum = -1;
-BOOL gUseSingleProbe = false;  
+BOOL gUseSingleProbe = false; 
+BOOL gIsFeedbackOn = false; 
 double gTotalCurrent=0;
 double gLastCurrent=0;
 double gLastAvgField=-100;  
@@ -159,8 +160,8 @@ double gFieldUpdateTime=0;
 // my functions 
 void read_from_device();                                   // pull data from the Yokogawa 
 
-int update_current(BOOL IsFieldUpdated,BOOL IsFeedbackOn,double current_setpoint,double avg_field);  // update current on the yokogawa 
-int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_field);       // update pars from ODB  
+int update_current(BOOL IsFieldUpdated,double current_setpoint,double avg_field);  // update current on the yokogawa 
+int update_parameters_from_ODB(double &current_setpoint,double &avg_field);       // update pars from ODB  
 int check_average_field_ODB(double &avg_field);            // update average field from ODB 
 int check_yokogawa_comms(int rc,const char *func);         // check on the yokogawa communication; run error check if necessary 
 int write_to_file(const char *tag,unsigned long time,double x,double y,double z);                    // print test data to file 
@@ -494,22 +495,21 @@ INT read_yoko_event(char *pevent,INT off){
    int rc=1; 
 
    // update parameters from ODB 
-   BOOL IsFeedbackOn = false;
    double current_setpoint=0,avg_field=0; 
 
    BOOL IsFieldUpdated = false;
 
-   rc = update_parameters_from_ODB(IsFeedbackOn,current_setpoint,avg_field);
+   rc = update_parameters_from_ODB(current_setpoint,avg_field);
    if (rc>1) { 
       cm_msg(MERROR,"read_yoko_event","Cannot read parameters from ODB!");
-      IsFeedbackOn = false; 
+      gIsFeedbackOn = false; 
    }
 
    // check to see if the field was updated 
    if (rc==1) IsFieldUpdated = true; 
 
    // determine the new current to set on the Yokogawa 
-   rc = update_current(IsFieldUpdated,IsFeedbackOn,current_setpoint,avg_field);
+   rc = update_current(IsFieldUpdated,current_setpoint,avg_field);
    if (rc!=0) { 
       cm_msg(MERROR,"read_yoko_event","Cannot update the current!");
    }
@@ -625,6 +625,7 @@ void read_from_device(){
 	 psfb_data->current = lvl; 
 	 psfb_data->voltage = 0.; 
       }
+      psfb_data->fdbk_state = (int)gIsFeedbackOn; 
    } else { 
       // this is a simulation, fill with random numbers
       psfb_data->sys_clock  = gCurrentTime;
@@ -635,6 +636,7 @@ void read_from_device(){
       psfb_data->d_fdbk     = pidLoop->GetDCoeff(); // gD_coeff; 
       psfb_data->mode       = -1;  
       psfb_data->is_enabled = 0;  
+      psfb_data->fdbk_state = 0; 
    } 
    // fill buffer 
    mlock_data.lock(); 
@@ -661,7 +663,7 @@ void read_from_device(){
 
 }
 //______________________________________________________________________________
-int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,double &avg_field){
+int update_parameters_from_ODB(double &current_setpoint,double &avg_field){
    // update values from the ODB 
 
    // can't do this for some reason... 
@@ -694,8 +696,8 @@ int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,doubl
 
    char switch_path[512];
    sprintf(switch_path,"%s/Feedback Active",SETTINGS_DIR);
-   int SIZE_BOOL = sizeof(IsFeedbackOn);
-   db_get_value(hDB,0,switch_path,&IsFeedbackOn,&SIZE_BOOL,TID_BOOL, 0);
+   int SIZE_BOOL = sizeof(gIsFeedbackOn);
+   db_get_value(hDB,0,switch_path,&gIsFeedbackOn,&SIZE_BOOL,TID_BOOL, 0);
 
    char test_flag_path[512];
    sprintf(test_flag_path,"%s/Write Test File",SETTINGS_DIR);
@@ -754,9 +756,13 @@ int update_parameters_from_ODB(BOOL &IsFeedbackOn,double &current_setpoint,doubl
    int rc = check_average_field_ODB(AVG);
    avg_field = AVG;  
 
+   char msg[512]; 
+
    // Use first event to set the field setpoint 
    if (gEventCounter==0) {
-      pidLoop->SetSetpoint(avg_field);  
+      pidLoop->SetSetpoint(avg_field); 
+      sprintf(msg,"The setpoint is %.3lf kHz",avg_field/1E+3); 
+      cm_msg(MINFO,"update_parameters_from_ODB",msg);
    } else { 
       // pidLoop->SetSetpoint(field_setpoint); 
    }
@@ -809,7 +815,7 @@ int check_average_field_ODB(double &avg_field){
    return rc;  
 }
 //______________________________________________________________________________
-int update_current(BOOL IsFieldUpdated,BOOL IsFeedbackOn,double current_setpoint,double avg_field){
+int update_current(BOOL IsFieldUpdated,double current_setpoint,double avg_field){
    // update the current on the yokogawa based on the ODB
    int rc=-1;
    double lvl=0,eps=0,test_sum=0; 
@@ -821,7 +827,7 @@ int update_current(BOOL IsFieldUpdated,BOOL IsFeedbackOn,double current_setpoint
    double theSetpoint = pidLoop->GetSetpoint(); 
 
    // eps = get_new_current(avg_field);
-   if(gWriteTestData && !IsFeedbackOn){ 
+   if(gWriteTestData && !gIsFeedbackOn){ 
       eps = pidLoop->Update(time_sec,avg_field);    
       rc  = write_to_file("fdbk-off"    ,gCurrentTime,avg_field,theSetpoint,eps);   
       // reset before we do any real calculation... 
@@ -837,7 +843,7 @@ int update_current(BOOL IsFieldUpdated,BOOL IsFeedbackOn,double current_setpoint
 
    char msg[200];  
    
-   double err_term     = pidLoop->GetSetpoint() - avg_field; 
+   double err_term     = theSetpoint - avg_field; 
    double abs_err_term = fabs(err_term); 
 
    bool IsSmallFieldCorr = false;  
@@ -845,13 +851,13 @@ int update_current(BOOL IsFieldUpdated,BOOL IsFeedbackOn,double current_setpoint
    if (abs_err_term>gSmallFieldLimit) {
       // if the change in the field is bigger than the small field limit
       // apply a small correction that is the small field limit (with the correct sign)  
-      delta = ( abs_err_term/abs_err_term)*gSmallFieldLimit;
+      delta = (abs_err_term/abs_err_term)*gSmallFieldLimit*pidLoop->GetScaleFactor();   // scale factor puts us in Amps 
       IsSmallFieldCorr = true;  
    } 
 
    // Update the current to set 
    // check if feedback is on and the average field value changed
-   if (IsFeedbackOn) {
+   if (gIsFeedbackOn) {
       if (IsFieldUpdated) {
          // the field was updated; so we try to change the current
          // otherwise, leave the current as is for now  
@@ -864,10 +870,15 @@ int update_current(BOOL IsFieldUpdated,BOOL IsFeedbackOn,double current_setpoint
 	 } else { 
             // ok, the field change is smaller than the field limit.  let's use the PID loop. 
 	    // send in the average field (in Hz); compares to setpoint 
-	    eps = pidLoop->Update(time_sec,avg_field);    
+	    // eps = pidLoop->Update(time_sec,avg_field);    
 	 }
-	 gTotalCurrent = eps;
-         if(IsSmallFieldCorr) gTotalCurrent += delta; 
+	 // gTotalCurrent = eps;
+         if(IsSmallFieldCorr){
+            strcpy(msg,""); 
+	    sprintf(msg,"Accumulating small change of %.3lf A",delta); 
+	    cm_msg(MINFO,"update_current",msg);
+	    gTotalCurrent += delta;
+         } 
 	 gCounter++;                    // count the update since we possibly changed the current 
       } 
       lvl = gTotalCurrent;              // assign the total current to the level we'll set  
