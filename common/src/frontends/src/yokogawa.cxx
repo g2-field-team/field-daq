@@ -851,7 +851,7 @@ int update_current(BOOL IsFieldUpdated,double current_setpoint,double avg_field)
    if (abs_err_term>gSmallFieldLimit) {
       // if the change in the field is bigger than the small field limit
       // apply a small correction that is the small field limit (with the correct sign)  
-      delta = (abs_err_term/abs_err_term)*gSmallFieldLimit*pidLoop->GetScaleFactor();   // scale factor puts us in Amps 
+      delta = (err_term/abs_err_term)*gSmallFieldLimit*pidLoop->GetScaleFactor();   // scale factor puts us in Amps 
       IsSmallFieldCorr = true;  
    } 
 
@@ -874,9 +874,9 @@ int update_current(BOOL IsFieldUpdated,double current_setpoint,double avg_field)
 	 }
 	 // gTotalCurrent = eps;
          if(IsSmallFieldCorr){
-            strcpy(msg,""); 
-	    sprintf(msg,"Accumulating small change of %.3lf A",delta); 
-	    cm_msg(MINFO,"update_current",msg);
+            // strcpy(msg,""); 
+	    // sprintf(msg,"Accumulating small change of %.3lf A",delta); 
+	    // cm_msg(MINFO,"update_current",msg);
 	    gTotalCurrent += delta;
          } 
 	 gCounter++;                    // count the update since we possibly changed the current 
