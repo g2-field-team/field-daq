@@ -7,7 +7,7 @@
   <key name="ODB Dump" type="BOOL">y</key>
   <key name="Watchdog timeout" type="DWORD">60000</key>
   <key name="Write data" type="BOOL">y</key>
-  <key name="ODB Dump File" type="STRING" size="256">run%05d.json</key>
+  <key name="ODB Dump File" type="STRING" size="256">gm2field_run%05d.json</key>
   <key name="Auto restart delay" type="INT">0</key>
   <key name="Tape message" type="BOOL">y</key>
   <dir name="Channels">
@@ -15,7 +15,7 @@
       <dir name="Settings">
         <key name="Active" type="BOOL">y</key>
         <key name="Type" type="STRING" size="8">Disk</key>
-        <key name="Filename" type="STRING" size="256">run%05d_%02d.mid</key>
+        <key name="Filename" type="STRING" size="256">gm2field_run%05d_%02d.mid</key>
         <key name="Format" type="STRING" size="8">MIDAS</key>
         <key name="Compression" type="INT">0</key>
         <key name="ODB dump" type="BOOL">y</key>
@@ -28,7 +28,7 @@
         <key name="Subrun Byte limit" type="DOUBLE">2000000000</key>
         <key name="Tape capacity" type="DOUBLE">0</key>
         <key name="Subdir format" type="STRING" size="32"></key>
-        <key name="Current filename" type="STRING" size="256">run00481_00.mid.gz</key>
+        <key name="Current filename" type="STRING" size="256">gm2field_run00481_00.mid.gz</key>
         <key name="Data checksum" type="STRING" size="256">CRC32C (one of: NONE CRC32C SHA256 SHA512 ZLIB)</key>
         <key name="File checksum" type="STRING" size="256">CRC32C (one of: NONE CRC32C SHA256 SHA512 ZLIB)</key>
         <key name="Compress" type="STRING" size="256">gzip (one of: none gzip lz4 bzip2 pbzip2)</key>
