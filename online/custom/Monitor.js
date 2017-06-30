@@ -209,7 +209,12 @@ function SetOnOff(machine, chSta){
       proceed = rpc.result.data[0];
       if (proceed == 2){
         curSta = document.getElementById("CoS").innerHTML;
-        if (curSta != chSta) {
+        if (curSta == "On"){
+          curSta = 1;
+        } else if (curSta == "Off"){
+          curSta = 0;
+        }
+        if (curSta == chSta) {
           alert("Compressor is already " + strOnOff);
         } else {
           mjsonrpc_db_paste(["/Equipment/CompressorChiller/Settings/comp_ctrl"],[chSta]).then(function(rpc){;}).catch(function(error) {
@@ -227,7 +232,12 @@ function SetOnOff(machine, chSta){
       proceed = rpc.result.data[0];
       if (proceed == 2){
         curSta = document.getElementById("ChS").innerHTML;
-        if (curSta != chSta) {
+        if (curSta == "On"){
+          curSta = 1;
+        } else if (curSta == "Off"){
+          curSta = 0;
+        }
+        if (curSta == chSta) {
           alert("Chiller is already " + strOnOff);
         } else {
           mjsonrpc_db_paste(["/Equipment/CompressorChiller/Settings/chil_ctrl"],[chSta]).then(function(rpc){;}).catch(function(error) {
