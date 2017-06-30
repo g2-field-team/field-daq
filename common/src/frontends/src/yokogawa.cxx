@@ -145,7 +145,7 @@ int    gCounter=0;
 double gWindupGuard=20.;  
 double gSampleTime=10E-3; // 10 ms  
 // other terms we need to keep track of 
-int gEventCounter=0; 
+unsigned long int gEventCounter=0; 
 int gProbeNum = -1;
 BOOL gUseSingleProbe = false; 
 BOOL gIsFeedbackOn = false; 
@@ -234,7 +234,9 @@ INT frontend_init(){
    gCounter      = 0;
    // reset last avg field 
    gLastAvgField = -100; 
-   gFieldLimit   = 0;  
+   gFieldLimit   = 0;
+   // reset feedback boolean  
+   gIsFeedbackOn = false;  
 
    pidLoop = new g2field::PID(); 
    pidLoop->SetPID(0,0,0); 
@@ -508,6 +510,10 @@ INT read_yoko_event(char *pevent,INT off){
    // check to see if the field was updated 
    if (rc==1) IsFieldUpdated = true; 
 
+   // char msg[512]; 
+   // sprintf(msg,"The field is now %.3lf kHz.",avg_field/1E+3); 
+   // cm_msg(MINFO,"read_yoko_event",msg);
+
    // determine the new current to set on the Yokogawa 
    rc = update_current(IsFieldUpdated,current_setpoint,avg_field);
    if (rc!=0) { 
@@ -712,7 +718,7 @@ int update_parameters_from_ODB(double &current_setpoint,double &avg_field){
    int SIZE_INT = sizeof(probeNum); 
    sprintf(pn_path,"%s/Probe Number for Field Avg",SETTINGS_DIR);
    db_get_value(hDB,0,pn_path,&probeNum,&SIZE_INT,TID_INT, 0);
-   gProbeNum = probeNum-1;   // probe 100 => index 99 
+   gProbeNum = probeNum;     
 
    char thr_path[512]; 
    sprintf(thr_path,"%s/Feedback Threshold (Hz)",SETTINGS_DIR); 
@@ -864,7 +870,8 @@ int update_current(BOOL IsFieldUpdated,double current_setpoint,double avg_field)
 	 if( (abs_field_change>=gFieldLimit) && gCounter>1 ) { 
 	    // change in field is too large and it's not the first time we try to change 
 	    // the current on the yokogawa. 
-	    sprintf(msg,"The field changed by %.3lf Hz!  Will NOT change the current on the Yokogawa",field_change); 
+	    sprintf(msg,"The field changed by %.3lf Hz!  Last field = %.3lf kHz, current field = %.3lf kHz.",
+                    field_change,avg_field/1E+3,gLastAvgField/1E+3); 
 	    cm_msg(MERROR,"update_current",msg);
 	    eps = 0.; 
 	 } else { 
