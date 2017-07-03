@@ -240,6 +240,7 @@ INT frontend_init(){
 
    pidLoop = new g2field::PID(); 
    pidLoop->SetPID(0,0,0); 
+   pidLoop->SetIAltCoeff(0); 
    pidLoop->SetSampleTime(gSampleTime);  
    pidLoop->SetWindupGuard(gWindupGuard);  
 
@@ -671,13 +672,7 @@ void read_from_device(){
 //______________________________________________________________________________
 int update_parameters_from_ODB(double &current_setpoint,double &avg_field){
    // update values from the ODB 
-
-   // can't do this for some reason... 
-   // char enable_sw_path[512];
-   // BOOL IsOutputEnabled = FALSE;
-   // int SIZE_BOOL = sizeof(IsOutputEnabled);
-   // sprintf(enable_sw_path,"%s/Output Enable",SETTINGS_DIR); 
-   // db_get_value(hDB,0,enable_sw_path,&IsOutputEnabled,&SIZE_BOOL,TID_BOOL,0);
+   char msg[512]; 
 
    char sf_path[512];
    sprintf(sf_path,"%s/Scale Factor (kHz per mA)",SETTINGS_DIR);
@@ -742,27 +737,28 @@ int update_parameters_from_ODB(double &current_setpoint,double &avg_field){
    db_get_value(hDB,0,dc_path,&D_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
    pidLoop->SetDCoeff(D_coeff);  
 
-   // if(IsOutputEnabled){
-   //    rc = yokogawa_interface::set_output_state(yokogawa_interface::kENABLED); 
-   //    if (rc!=0) {
-   //       cm_msg(MINFO,"update","Yokogawa output ENABLED.");
-   //    } else { 
-   //       cm_msg(MINFO,"update","Cannot enable Yokogawa output!");
-   //    }
-   // }else{
-   //    rc = yokogawa_interface::set_output_state(yokogawa_interface::kDISABLED); 
-   //    if (rc!=0) {
-   //       cm_msg(MINFO,"update","Yokogawa output DISABLED.");
-   //    } else { 
-   //       cm_msg(MINFO,"update","Cannot disable Yokogawa output!");
-   //    }
-   // }
+   char ic_alt_path[512];
+   sprintf(ic_alt_path,"%s/I Alt Coefficient",SETTINGS_DIR);
+   double I_alt_coeff = 0;
+   db_get_value(hDB,0,ic_alt_path,&I_alt_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   pidLoop->SetIAltCoeff(I_alt_coeff);  
+
+   // sprintf(msg,"Setting I_alt to %.3lf",I_alt_coeff); 
+   // cm_msg(MINFO,"update_parameters_from_ODB",msg);
+
+   char corr_path[512];
+   sprintf(corr_path,"%s/Maximum Correction Size (Hz)",SETTINGS_DIR);
+   double corr_size = 0;
+   db_get_value(hDB,0,corr_path,&corr_size,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   pidLoop->SetMaxCorrSize(corr_size);  
+
+   // strcpy(msg,""); 
+   // sprintf(msg,"Setting MaxCorrSize to %.3lf Hz",corr_size); 
+   // cm_msg(MINFO,"update_parameters_from_ODB",msg);
 
    double AVG=0;
    int rc = check_average_field_ODB(AVG);
    avg_field = AVG;  
-
-   char msg[512]; 
 
    // Use first event to set the field setpoint 
    if (gEventCounter==0) {
@@ -824,7 +820,8 @@ int check_average_field_ODB(double &avg_field){
 int update_current(BOOL IsFieldUpdated,double current_setpoint,double avg_field){
    // update the current on the yokogawa based on the ODB
    int rc=-1;
-   double lvl=0,eps=0,test_sum=0; 
+   double lvl=0,eps=0; 
+   char msg[200];  
    
    gCurrentTime = get_utc_time();
    double time_sec = gCurrentTime/1E+9; 
@@ -835,7 +832,7 @@ int update_current(BOOL IsFieldUpdated,double current_setpoint,double avg_field)
    // eps = get_new_current(avg_field);
    if(gWriteTestData && !gIsFeedbackOn){ 
       eps = pidLoop->Update(time_sec,avg_field);    
-      rc  = write_to_file("fdbk-off"    ,gCurrentTime,avg_field,theSetpoint,eps);   
+      rc  = write_to_file("fdbk-off",gCurrentTime,avg_field,theSetpoint,eps);   
       // reset before we do any real calculation... 
       eps = 0.;
    }
@@ -846,20 +843,18 @@ int update_current(BOOL IsFieldUpdated,double current_setpoint,double avg_field)
 
    double field_change     = avg_field - gLastAvgField; 
    double abs_field_change = fabs(field_change); 
-
-   char msg[200];  
    
-   double err_term     = theSetpoint - avg_field; 
-   double abs_err_term = fabs(err_term); 
+   // double err_term     = theSetpoint - avg_field; 
+   // double abs_err_term = fabs(err_term); 
 
-   bool IsSmallFieldCorr = false;  
-   double delta=0;    
-   if (abs_err_term>gSmallFieldLimit) {
-      // if the change in the field is bigger than the small field limit
-      // apply a small correction that is the small field limit (with the correct sign)  
-      delta = (err_term/abs_err_term)*gSmallFieldLimit*pidLoop->GetScaleFactor();   // scale factor puts us in Amps 
-      IsSmallFieldCorr = true;  
-   } 
+   // bool IsSmallFieldCorr = false;  
+   // double delta=0;    
+   // if (abs_err_term>gSmallFieldLimit) {
+   //    // if the change in the field is bigger than the small field limit
+   //    // apply a small correction that is the small field limit (with the correct sign)  
+   //    delta = (err_term/abs_err_term)*gSmallFieldLimit*pidLoop->GetScaleFactor();   // scale factor puts us in Amps 
+   //    IsSmallFieldCorr = true;  
+   // } 
 
    // Update the current to set 
    // check if feedback is on and the average field value changed
@@ -876,16 +871,16 @@ int update_current(BOOL IsFieldUpdated,double current_setpoint,double avg_field)
 	    eps = 0.; 
 	 } else { 
             // ok, the field change is smaller than the field limit.  let's use the PID loop. 
-	    // send in the average field (in Hz); compares to setpoint 
-	    // eps = pidLoop->Update(time_sec,avg_field);    
+	    // send in the time (in sec) and the average field (in Hz); compares to setpoint 
+	    eps = pidLoop->Update(time_sec,avg_field);    
 	 }
-	 // gTotalCurrent = eps;
-         if(IsSmallFieldCorr){
-            // strcpy(msg,""); 
-	    // sprintf(msg,"Accumulating small change of %.3lf A",delta); 
-	    // cm_msg(MINFO,"update_current",msg);
-	    gTotalCurrent += delta;
-         } 
+	 gTotalCurrent = eps;
+         // if(IsSmallFieldCorr){
+         //    // strcpy(msg,""); 
+	 //    // sprintf(msg,"Accumulating small change of %.3lf A",delta); 
+	 //    // cm_msg(MINFO,"update_current",msg);
+	 //    gTotalCurrent += delta;
+         // } 
 	 gCounter++;                    // count the update since we possibly changed the current 
       } 
       lvl = gTotalCurrent;              // assign the total current to the level we'll set  

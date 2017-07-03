@@ -14,6 +14,8 @@ namespace g2field {
       fP           = 0.;
       fI           = 0.;
       fD           = 0.;
+      fI_alt       = 0.;
+      fMaxCorrSize = 0.; 
       fScaleFactor = 1.0; 
       fSampleTime  = 0.; 
       fLastTime    = 0.; 
@@ -28,22 +30,26 @@ namespace g2field {
       fIntError    = 0.;
       fLastError   = 0.; 
       fWindupGuard = 20.; 
+      fITerm_alt   = 0.;
    }
    //______________________________________________________________________________
    void PID::Print(){
-      std::cout << "Setpoint     = " << fSetpoint    << std::endl;
-      std::cout << "P            = " << fP           << std::endl;
-      std::cout << "I            = " << fI           << std::endl;
-      std::cout << "D            = " << fD           << std::endl;
-      std::cout << "PTerm        = " << fPTerm       << std::endl;
-      std::cout << "ITerm        = " << fITerm       << std::endl;
-      std::cout << "DTerm        = " << fDTerm       << std::endl;
-      std::cout << "Scale Factor = " << fScaleFactor << std::endl;
-      std::cout << "Last Time    = " << fLastTime    << std::endl;
-      std::cout << "Sample Time  = " << fSampleTime  << std::endl;
-      std::cout << "IntErr       = " << fIntError    << std::endl;
-      std::cout << "LastErr      = " << fLastError   << std::endl; 
-      std::cout << "Windup Guard = " << fWindupGuard << std::endl; 
+      std::cout << "Setpoint       = " << fSetpoint    << std::endl;
+      std::cout << "P              = " << fP           << std::endl;
+      std::cout << "I              = " << fI           << std::endl;
+      std::cout << "I_alt          = " << fI_alt       << std::endl;
+      std::cout << "D              = " << fD           << std::endl;
+      std::cout << "PTerm          = " << fPTerm       << std::endl;
+      std::cout << "ITerm          = " << fITerm       << std::endl;
+      std::cout << "ITerm_alt      = " << fITerm_alt   << std::endl;
+      std::cout << "DTerm          = " << fDTerm       << std::endl;
+      std::cout << "Max Corr. Size = " << fMaxCorrSize << std::endl;
+      std::cout << "Scale Factor   = " << fScaleFactor << std::endl;
+      std::cout << "Last Time      = " << fLastTime    << std::endl;
+      std::cout << "Sample Time    = " << fSampleTime  << std::endl;
+      std::cout << "IntErr         = " << fIntError    << std::endl;
+      std::cout << "LastErr        = " << fLastError   << std::endl; 
+      std::cout << "Windup Guard   = " << fWindupGuard << std::endl; 
    }
    //______________________________________________________________________________
    double PID::Update(double current_time,double meas_value){
@@ -52,8 +58,9 @@ namespace g2field {
       double derr = err - fLastError;
       UpdatePTerm(err,dt,derr);  
       UpdateITerm(err,dt,derr);  
+      UpdateITerm_alt(err,dt,derr);  
       UpdateDTerm(err,dt,derr); 
-      double output = fScaleFactor*( fPTerm + fI*fITerm + fD*fDTerm );
+      double output = fScaleFactor*( fPTerm + fI*fITerm + fI_alt*fITerm_alt + fD*fDTerm );
       // remember values for next calculation 
       fLastTime     = current_time; 
       fLastError    = err; 
@@ -77,6 +84,27 @@ namespace g2field {
 	    fITerm = fWindupGuard;
 	 }
       }
+   }
+   //______________________________________________________________________________
+   void PID::UpdateITerm_alt(double err,double dtime,double derror){
+      derror += 0.; 
+      dtime  += 0.; 
+      double abs_err = fabs(err); 
+      double sign    = err/abs_err; 
+      if (dtime >= fSampleTime ) { 
+         // determine correction based on size of error term 
+	 if (abs_err<fMaxCorrSize) { 
+	    fITerm_alt += err;
+	 } else { 
+	    fITerm_alt += sign*fMaxCorrSize; 
+	 }
+         // windup test 
+	 // if (fITerm_alt< (-1.)*fWindupGuard) {
+	 //    fITerm_alt = (-1.)*fWindupGuard;
+	 // } else if (fITerm_alt>fWindupGuard) {
+	 //    fITerm_alt = fWindupGuard;
+	 // }
+      }  
    }
    //______________________________________________________________________________
    void PID::UpdateDTerm(double err,double dtime,double derror){
