@@ -25,6 +25,8 @@ create DOUBLE "I Coefficient"
 set "I Coefficient" 0.000
 create DOUBLE "D Coefficient"
 set "D Coefficient" 0.000
+create DOUBLE "I Alt Coefficient"
+set "I Alt Coefficient" 0.000
 create DOUBLE "Scale Factor (kHz per mA)"
 set "Scale Factor (kHz per mA)" 1.000
 create BOOL "Use Single Probe for Field Avg"
@@ -33,6 +35,8 @@ create INT "Probe Number for Field Avg"
 set "Probe Number for Field Avg" -1 
 create DOUBLE "Feedback Threshold (Hz)"
 set "Feedback Threshold (Hz)" 100.00 
+create DOUBLE "Maximum Correction Size (Hz)"
+set "Maximum Correction Size (Hz)" 1.50
 
 cd "/Equipment/PS Feedback/Monitors"
 
