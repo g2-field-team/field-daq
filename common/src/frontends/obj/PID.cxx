@@ -20,7 +20,8 @@ namespace g2field {
       fSampleTime     = 0.; 
       fLastTime       = 0.;
       fMaxOutput      = 0.;
-      fMaxITermOutput = 0.; 
+      fMaxITermOutput = 0.;
+      fMaxError       = 0.;  
       Clear();
    }
    //______________________________________________________________________________
@@ -36,33 +37,37 @@ namespace g2field {
    }
    //______________________________________________________________________________
    double PID::Update(double current_time,double meas_value){
-      double err  = fSetpoint - meas_value; 
+      double err  = fSetpoint - meas_value;
       double dt   = current_time - fLastTime; 
       double derr = err - fLastError;
       UpdatePTerm(err,dt,derr);  
       UpdateITerm(err,dt,derr);  
       UpdateITerm_alt(err,dt,derr);  
       UpdateDTerm(err,dt,derr); 
-      double output = fScaleFactor*( fPTerm + fI*fITerm + fI_alt*fITerm_alt + fD*fDTerm );
+      double output = fScaleFactor*( fPTerm + fITerm + fITerm_alt + fD*fDTerm );
       // check against limits (retain the sign too) 
       if(fabs(output)>fMaxOutput) output = ( output/fabs(output) )*fMaxOutput;  
       // remember values for next calculation 
       fLastTime     = current_time; 
       fLastError    = err; 
+      fLastOutput   = output; 
       return output;  
    }
    //______________________________________________________________________________
    void PID::UpdatePTerm(double err,double dtime,double derror){
       derror += 0.; 
       if (dtime >= fSampleTime) { 
-	 fPTerm = fP*err;
+	 if (fabs(err)<fMaxError) {
+            // if the field change is a reasonable value, then update the P term 
+	    fPTerm = fP*err;
+	 }
       }
    }
    //______________________________________________________________________________
    void PID::UpdateITerm(double err,double dtime,double derror){
       derror += 0.; 
       if (dtime >= fSampleTime) { 
-	 fITerm += err*dtime;
+	 fITerm += fI*err*dtime;
 	 if (fITerm< (-1.)*fWindupGuard) {
 	    fITerm = (-1.)*fWindupGuard;
 	 } else if (fITerm>fWindupGuard) {
@@ -79,9 +84,9 @@ namespace g2field {
       if (dtime >= fSampleTime ) { 
          // determine correction based on size of error term 
 	 if (abs_err<fMaxCorrSize) { 
-	    fITerm_alt += err;
+	    fITerm_alt += fI_alt*err;   // multiplying by coeff reduces abrupt changes to future data due to changing the coeff
 	 } else { 
-	    fITerm_alt += sign*fMaxCorrSize; 
+	    fITerm_alt += fI_alt*sign*fMaxCorrSize; 
 	 }
 	 // check against limits (retain the sign too) 
          if( fabs(fITerm_alt)>fMaxITermOutput){

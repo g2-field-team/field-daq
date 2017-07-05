@@ -718,6 +718,7 @@ int update_parameters_from_ODB(double &current_setpoint,double &avg_field){
    char thr_path[512]; 
    sprintf(thr_path,"%s/Feedback Threshold (Hz)",SETTINGS_DIR); 
    db_get_value(hDB,0,thr_path,&gFieldLimit,&SIZE_DOUBLE,TID_DOUBLE,0); 
+   pidLoop->SetMaxError(gFieldLimit); 
 
    char pc_path[512];
    sprintf(pc_path,"%s/P Coefficient",SETTINGS_DIR);

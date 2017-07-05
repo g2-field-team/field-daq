@@ -17,6 +17,8 @@ namespace g2field {
 	 double fScaleFactor;           // in Amps/Hz 
          double fI_alt,fITerm_alt;      // aleternative I term with a max correction size on the scale of ppb  
          double fMaxCorrSize;           // a maximum correction size (for use with I_alt) 
+         double fMaxError;              // maximum allowable error term 
+         double fLastOutput;            // last output 
 
 	 double fWindupGuard;           // integral accumulation 
 	 double fIntError,fLastError;   // integral error, last error 
@@ -48,6 +50,7 @@ namespace g2field {
          void SetWindupGuard(double wg)          { fWindupGuard    = wg;   } 
          void SetMaxPIDOutput(double max)        { fMaxOutput      = max;  } 
          void SetMaxITermOutput(double max)      { fMaxITermOutput = max;  } 
+         void SetMaxError(double max)            { fMaxError       = max;  } 
 
 	 double GetPCoeff()                const { return fP;              } 
 	 double GetICoeff()                const { return fI;              } 
@@ -59,6 +62,7 @@ namespace g2field {
          double GetMaxCorrSize()           const { return fMaxCorrSize;    }
          double GetMaxPIDOutput()          const { return fMaxOutput;      } 
          double GetMaxITermOutput()        const { return fMaxITermOutput; } 
+         double GetMaxError()              const { return fMaxError;       } 
 
 	 double Update(double current_time,double meas_value); 
    };
