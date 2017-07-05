@@ -23,6 +23,7 @@ About:  Implements a MIDAS frontend that is aware of the
 #include <cmath>
 #include <ctime>
 #include <random>
+#include <fstream>
 using std::string;
 
 //--- other includes --------------------------------------------------------//
@@ -130,6 +131,9 @@ g2field::FixedProbeSequencer *event_manager;
 
 const int nprobes = g2field::kNmrNumFixedProbes;
 const char *const mbank_name = (char *)"FXPR";
+
+std::vector<int> PSFB_probe; 
+
 }
 
 void trigger_loop();
@@ -138,6 +142,7 @@ int load_device_classes();
 int simulate_fixed_probe_event();
 void update_feedback_params();
 void systems_check();
+int load_psfb_probes(); 
 
 void set_json_tmpfiles()
 {
@@ -260,6 +265,9 @@ INT frontend_init()
     return rc;
   }
 
+  // load probes for field avg (PS feedback stuff) 
+  load_psfb_probes();
+ 
   run_in_progress = false;
 
   cm_msg(MINFO, "init", "Fixed Probe initialization complete");
@@ -836,7 +844,7 @@ void update_feedback_params()
   fid_snr_stdev = fid::stdev_arr<double[nprobes]>(fid_snr);
   fid_len_stdev = fid::stdev_arr<double[nprobes]>(fid_len);
 
-  for(int i = 0;i < nprobes; i++){
+  /*for(int i = 0;i < nprobes; i++){
     BOOL freq_check = freq[i] >= 10.0 && freq[i] <= 100.0;
     BOOL ferr_check = ferr[i] <= 0.1;
     BOOL snr_check = fid_snr[i] >= fid_snr_avg - 3*fid_snr_stdev && fid_snr[i] <= fid_snr_avg + 3*fid_snr_stdev;
@@ -846,6 +854,21 @@ void update_feedback_params()
       filtered_mean_freq += freq[i];
       f_sum += 1.0;
     }
+    }
+  */
+
+  //Calculate the mean of the selected fixed probes for PS Feedback
+  for(int i=0;i<PSFB_probe.size();i++){
+    int j = PSFB_probe[i];
+
+    BOOL freq_check = freq[j] >= 10.0 && freq[j] <= 100.0;                                                              
+    BOOL ferr_check = ferr[j] <= 0.1;                                                                                             
+    BOOL snr_check = fid_snr[j] >= fid_snr_avg - 3*fid_snr_stdev && fid_snr[j] <= fid_snr_avg + 3*fid_snr_stdev;                       
+    BOOL len_check = fid_len[j] >= fid_len_avg - 3*fid_len_stdev && fid_len[j] <= fid_len_avg + 3*fid_len_stdev; 
+    
+    filtered_mean_freq += freq[PSFB_probe[i]];
+    f_sum += 1.0;
+    
   }
 
   filtered_mean_freq /= f_sum;
@@ -916,4 +939,26 @@ void systems_check()
     al_msg.assign("Fixed Probe System: Meinberg software not found");
     al_trigger_class("Failure", al_msg.c_str(), false);
   }
+}
+
+int load_psfb_probes(){
+   // read in probes to use in determining the field average 
+   // (to pass to the PS Feedback frontend) 
+   int iprobe=0;
+   std::string path   = "/home/newg2/Applications/field-daq/online/ps-feedback/";
+   std::string inpath = path + "probes.txt";
+   std::ifstream infile; 
+   infile.open( inpath.c_str() ); 
+   if ( infile.fail() ){
+      cm_msg(MINFO,"init","Cannot read in probes to use for field average (for PS Feedback)");
+      return 1;
+   } else {
+      while( !infile.eof() ){
+	 infile >> iprobe;
+         PSFB_probe.push_back(iprobe);  
+      }
+      PSFB_probe.pop_back(); 
+      cm_msg(MINFO,"init","Read in probes to use for field average (for PS Feedback)");
+   }
+   return 0; 
 }

@@ -743,18 +743,23 @@ int update_parameters_from_ODB(double &current_setpoint,double &avg_field){
    db_get_value(hDB,0,ic_alt_path,&I_alt_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
    pidLoop->SetIAltCoeff(I_alt_coeff);  
 
-   // sprintf(msg,"Setting I_alt to %.3lf",I_alt_coeff); 
-   // cm_msg(MINFO,"update_parameters_from_ODB",msg);
-
    char corr_path[512];
    sprintf(corr_path,"%s/Maximum Correction Size (Hz)",SETTINGS_DIR);
    double corr_size = 0;
    db_get_value(hDB,0,corr_path,&corr_size,&SIZE_DOUBLE,TID_DOUBLE, 0);
    pidLoop->SetMaxCorrSize(corr_size);  
 
-   // strcpy(msg,""); 
-   // sprintf(msg,"Setting MaxCorrSize to %.3lf Hz",corr_size); 
-   // cm_msg(MINFO,"update_parameters_from_ODB",msg);
+   char max_path[512];
+   sprintf(max_path,"%s/Maximum PID Output (Hz)",SETTINGS_DIR);
+   double maxPID = 0;
+   db_get_value(hDB,0,max_path,&maxPID,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   pidLoop->SetMaxPIDOutput(maxPID);  
+
+   char max_i_path[512];
+   sprintf(max_i_path,"%s/Maximum I Term Output (Hz)",SETTINGS_DIR);
+   double maxITerm = 0;
+   db_get_value(hDB,0,max_i_path,&maxITerm,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   pidLoop->SetMaxITermOutput(maxITerm);  
 
    double AVG=0;
    int rc = check_average_field_ODB(AVG);
@@ -862,18 +867,18 @@ int update_current(BOOL IsFieldUpdated,double current_setpoint,double avg_field)
       if (IsFieldUpdated) {
          // the field was updated; so we try to change the current
          // otherwise, leave the current as is for now  
-	 if( (abs_field_change>=gFieldLimit) && gCounter>1 ) { 
-	    // change in field is too large and it's not the first time we try to change 
-	    // the current on the yokogawa. 
-	    sprintf(msg,"The field changed by %.3lf Hz!  Last field = %.3lf kHz, current field = %.3lf kHz.",
-                    field_change,avg_field/1E+3,gLastAvgField/1E+3); 
-	    cm_msg(MERROR,"update_current",msg);
-	    eps = 0.; 
-	 } else { 
+	 // if( (abs_field_change>=gFieldLimit) && gCounter>1 ) { 
+	 //    // change in field is too large and it's not the first time we try to change 
+	 //    // the current on the yokogawa. 
+	 //    sprintf(msg,"The field changed by %.3lf Hz!  Last field = %.3lf kHz, current field = %.3lf kHz.",
+         //            field_change,avg_field/1E+3,gLastAvgField/1E+3); 
+	 //    cm_msg(MERROR,"update_current",msg);
+	 //    // eps = 0.; 
+	 // } else { 
             // ok, the field change is smaller than the field limit.  let's use the PID loop. 
 	    // send in the time (in sec) and the average field (in Hz); compares to setpoint 
 	    eps = pidLoop->Update(time_sec,avg_field);    
-	 }
+	 // }
 	 gTotalCurrent = eps;
          // if(IsSmallFieldCorr){
          //    // strcpy(msg,""); 
