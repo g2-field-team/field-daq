@@ -56,27 +56,19 @@ namespace g2field {
    //______________________________________________________________________________
    void PID::UpdatePTerm(double err,double dtime,double derror){
       derror += 0.; 
+      double abs_err = fabs(err); 
+      double sign    = err/abs_err; 
       if (dtime >= fSampleTime) { 
-	 if (fabs(err)<fMaxError) {
-            // if the field change is a reasonable value, then update the P term 
+	 // determine correction based on size of error term 
+	 if (abs_err<fMaxCorrSize) {
 	    fPTerm = fP*err;
-	 }
+	 } else {
+	    fPTerm = fP*sign*fMaxCorrSize;
+         }
       }
    }
    //______________________________________________________________________________
    void PID::UpdateITerm(double err,double dtime,double derror){
-      derror += 0.; 
-      if (dtime >= fSampleTime) { 
-	 fITerm += fI*err*dtime;
-	 if (fITerm< (-1.)*fWindupGuard) {
-	    fITerm = (-1.)*fWindupGuard;
-	 } else if (fITerm>fWindupGuard) {
-	    fITerm = fWindupGuard;
-	 }
-      }
-   }
-   //______________________________________________________________________________
-   void PID::UpdateITerm_alt(double err,double dtime,double derror){
       derror += 0.; 
       dtime  += 0.; 
       double abs_err = fabs(err); 
@@ -84,15 +76,27 @@ namespace g2field {
       if (dtime >= fSampleTime ) { 
          // determine correction based on size of error term 
 	 if (abs_err<fMaxCorrSize) { 
-	    fITerm_alt += fI_alt*err;   // multiplying by coeff reduces abrupt changes to future data due to changing the coeff
+	    fITerm += fI*err;   // multiplying by coeff reduces abrupt changes to future data due to changing the coeff
 	 } else { 
-	    fITerm_alt += fI_alt*sign*fMaxCorrSize; 
+	    fITerm += fI*sign*fMaxCorrSize; 
 	 }
 	 // check against limits (retain the sign too) 
-         if( fabs(fITerm_alt)>fMaxITermOutput){
-	    fITerm_alt = ( fITerm_alt/fabs(fITerm_alt) )*fMaxITermOutput;
+         if(fabs(fITerm)>fMaxITermOutput){
+	    fITerm = ( fITerm/fabs(fITerm) )*fMaxITermOutput;
          } 
       }  
+   }
+   //______________________________________________________________________________
+   void PID::UpdateITerm_alt(double err,double dtime,double derror){
+      derror += 0.; 
+      if (dtime >= fSampleTime) { 
+	 fITerm_alt += fI_alt*err*dtime;
+	 if (fITerm_alt< (-1.)*fWindupGuard) {
+	    fITerm_alt = (-1.)*fWindupGuard;
+	 } else if (fITerm_alt>fWindupGuard) {
+	    fITerm_alt = fWindupGuard;
+	 }
+      }
    }
    //______________________________________________________________________________
    void PID::UpdateDTerm(double err,double dtime,double derror){
