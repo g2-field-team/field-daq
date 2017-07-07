@@ -454,7 +454,6 @@ INT frontend_loop(){
 }
 //______________________________________________________________________________
 INT poll_event(INT source, INT count, BOOL test){
-
    // Polling routine for events. Returns TRUE if event
    // is available. If test equals TRUE, don't return. The test
    // flag is used to time the polling 
@@ -467,16 +466,7 @@ INT poll_event(INT source, INT count, BOOL test){
       return 0;
    }
 
-   // bool check = true; 
-
-   // if(check){
-   //    return 1;
-   // }else{ 
-   //    return 0;
-   // }
-
    return 0; 
-
 }
 //______________________________________________________________________________
 INT interrupt_configure(INT cmd, INT source, POINTER_T adr){
@@ -503,17 +493,14 @@ INT read_yoko_event(char *pevent,INT off){
    BOOL IsFieldUpdated = false;
 
    rc = update_parameters_from_ODB(current_setpoint,avg_field);
-   if (rc>1) { 
-      cm_msg(MERROR,"read_yoko_event","Cannot read parameters from ODB!");
-      gIsFeedbackOn = false; 
-   }
 
    // check to see if the field was updated 
    if (rc==1) IsFieldUpdated = true; 
 
-   // char msg[512]; 
-   // sprintf(msg,"The field is now %.3lf kHz.",avg_field/1E+3); 
-   // cm_msg(MINFO,"read_yoko_event",msg);
+   if (rc>1) { 
+      cm_msg(MERROR,"read_yoko_event","Cannot read parameters from ODB!");
+      gIsFeedbackOn = false; 
+   }
 
    // determine the new current to set on the Yokogawa 
    rc = update_current(IsFieldUpdated,current_setpoint,avg_field);
@@ -525,7 +512,6 @@ INT read_yoko_event(char *pevent,INT off){
    read_from_device(); 
 
    // now write everything to MIDAS banks 
-
    static unsigned int num_events = 0; 
    DWORD *pPSFBData; 
 
@@ -655,8 +641,6 @@ void read_from_device(){
    sprintf(current_read_path,"%s/Current Value (mA)",MONITORS_DIR);
    double current_val = lvl/1E-3;
    db_set_value(hDB,0,current_read_path,&current_val,sizeof(current_val),1,TID_DOUBLE);
-
-   if (gWriteTestData) write_to_file("yoko-readout",gCurrentTime,lvl); 
  
    // clean up for next read 
    delete psfb_data;
@@ -847,46 +831,11 @@ int update_current(BOOL IsFieldUpdated,double current_setpoint,double avg_field)
    unsigned long time_of_update = (unsigned long)gFieldUpdateTime;
    if (gWriteTestData) rc = write_to_file("field-update",time_of_update,avg_field);   
 
-   double field_change     = avg_field - gLastAvgField; 
-   double abs_field_change = fabs(field_change); 
-   
-   // double err_term     = theSetpoint - avg_field; 
-   // double abs_err_term = fabs(err_term); 
-
-   // bool IsSmallFieldCorr = false;  
-   // double delta=0;    
-   // if (abs_err_term>gSmallFieldLimit) {
-   //    // if the change in the field is bigger than the small field limit
-   //    // apply a small correction that is the small field limit (with the correct sign)  
-   //    delta = (err_term/abs_err_term)*gSmallFieldLimit*pidLoop->GetScaleFactor();   // scale factor puts us in Amps 
-   //    IsSmallFieldCorr = true;  
-   // } 
-
    // Update the current to set 
    // check if feedback is on and the average field value changed
    if (gIsFeedbackOn) {
       if (IsFieldUpdated) {
-         // the field was updated; so we try to change the current
-         // otherwise, leave the current as is for now  
-	 // if( (abs_field_change>=gFieldLimit) && gCounter>1 ) { 
-	 //    // change in field is too large and it's not the first time we try to change 
-	 //    // the current on the yokogawa. 
-	 //    sprintf(msg,"The field changed by %.3lf Hz!  Last field = %.3lf kHz, current field = %.3lf kHz.",
-         //            field_change,avg_field/1E+3,gLastAvgField/1E+3); 
-	 //    cm_msg(MERROR,"update_current",msg);
-	 //    // eps = 0.; 
-	 // } else { 
-            // ok, the field change is smaller than the field limit.  let's use the PID loop. 
-	    // send in the time (in sec) and the average field (in Hz); compares to setpoint 
-	    eps = pidLoop->Update(time_sec,avg_field);    
-	 // }
-	 gTotalCurrent = eps;
-         // if(IsSmallFieldCorr){
-         //    // strcpy(msg,""); 
-	 //    // sprintf(msg,"Accumulating small change of %.3lf A",delta); 
-	 //    // cm_msg(MINFO,"update_current",msg);
-	 //    gTotalCurrent += delta;
-         // } 
+	 gTotalCurrent = pidLoop->Update(time_sec,avg_field);    
 	 gCounter++;                    // count the update since we possibly changed the current 
       } 
       lvl = gTotalCurrent;              // assign the total current to the level we'll set  

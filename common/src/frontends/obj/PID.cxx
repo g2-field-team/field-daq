@@ -17,8 +17,10 @@ namespace g2field {
       fI_alt          = 0.;
       fMaxCorrSize    = 0.; 
       fScaleFactor    = 1.0; 
+      fSetpoint       = 0.;
       fSampleTime     = 0.; 
       fLastTime       = 0.;
+      fWindupGuard    = 20.; 
       fMaxOutput      = 0.;
       fMaxITermOutput = 0.;
       fMaxError       = 0.;  
@@ -26,14 +28,12 @@ namespace g2field {
    }
    //______________________________________________________________________________
    void PID::Clear(){
-      fSetpoint    = 0.;
       fPTerm       = 0.;
       fITerm       = 0.;
       fDTerm       = 0.;
+      fITerm_alt   = 0.;
       fIntError    = 0.;
       fLastError   = 0.; 
-      fWindupGuard = 20.; 
-      fITerm_alt   = 0.;
    }
    //______________________________________________________________________________
    double PID::Update(double current_time,double meas_value){
