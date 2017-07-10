@@ -872,10 +872,8 @@ int update_current(BOOL IsFieldUpdated,double current_setpoint,double avg_field)
 }
 //______________________________________________________________________________
 unsigned long get_utc_time(){
+   // get the time in nanoseconds 
    unsigned long utc = hw::systime_us()*1E+3; 
-   // struct timeb now; 
-   // int rc = ftime(&now); 
-   // unsigned long utc = now.time + now.millitm;
    return utc; 
 }
 //______________________________________________________________________________
