@@ -173,7 +173,7 @@ const char * const psfb_bank_name = "PSFB";     // 4 letters, try to make sensib
 const char * const SETTINGS_DIR   = "/Equipment/PS Feedback/Settings";
 const char * const MONITORS_DIR   = "/Equipment/PS Feedback/Monitors";
 const char * const SHARED_DIR     = "/Shared/Variables/PS Feedback";
-const char * const TEST_DIR       = "/home/newg2/Workspace/dflay_root_ana/input/"; 
+const char * const TEST_DIR       = "/home/newg2/Workspace/dflay/root_ana/input/"; 
 
 /********************************************************************\
   Callback routines for system transitions
@@ -291,6 +291,10 @@ INT frontend_init(){
       cm_msg(MINFO,"init","Yokogawa is in SIMULATION MODE.");
    }
 
+   // one more check
+   rc = yokogawa_interface::error_check(err_msg); 
+   rc = check_yokogawa_comms(rc,"init"); 
+
    free(sim_sw_path); 
    free(ip_addr_path); 
    cm_msg(MINFO,"init","Initialization complete."); 
@@ -304,6 +308,7 @@ INT frontend_exit(){
    // set back to zero amps and volts
    // disable output  
 
+   char err_msg[512]; 
    int rc=0;
  
    if (!gSimMode) { 
@@ -330,6 +335,9 @@ INT frontend_exit(){
              return FE_ERR_HW; 
          }
       }
+      // one more check
+      rc = yokogawa_interface::error_check(err_msg); 
+      rc = check_yokogawa_comms(rc,"init"); 
    }
 
    delete pidLoop; 
@@ -883,7 +891,7 @@ int check_yokogawa_comms(int rc,const char *func){
    char err_msg[512],myStr[512]; 
    if (rc!=0) {
       err_code = yokogawa_interface::error_check(err_msg); 
-      sprintf(myStr,"Yokogawa communication FAILED.  Error code: %d, message: %s \n",err_code,err_msg); 
+      sprintf(myStr,"Yokogawa communication problem!  Error code: %d, message: %s \n",err_code,err_msg); 
       cm_msg(MERROR,func,myStr);
       RC2 = yokogawa_interface::clear_errors();
       RC  = err_code; 
