@@ -245,12 +245,13 @@ INT frontend_init(){
    pidLoop->SetWindupGuard(gWindupGuard);  
 
    if (!gSimMode) {
+      cm_msg(MINFO,"init","Starting initialization..."); 
       // taking real data, grab the IP address  
       db_get_value(hDB,0,ip_addr_path,&ip_addr,&ip_addr_size,TID_STRING,0);
       // connect to the yokogawa
       rc = yokogawa_interface::open_connection(ip_addr);  
       if (rc==0) {
-         cm_msg(MINFO,"init","Yokogawa is connected.");
+         cm_msg(MINFO,"init","Connected to Yokogawa.");
          rc = yokogawa_interface::set_mode(yokogawa_interface::kCURRENT); 
          rc = check_yokogawa_comms(rc,"init");  
          if (rc==0) {
