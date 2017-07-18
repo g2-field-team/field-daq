@@ -151,12 +151,12 @@ namespace{
   //Subscriber listens for messages from all beaglebones. Message are sent by publishers
   //on each beaglebone
   zmq::context_t context(1);
-  /* zmq::socket_t requester1(context, ZMQ_REQ);
-  //zmq::socket_t requester2(context, ZMQ_REQ);
+  zmq::socket_t requester1(context, ZMQ_REQ);
+  zmq::socket_t requester2(context, ZMQ_REQ);
   zmq::socket_t requester3(context, ZMQ_REQ);
   zmq::socket_t requester4(context, ZMQ_REQ);
   zmq::socket_t requester5(context, ZMQ_REQ);
-  //zmq::socket_t requester6(context, ZMQ_REQ);*/
+  zmq::socket_t requester6(context, ZMQ_REQ);
   zmq::socket_t subscriber(context, ZMQ_SUB);
 
   std::thread read_thread;
@@ -278,49 +278,36 @@ INT frontend_init()
   }
   mlock.unlock();
 
-  //Get bottom set currents
-  /*mlock.lock();
-  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Bottom Set Currents", &hkey);      
-   
-  if(hkey == NULL){      
-    cm_msg(MERROR, "begin_of_run", "unable to find Bottom Set Currents key"); 
-  }                 
-
-  for(int i=0;i<nCoils;i++){                          
-    bot_set_values[i] = 0;               
-    top_set_values[i] = 0;                  
-  }
-                                                                               
-  int bot_size = sizeof(bot_set_values);           
-  db_get_data(hDB, hkey, &bot_set_values, &bot_size, TID_DOUBLE); 
-
-  //Top set currents
-  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Top Set Currents", &hkey);                                   
-                                              
-  if(hkey == NULL){            
-    cm_msg(MERROR, "begin_of_run", "unable to find Top Set Currents key");
-  }                                      
-                                                      
-  int top_size = sizeof(top_set_values);                          
-  db_get_data(hDB, hkey, &top_set_values, &top_size, TID_DOUBLE); 
-                                               
-  //Get the allowable difference 
-  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Allowed Difference", &hkey);                                                             
-  setPoint = 0;                                                               
-  int setpt_size = sizeof(setPoint);                             
-  db_get_data(hDB, hkey, &setPoint, &setpt_size, TID_DOUBLE);        
-  mlock.unlock();
-
-  */                         
-  //Get the highest allowed temp       
   mlock.lock();
-  db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Allowed Temperature", &hkey);       
-  high_temp = 0;                                                   
-  int temp_size = sizeof(high_temp);                     
-  db_get_data(hDB, hkey, &high_temp, &temp_size, TID_DOUBLE);
- 
+  const int SIZE = 512; 
+
+  //Get bottom set currents
+  char arr_path_bot[SIZE]; 
+  int bot_size = sizeof(bot_set_values);
+  sprintf(arr_path_bot,"/Equipment/Surface Coils/Settings/Set Points/Bottom Set Currents");
+  db_get_value(hDB,0,arr_path_bot,bot_set_values,&bot_size,TID_DOUBLE,0);
+
+  //Get top set currents
+  char arr_path_top[SIZE];
+  int top_size = sizeof(top_set_values);
+  sprintf(arr_path_top,"/Equipment/Surface Coils/Settings/Set Points/Top Set Currents");
+  db_get_value(hDB,0,arr_path_top,top_set_values,&top_size,TID_DOUBLE,0);
+
+  //Get the allowable difference
+  char path_dif[SIZE];    
+  int dif_size = sizeof(setPoint);                                                                        
+  sprintf(path_dif,"/Equipment/Surface Coils/Settings/Set Points/Allowed Difference");               
+  db_get_value(hDB,0,path_dif,&setPoint,&dif_size,TID_DOUBLE,0); 
+       
+  //Get the highest allowed temp       
+  char path_temp[SIZE];
+  int temp_size = sizeof(high_temp);
+  sprintf(path_temp,"/Equipment/Surface Coils/Settings/Set Points/Allowed Temperature");
+  db_get_value(hDB,0,path_temp,&high_temp,&temp_size,TID_DOUBLE,0);
+
   mlock.unlock();
-  /*
+ 
+  
   //Now that we have the current set points, package them into a json object to be sent to beaglebones  
   mlock.lock();
   request["000"] = setPoint;            
@@ -355,10 +342,11 @@ INT frontend_init()
   cm_msg(MINFO, "init", "Bound to beaglebone 1"); 
   std::cout << "Bound to beaglebone 1" << std::endl;
 
-  //requester2.setsockopt(ZMQ_LINGER, 0);
-  //requester2.setsockopt(ZMQ_RCVTIMEO, 60000);
-  //requester2.bind("tcp://*:5552");
-  //cm_msg(MINFO, "init", "Bound to beaglebone 2");
+  requester2.setsockopt(ZMQ_LINGER, 0);
+  requester2.setsockopt(ZMQ_RCVTIMEO, 60000);
+  requester2.bind("tcp://*:5552");
+  cm_msg(MINFO, "init", "Bound to beaglebone 2");
+  std::cout << "Bound to beaglebone 2" << std::endl;
 
   requester3.setsockopt(ZMQ_LINGER, 0);
   requester3.setsockopt(ZMQ_RCVTIMEO, 60000);
@@ -378,11 +366,11 @@ INT frontend_init()
   cm_msg(MINFO, "init", "Bound to beaglebone 5");
   std::cout << "Bound to beaglebone 5 " << std::endl;
   
-  //requester6.setsockopt(ZMQ_LINGER, 0);      
-  //requester6.setsockopt(ZMQ_RCVTIMEO, 60000);     
-  //requester6.bind("tcp://*:5556");               
-  //cm_msg(MINFO, "init", "Bound to beaglebone 6"); 
-  */
+  requester6.setsockopt(ZMQ_LINGER, 0);      
+  requester6.setsockopt(ZMQ_RCVTIMEO, 60000);     
+  requester6.bind("tcp://*:5556");               
+  cm_msg(MINFO, "init", "Bound to beaglebone 6"); 
+  std::cout << "Bound to beaglebone 6" << std::endl;
 
   //Now bind subscriber to receive data being pushed by beaglebones    
   //Subscribe to all incoming data 
@@ -400,7 +388,7 @@ INT frontend_init()
   //Define a zmq message and fill it with the contents of buffer
   //Send the message
   //Define a zmq reply and wait for a response. If no reply received, return an error
-  /*
+  
   std::string buffer = request.dump();              
 
   //Send messages
@@ -410,10 +398,10 @@ INT frontend_init()
   requester1.send(message1);                                
                                                        
   //message 2
-  /*zmq::message_t message2 (buffer.size());
+  zmq::message_t message2 (buffer.size());
   std::copy(buffer.begin(), buffer.end(), (char *)message2.data());
-  requester2.send(message2);*/
-  /*
+  requester2.send(message2);
+  
   //message 3
   zmq::message_t message3 (buffer.size());                   
   std::copy(buffer.begin(), buffer.end(), (char *)message3.data());      
@@ -430,11 +418,10 @@ INT frontend_init()
   requester5.send(message5);                       
                                                                  
   //message 6
-  /*zmq::message_t message6 (buffer.size());  
+  zmq::message_t message6 (buffer.size());  
   std::copy(buffer.begin(), buffer.end(), (char *)message6.data());  
-  requester6.send(message6);            
-  */
-  /*
+  requester6.send(message6);   
+  
   //Receive messages
   zmq::message_t reply1;
   if(!requester1.recv(&reply1)){
@@ -443,13 +430,13 @@ INT frontend_init()
   }
   cm_msg(MINFO, "frontend_init", "set points were received by crate 1");
 
-  /*zmq::message_t reply2;
+  zmq::message_t reply2;
   if(!requester2.recv(&reply2)){
     cm_msg(MINFO, "frontend_init", "Crate 2 never responded");
     return FE_ERR_HW;
   }
-  cm_msg(MINFO, "frontend_init", "set points were received by crate 2");*/
-  /*
+  cm_msg(MINFO, "frontend_init", "set points were received by crate 2");
+  
   zmq::message_t reply3;
   if(!requester3.recv(&reply3)){
     cm_msg(MINFO, "frontend_init", "Crate 3 never responded");
@@ -471,12 +458,12 @@ INT frontend_init()
   }
   cm_msg(MINFO, "frontend_init", "set points were received by crate 5");
 
-  /*zmq::message_t reply6;
+  zmq::message_t reply6;
   if(!requester6.recv(&reply6)){
     cm_msg(MINFO, "frontend_init", "Crate 6 never responded");
     return FE_ERR_HW;
   }
-  cm_msg(MINFO, "frontend_init", "set points were received by crate 6");*/
+  cm_msg(MINFO, "frontend_init", "set points were received by crate 6");
 
   //cm_msg(MINFO, "begin_of_run", "Surface coil currents all set");
   
@@ -503,12 +490,12 @@ INT frontend_init()
 //--- Frontend Exit ---------------------------------------------------------//
 INT frontend_exit()
 {
-  /*requester1.unbind("tcp://*:5551");
-  //requester2.unbind("tcp://*:5552");
+  requester1.unbind("tcp://*:5551");
+  requester2.unbind("tcp://*:5552");
   requester3.unbind("tcp://*:5553");
   requester4.unbind("tcp://*:5554");
   requester5.unbind("tcp://*:5555");
-  //requester6.unbind("tcp://*:5556");*/
+  requester6.unbind("tcp://*:5556");
   subscriber.unbind("tcp://*:5550");
 
   //Set FrontendActive to False. Will stop the thread
@@ -537,8 +524,7 @@ sets up the root tree.
 */
 INT begin_of_run(INT run_number, char *error)
 {
-  std::cout << "In BOR" << std::endl;
-
+  
   using namespace boost;
   //ODB parameters
   HNDLE hDB, hkey;
@@ -608,12 +594,7 @@ INT begin_of_run(INT run_number, char *error)
   globalLock.unlock();
   
   cm_msg(MLOG, "begin of run", "Completed successfully");
-
-  /*
-  std::cout << "BOR set points" << std::endl;
-  for(int i=0;i<100;i++) std::cout << bot_set_values[i] << std::endl;
-  std::cout << "Finished BOR" << std::endl;
-  */
+  
   return SUCCESS;
 }
 
@@ -810,49 +791,55 @@ void ReadCurrents(){
     mlock.unlock();
     if(!localFrontendActive) break;
 
-    /*
     mlock.lock();
-    //Get the current set points from ODB
-    //Get bottom set currents
-    db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Bottom Set Currents", &hkey);
-    if(hkey == NULL){
-      cm_msg(MERROR, "ReadCurrents", "unable to find Bottom Set Currents key");
-    }
+    //TRY NEW METHOD                             
+    const int SIZE = 512;                                                                                       
+                                                                                                                         
+    //Get bottom set currents                                                                   
+    char arr_path_bot_comp[SIZE];                                                                              
+    int bot_comp_size = sizeof(bot_comp_values);                                                             
+    sprintf(arr_path_bot_comp,"/Equipment/Surface Coils/Settings/Set Points/Bottom Set Currents");          
+    db_get_value(hDB,0,arr_path_bot_comp,bot_comp_values,&bot_comp_size,TID_DOUBLE,0);                                   
+                                                                                                                         
+    //Get top set currents                                                                                    
+    char arr_path_top_comp[SIZE];                                                                                 
+    int top_comp_size = sizeof(top_comp_values);                                                                    
+    sprintf(arr_path_top_comp,"/Equipment/Surface Coils/Settings/Set Points/Top Set Currents");                    
+    db_get_value(hDB,0,arr_path_top_comp,top_comp_values,&top_comp_size,TID_DOUBLE,0);           
+                                                                                                                        
+    //Get the allowable difference                                                                                      
+    char path_comp_dif[SIZE];                                                 
+    int dif_comp_size = sizeof(compSetPoint);                                                    
+    sprintf(path_comp_dif,"/Equipment/Surface Coils/Settings/Set Points/Allowed Difference");        
+    db_get_value(hDB,0,path_comp_dif,&compSetPoint,&dif_comp_size,TID_DOUBLE,0);                       
+    mlock.unlock();
 
-    std::cout << "Before checking ODB, comparison set currents" << std::endl;
-    for(int i=0;i<15;i++) std::cout << "Thread: " << bot_comp_values[i] << std::endl;
-
-    for(int i=0;i<nCoils;i++){
-      bot_comp_values[i] = 0;
-      top_comp_values[i] = 0;
-    }
-
-    int bot_comp_size = sizeof(bot_comp_values);
-    db_get_data(hDB, hkey, &bot_comp_values, &bot_comp_size, TID_DOUBLE);
-
-    std::cout << "Got the comparison set currents" << std::endl;
-    for(int i=0;i<15;i++) std::cout << "Thread " << bot_comp_values[i] << std::endl;
-
-    //Get top set currents            
-    db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Top Set Currents", &hkey);
-    if(hkey == NULL){
-      cm_msg(MERROR, "ReadCurrents", "unable to find Top Set Currents key");
-    }
-
-    int top_comp_size = sizeof(top_comp_values);
-    db_get_data(hDB, hkey, &top_comp_values, &top_comp_size, TID_DOUBLE);
-
-    //Get allowable difference
-    db_find_key(hDB, 0, "/Equipment/Surface Coils/Settings/Set Points/Allowed Difference", &hkey);                           
-    compSetPoint = 0;               
-    int compsetpt_size = sizeof(compSetPoint);
-    db_get_data(hDB, hkey, &compSetPoint, &compsetpt_size, TID_DOUBLE);
-
-
-    //Compare these values to the previous set points. If any 1 current is different, update the actual set point arrays and send the values to the beaglebones
+                                                                                                       
+    //Compare these values to the previous set points. If any 1 current is different, update the actual set point arrays and send the values to the beaglebones. Because of timing, get set values again
     for(int i=0;i<nCoils;i++){
       if((fabs(bot_comp_values[i] - bot_set_values[i]) > 1e-6) || (fabs(top_comp_values[i] - top_set_values[i]) > 1e-6)){
-	usleep(5000000); //Make sure ODB is fully updated
+	
+	usleep(5000000);
+	//Get bottom set currents                                                                                           
+	char arr_path_bot_comp[SIZE];
+	int bot_comp_size = sizeof(bot_comp_values);
+	sprintf(arr_path_bot_comp,"/Equipment/Surface Coils/Settings/Set Points/Bottom Set Currents");
+	db_get_value(hDB,0,arr_path_bot_comp,bot_comp_values,&bot_comp_size,TID_DOUBLE,0);
+
+	//Get top set currents                                                                                                 
+	char arr_path_top_comp[SIZE];
+	int top_comp_size = sizeof(top_comp_values);
+	sprintf(arr_path_top_comp,"/Equipment/Surface Coils/Settings/Set Points/Top Set Currents");
+	db_get_value(hDB,0,arr_path_top_comp,top_comp_values,&top_comp_size,TID_DOUBLE,0);
+
+	//Get the allowable difference                                                                        
+	char path_comp_dif[SIZE];
+	int dif_comp_size = sizeof(compSetPoint);
+	sprintf(path_comp_dif,"/Equipment/Surface Coils/Settings/Set Points/Allowed Difference");
+	db_get_value(hDB,0,path_comp_dif,&compSetPoint,&dif_comp_size,TID_DOUBLE,0);
+	mlock.unlock();
+
+	//Reset the value arrays
 	for(int j=0;j<nCoils;j++){
 	  bot_set_values[j] = bot_comp_values[j];
 	  top_set_values[j] = top_comp_values[j];
@@ -888,21 +875,17 @@ void ReadCurrents(){
 	requester1.send(message1);
 	std::cout << "Sent the set points to crate 1" << std::endl;
 
-
 	//message 2
-	/*zmq::message_t message2 (buffer.size());
+	zmq::message_t message2 (buffer.size());
 	  std::copy(buffer.begin(), buffer.end(), (char *)message2.data());
 	  requester2.send(message2);
-	//std::cout << "Sent the set points to crate 2" << std::endl;
-	*/
-    /*
+	std::cout << "Sent the set points to crate 2" << std::endl;
+    
 	//message 3
 	zmq::message_t message3 (buffer.size());
 	std::copy(buffer.begin(), buffer.end(), (char *)message3.data());
 	requester3.send(message3);
 	std::cout << "Sent the set points to crate 3" << std::endl;
-
-
 
 	//message 4
 	zmq::message_t message4 (buffer.size());
@@ -918,12 +901,12 @@ void ReadCurrents(){
 
 
 	//message 6
-	/*zmq::message_t message6 (buffer.size());
-	  std::copy(buffer.begin(), buffer.end(), (char *)message6.data());
-	  requester6.send(message6);
-	  //std::cout << "Sent the set points to crate 6" << std::endl;*/
+	zmq::message_t message6 (buffer.size());
+	std::copy(buffer.begin(), buffer.end(), (char *)message6.data());
+	requester6.send(message6);
+	std::cout << "Sent the set points to crate 6" << std::endl;
 
-    /*	//Receive messages
+    	//Receive messages
 	zmq::message_t reply1;
         if(!requester1.recv(&reply1)){
           cm_msg(MINFO, "ReadCurrents", "Crate 1 never responded");
@@ -931,15 +914,14 @@ void ReadCurrents(){
         }
         else std::cout << "set Points were received by crate 1" << std::endl; 
 
-	/*zmq::message_t reply2;
+	zmq::message_t reply2;
         if(!requester2.recv(&reply2)){
           cm_msg(MINFO, "ReadCurrents", "Crate 2 never responded");
           return FE_ERR_HW;
         }
-        //else std::cout << "set Points were received by crate 2" << std::endl; 
-	*/
+        else std::cout << "set Points were received by crate 2" << std::endl; 
 	
-    /*	zmq::message_t reply3;
+        zmq::message_t reply3;
         if(!requester3.recv(&reply3)){
           cm_msg(MINFO, "ReadCurrents", "Crate 3 never responded");
           return FE_ERR_HW;
@@ -960,27 +942,16 @@ void ReadCurrents(){
         }
         else std::cout << "set Points were received by crate 5" << std::endl; 
 
-	/*zmq::message_t reply6;
+	zmq::message_t reply6;
 	if(!requester6.recv(&reply6)){
 	cm_msg(MINFO, "ReadCurrents", "Crate 6 never responded");
 	return FE_ERR_HW;
 	}
-	//else std::cout << "set Points were received by crate 6" << std::endl;*/
+	else std::cout << "set Points were received by crate 6" << std::endl;
 
-    /*	break;
-      }
-    }*/
-
-    //make an instance of the struct
-
-
-    //Initialize arrays to hold data sent from beaglebones                
-    /*  for(int i=0;i<nCoils;i++){
-      dataUnit.bot_currents[i] = 0.0;
-      dataUnit.top_currents[i] = 0.0;
-      dataUnit.bot_temps[i] = 0.0;
-      dataUnit.top_temps[i] = 0.0;
-      }*/
+	break;
+       }
+    }
 
     //Receive values from beaglebones             
     bool st = false; //status of receiving data             
@@ -1045,7 +1016,6 @@ void ReadCurrents(){
 
     //Check values vs. set points/allowed difference and temperature   
     //Will set alarm if something is bad
-
     string bad_curr_string = "";
     string bad_temp_string = "";
 

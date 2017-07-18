@@ -122,6 +122,8 @@ vector<g2field::trolley_barcode_t> TrlyBarcodeBuffer;
 vector<g2field::trolley_monitor_t> TrlyMonitorBuffer;
 vector<g2field::trolley_interface_t> TrlyInterfaceBuffer;
 vector<g2field::trolley_extra_t> TrlyExtraBuffer;
+vector<unsigned int> TrlyFrameASizeBuffer;
+vector<unsigned int> TrlyFrameBSizeBuffer;
 
 g2field::trolley_nmr_t TrlyNMRCurrent;
 g2field::trolley_barcode_t TrlyBarcodeCurrent;
@@ -540,7 +542,7 @@ INT poll_event(INT source, INT count, BOOL test)
   }
 
   mlock.lock();
-  BOOL check = (TrlyNMRBuffer.size()>0 && TrlyBarcodeBuffer.size()>0 && TrlyMonitorBuffer.size()>0 && TrlyInterfaceBuffer.size()>0 && TrlyExtraBuffer.size()>0);
+  BOOL check = (TrlyNMRBuffer.size()>0 && TrlyBarcodeBuffer.size()>0 && TrlyMonitorBuffer.size()>0 && TrlyInterfaceBuffer.size()>0 && TrlyExtraBuffer.size()>0 && TrlyFrameASizeBuffer.size()>0 && TrlyFrameBSizeBuffer.size()>0);
   mlock.unlock();
   if (check)return 1;
   else return 0;
@@ -606,25 +608,31 @@ INT read_trly_event(char *pevent, INT off){
 
   //Write data to banks
   mlockdata.lock();
-  bk_create(pevent, nmr_bank_name, TID_WORD, (void **)&pNMRdata);
-  memcpy(pNMRdata, &(TrlyNMRBuffer[0]), sizeof(g2field::trolley_nmr_t));
-  pNMRdata += sizeof(g2field::trolley_nmr_t)/sizeof(WORD);
-  bk_close(pevent,pNMRdata);
+  if(TrlyFrameASizeBuffer[0]!=0){
+    if (TrlyNMRBuffer[0].length!=0){
+      bk_create(pevent, nmr_bank_name, TID_WORD, (void **)&pNMRdata);
+      memcpy(pNMRdata, &(TrlyNMRBuffer[0]), sizeof(g2field::trolley_nmr_t));
+      pNMRdata += sizeof(g2field::trolley_nmr_t)/sizeof(WORD);
+      bk_close(pevent,pNMRdata);
+    }
 
-  bk_create(pevent, barcode_bank_name, TID_WORD, (void **)&pBarcodedata);
-  memcpy(pBarcodedata, &(TrlyBarcodeBuffer[0]), sizeof(g2field::trolley_barcode_t));
-  pBarcodedata += sizeof(g2field::trolley_barcode_t)/sizeof(WORD);
-  bk_close(pevent,pBarcodedata);
+    bk_create(pevent, barcode_bank_name, TID_WORD, (void **)&pBarcodedata);
+    memcpy(pBarcodedata, &(TrlyBarcodeBuffer[0]), sizeof(g2field::trolley_barcode_t));
+    pBarcodedata += sizeof(g2field::trolley_barcode_t)/sizeof(WORD);
+    bk_close(pevent,pBarcodedata);
 
-  bk_create(pevent, monitor_bank_name, TID_WORD, (void **)&pMonitordata);
-  memcpy(pMonitordata, &(TrlyMonitorBuffer[0]), sizeof(g2field::trolley_monitor_t));
-  pMonitordata += sizeof(g2field::trolley_monitor_t)/sizeof(WORD);
-  bk_close(pevent,pMonitordata);
+    bk_create(pevent, monitor_bank_name, TID_WORD, (void **)&pMonitordata);
+    memcpy(pMonitordata, &(TrlyMonitorBuffer[0]), sizeof(g2field::trolley_monitor_t));
+    pMonitordata += sizeof(g2field::trolley_monitor_t)/sizeof(WORD);
+    bk_close(pevent,pMonitordata);
+  }
 
-  bk_create(pevent, interface_bank_name, TID_WORD, (void **)&pInterfacedata);
-  memcpy(pInterfacedata, &(TrlyInterfaceBuffer[0]), sizeof(g2field::trolley_interface_t));
-  pInterfacedata += sizeof(g2field::trolley_interface_t)/sizeof(WORD);
-  bk_close(pevent,pInterfacedata);
+  if(TrlyFrameBSizeBuffer[0]!=0){
+    bk_create(pevent, interface_bank_name, TID_WORD, (void **)&pInterfacedata);
+    memcpy(pInterfacedata, &(TrlyInterfaceBuffer[0]), sizeof(g2field::trolley_interface_t));
+    pInterfacedata += sizeof(g2field::trolley_interface_t)/sizeof(WORD);
+    bk_close(pevent,pInterfacedata);
+  }
 
   bk_create(pevent, extra_bank_name, TID_WORD, (void **)&pExtradata);
   memcpy(pExtradata, &(TrlyExtraBuffer[0]), sizeof(g2field::trolley_extra_t));
@@ -636,6 +644,8 @@ INT read_trly_event(char *pevent, INT off){
   TrlyMonitorBuffer.erase(TrlyMonitorBuffer.begin());
   TrlyInterfaceBuffer.erase(TrlyInterfaceBuffer.begin());
   TrlyExtraBuffer.erase(TrlyExtraBuffer.begin());
+  TrlyFrameASizeBuffer.erase(TrlyFrameASizeBuffer.begin());
+  TrlyFrameBSizeBuffer.erase(TrlyFrameBSizeBuffer.begin());
   
   //Check current size of the readout buffer
   BufferLoad = TrlyNMRBuffer.size();
@@ -1151,6 +1161,8 @@ void ReadFromDevice(){
       TrlyMonitorBuffer.push_back(*TrlyMonitorDataUnit);
       TrlyInterfaceBuffer.push_back(*TrlyInterfaceDataUnit);
       TrlyExtraBuffer.push_back(*TrlyExtraDataUnit);
+      TrlyFrameASizeBuffer.push_back(FrameASize);
+      TrlyFrameBSizeBuffer.push_back(FrameBSize);
     }
     mlockdata.unlock();
 

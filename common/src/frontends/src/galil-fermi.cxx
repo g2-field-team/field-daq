@@ -1179,11 +1179,15 @@ void GalilControl(const GCon &g){
       db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley1 Rel Pos",&RelPos1,&Size_Int,TID_INT,0);
       db_get_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Trolley/Trolley2 Rel Pos",&RelPos2,&Size_Int,TID_INT,0);
       mlock.unlock();
-      sprintf(CmdBuffer,"PR %d,%d",RelPos1,RelPos2);
       if (!PreventManualCtrl){
 	mlock.lock();
 	GCmd(g,"KPA=100");
 	GCmd(g,"KPB=100");
+	GCmd(g,"SPA=100");
+	GCmd(g,"SPB=100");
+	sprintf(CmdBuffer,"PRA=%d",RelPos1);
+	GCmd(g,CmdBuffer);
+	sprintf(CmdBuffer,"PRB=%d",RelPos2);
 	GCmd(g,CmdBuffer);
 	GCmd(g,"BGAB");
 	mlock.unlock();
@@ -1196,7 +1200,7 @@ void GalilControl(const GCon &g){
       INT CurrentVelocities_size = sizeof(CurrentVelocities);
 
       while(1){
-	sleep(1);
+	sleep(2);
 	db_get_value(hDB,0,"/Equipment/GalilFermi/Monitors/Velocities",CurrentVelocities,&CurrentVelocities_size,TID_INT,0);
 	if (CurrentVelocities[0]==0 && CurrentVelocities[1]==0)break;
       }
@@ -1205,6 +1209,8 @@ void GalilControl(const GCon &g){
       mlock.lock();
       GCmd(g,"KPA=0");
       GCmd(g,"KPB=0");
+      GCmd(g,"SPA=0");
+      GCmd(g,"SPB=0");
       db_set_value(hDB,0,"/Equipment/GalilFermi/Settings/Manual Control/Cmd",&command,sizeof(command), 1 ,TID_INT); 
       mlock.unlock();
     }else if (command == 2){
