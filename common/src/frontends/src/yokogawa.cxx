@@ -759,8 +759,9 @@ int update_parameters_from_ODB(double &current_setpoint,double &avg_field){
    int rc = check_average_field_ODB(AVG);
    avg_field = AVG;  
 
-   // Use first event to set the field setpoint 
-   if (gEventCounter==0) {
+   // Use 10th event to set the field setpoint; 
+   // allow any junk data from previous run clear the buffer (fixed probe frontend issue)  
+   if (gEventCounter<=10) {
       pidLoop->SetSetpoint(avg_field); 
       sprintf(msg,"The setpoint is %.3lf kHz",avg_field/1E+3); 
       cm_msg(MINFO,"update_parameters_from_ODB",msg);
@@ -828,13 +829,14 @@ int update_current(BOOL IsFieldUpdated,double current_setpoint,double avg_field)
    // get the setpoint for printing to file
    double theSetpoint = pidLoop->GetSetpoint(); 
 
+   // don't need this anymore
    // eps = get_new_current(avg_field);
-   if(gWriteTestData && !gIsFeedbackOn){ 
-      eps = pidLoop->Update(time_sec,avg_field);    
-      rc  = write_to_file("fdbk-off",gCurrentTime,avg_field,theSetpoint,eps);   
-      // reset before we do any real calculation... 
-      eps = 0.;
-   }
+   // if(gWriteTestData && !gIsFeedbackOn){ 
+   //    eps = pidLoop->Update(time_sec,avg_field);    
+   //    rc  = write_to_file("fdbk-off",gCurrentTime,avg_field,theSetpoint,eps);   
+   //    // reset before we do any real calculation... 
+   //    eps = 0.;
+   // }
 
    // write the field data regardless of feedback being on or off  
    unsigned long time_of_update = (unsigned long)gFieldUpdateTime;
