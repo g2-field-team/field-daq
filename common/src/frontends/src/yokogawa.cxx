@@ -145,7 +145,7 @@ int    gCounter=0;
 double gWindupGuard=20.;  
 double gSampleTime=10E-3; // 10 ms  
 // other terms we need to keep track of 
-int gEventCounter=0; 
+unsigned long int gEventCounter=0; 
 int gProbeNum = -1;
 BOOL gUseSingleProbe = false; 
 BOOL gIsFeedbackOn = false; 
@@ -173,7 +173,7 @@ const char * const psfb_bank_name = "PSFB";     // 4 letters, try to make sensib
 const char * const SETTINGS_DIR   = "/Equipment/PS Feedback/Settings";
 const char * const MONITORS_DIR   = "/Equipment/PS Feedback/Monitors";
 const char * const SHARED_DIR     = "/Shared/Variables/PS Feedback";
-const char * const TEST_DIR       = "/home/newg2/Workspace/dflay_root_ana/input/"; 
+const char * const TEST_DIR       = "/home/newg2/Workspace/dflay/root_ana/input/"; 
 
 /********************************************************************\
   Callback routines for system transitions
@@ -234,20 +234,24 @@ INT frontend_init(){
    gCounter      = 0;
    // reset last avg field 
    gLastAvgField = -100; 
-   gFieldLimit   = 0;  
+   gFieldLimit   = 0;
+   // reset feedback boolean  
+   gIsFeedbackOn = false;  
 
    pidLoop = new g2field::PID(); 
    pidLoop->SetPID(0,0,0); 
+   pidLoop->SetIAltCoeff(0); 
    pidLoop->SetSampleTime(gSampleTime);  
    pidLoop->SetWindupGuard(gWindupGuard);  
 
    if (!gSimMode) {
+      cm_msg(MINFO,"init","Starting initialization..."); 
       // taking real data, grab the IP address  
       db_get_value(hDB,0,ip_addr_path,&ip_addr,&ip_addr_size,TID_STRING,0);
       // connect to the yokogawa
       rc = yokogawa_interface::open_connection(ip_addr);  
       if (rc==0) {
-         cm_msg(MINFO,"init","Yokogawa is connected.");
+         cm_msg(MINFO,"init","Connected to Yokogawa.");
          rc = yokogawa_interface::set_mode(yokogawa_interface::kCURRENT); 
          rc = check_yokogawa_comms(rc,"init");  
          if (rc==0) {
@@ -288,6 +292,10 @@ INT frontend_init(){
       cm_msg(MINFO,"init","Yokogawa is in SIMULATION MODE.");
    }
 
+   // one more check
+   rc = yokogawa_interface::error_check(err_msg); 
+   rc = check_yokogawa_comms(rc,"init"); 
+
    free(sim_sw_path); 
    free(ip_addr_path); 
    cm_msg(MINFO,"init","Initialization complete."); 
@@ -301,6 +309,7 @@ INT frontend_exit(){
    // set back to zero amps and volts
    // disable output  
 
+   char err_msg[512]; 
    int rc=0;
  
    if (!gSimMode) { 
@@ -327,6 +336,9 @@ INT frontend_exit(){
              return FE_ERR_HW; 
          }
       }
+      // one more check
+      rc = yokogawa_interface::error_check(err_msg); 
+      rc = check_yokogawa_comms(rc,"init"); 
    }
 
    delete pidLoop; 
@@ -451,7 +463,6 @@ INT frontend_loop(){
 }
 //______________________________________________________________________________
 INT poll_event(INT source, INT count, BOOL test){
-
    // Polling routine for events. Returns TRUE if event
    // is available. If test equals TRUE, don't return. The test
    // flag is used to time the polling 
@@ -464,16 +475,7 @@ INT poll_event(INT source, INT count, BOOL test){
       return 0;
    }
 
-   // bool check = true; 
-
-   // if(check){
-   //    return 1;
-   // }else{ 
-   //    return 0;
-   // }
-
    return 0; 
-
 }
 //______________________________________________________________________________
 INT interrupt_configure(INT cmd, INT source, POINTER_T adr){
@@ -500,13 +502,14 @@ INT read_yoko_event(char *pevent,INT off){
    BOOL IsFieldUpdated = false;
 
    rc = update_parameters_from_ODB(current_setpoint,avg_field);
+
+   // check to see if the field was updated 
+   if (rc==1) IsFieldUpdated = true; 
+
    if (rc>1) { 
       cm_msg(MERROR,"read_yoko_event","Cannot read parameters from ODB!");
       gIsFeedbackOn = false; 
    }
-
-   // check to see if the field was updated 
-   if (rc==1) IsFieldUpdated = true; 
 
    // determine the new current to set on the Yokogawa 
    rc = update_current(IsFieldUpdated,current_setpoint,avg_field);
@@ -518,7 +521,6 @@ INT read_yoko_event(char *pevent,INT off){
    read_from_device(); 
 
    // now write everything to MIDAS banks 
-
    static unsigned int num_events = 0; 
    DWORD *pPSFBData; 
 
@@ -648,8 +650,6 @@ void read_from_device(){
    sprintf(current_read_path,"%s/Current Value (mA)",MONITORS_DIR);
    double current_val = lvl/1E-3;
    db_set_value(hDB,0,current_read_path,&current_val,sizeof(current_val),1,TID_DOUBLE);
-
-   if (gWriteTestData) write_to_file("yoko-readout",gCurrentTime,lvl); 
  
    // clean up for next read 
    delete psfb_data;
@@ -665,13 +665,7 @@ void read_from_device(){
 //______________________________________________________________________________
 int update_parameters_from_ODB(double &current_setpoint,double &avg_field){
    // update values from the ODB 
-
-   // can't do this for some reason... 
-   // char enable_sw_path[512];
-   // BOOL IsOutputEnabled = FALSE;
-   // int SIZE_BOOL = sizeof(IsOutputEnabled);
-   // sprintf(enable_sw_path,"%s/Output Enable",SETTINGS_DIR); 
-   // db_get_value(hDB,0,enable_sw_path,&IsOutputEnabled,&SIZE_BOOL,TID_BOOL,0);
+   char msg[512]; 
 
    char sf_path[512];
    sprintf(sf_path,"%s/Scale Factor (kHz per mA)",SETTINGS_DIR);
@@ -712,11 +706,12 @@ int update_parameters_from_ODB(double &current_setpoint,double &avg_field){
    int SIZE_INT = sizeof(probeNum); 
    sprintf(pn_path,"%s/Probe Number for Field Avg",SETTINGS_DIR);
    db_get_value(hDB,0,pn_path,&probeNum,&SIZE_INT,TID_INT, 0);
-   gProbeNum = probeNum-1;   // probe 100 => index 99 
+   gProbeNum = probeNum;     
 
    char thr_path[512]; 
    sprintf(thr_path,"%s/Feedback Threshold (Hz)",SETTINGS_DIR); 
    db_get_value(hDB,0,thr_path,&gFieldLimit,&SIZE_DOUBLE,TID_DOUBLE,0); 
+   pidLoop->SetMaxError(gFieldLimit); 
 
    char pc_path[512];
    sprintf(pc_path,"%s/P Coefficient",SETTINGS_DIR);
@@ -736,30 +731,37 @@ int update_parameters_from_ODB(double &current_setpoint,double &avg_field){
    db_get_value(hDB,0,dc_path,&D_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
    pidLoop->SetDCoeff(D_coeff);  
 
-   // if(IsOutputEnabled){
-   //    rc = yokogawa_interface::set_output_state(yokogawa_interface::kENABLED); 
-   //    if (rc!=0) {
-   //       cm_msg(MINFO,"update","Yokogawa output ENABLED.");
-   //    } else { 
-   //       cm_msg(MINFO,"update","Cannot enable Yokogawa output!");
-   //    }
-   // }else{
-   //    rc = yokogawa_interface::set_output_state(yokogawa_interface::kDISABLED); 
-   //    if (rc!=0) {
-   //       cm_msg(MINFO,"update","Yokogawa output DISABLED.");
-   //    } else { 
-   //       cm_msg(MINFO,"update","Cannot disable Yokogawa output!");
-   //    }
-   // }
+   char ic_alt_path[512];
+   sprintf(ic_alt_path,"%s/I Alt Coefficient",SETTINGS_DIR);
+   double I_alt_coeff = 0;
+   db_get_value(hDB,0,ic_alt_path,&I_alt_coeff,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   pidLoop->SetIAltCoeff(I_alt_coeff);  
+
+   char corr_path[512];
+   sprintf(corr_path,"%s/Maximum Correction Size (Hz)",SETTINGS_DIR);
+   double corr_size = 0;
+   db_get_value(hDB,0,corr_path,&corr_size,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   pidLoop->SetMaxCorrSize(corr_size);  
+
+   char max_path[512];
+   sprintf(max_path,"%s/Maximum PID Output (Hz)",SETTINGS_DIR);
+   double maxPID = 0;
+   db_get_value(hDB,0,max_path,&maxPID,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   pidLoop->SetMaxPIDOutput(maxPID);  
+
+   char max_i_path[512];
+   sprintf(max_i_path,"%s/Maximum I Term Output (Hz)",SETTINGS_DIR);
+   double maxITerm = 0;
+   db_get_value(hDB,0,max_i_path,&maxITerm,&SIZE_DOUBLE,TID_DOUBLE, 0);
+   pidLoop->SetMaxITermOutput(maxITerm);  
 
    double AVG=0;
    int rc = check_average_field_ODB(AVG);
    avg_field = AVG;  
 
-   char msg[512]; 
-
-   // Use first event to set the field setpoint 
-   if (gEventCounter==0) {
+   // Use 10th event to set the field setpoint; 
+   // allow any junk data from previous run clear the buffer (fixed probe frontend issue)  
+   if (gEventCounter<=10) {
       pidLoop->SetSetpoint(avg_field); 
       sprintf(msg,"The setpoint is %.3lf kHz",avg_field/1E+3); 
       cm_msg(MINFO,"update_parameters_from_ODB",msg);
@@ -818,7 +820,8 @@ int check_average_field_ODB(double &avg_field){
 int update_current(BOOL IsFieldUpdated,double current_setpoint,double avg_field){
    // update the current on the yokogawa based on the ODB
    int rc=-1;
-   double lvl=0,eps=0,test_sum=0; 
+   double lvl=0,eps=0; 
+   char msg[200];  
    
    gCurrentTime = get_utc_time();
    double time_sec = gCurrentTime/1E+9; 
@@ -826,59 +829,24 @@ int update_current(BOOL IsFieldUpdated,double current_setpoint,double avg_field)
    // get the setpoint for printing to file
    double theSetpoint = pidLoop->GetSetpoint(); 
 
+   // don't need this anymore
    // eps = get_new_current(avg_field);
-   if(gWriteTestData && !gIsFeedbackOn){ 
-      eps = pidLoop->Update(time_sec,avg_field);    
-      rc  = write_to_file("fdbk-off"    ,gCurrentTime,avg_field,theSetpoint,eps);   
-      // reset before we do any real calculation... 
-      eps = 0.;
-   }
+   // if(gWriteTestData && !gIsFeedbackOn){ 
+   //    eps = pidLoop->Update(time_sec,avg_field);    
+   //    rc  = write_to_file("fdbk-off",gCurrentTime,avg_field,theSetpoint,eps);   
+   //    // reset before we do any real calculation... 
+   //    eps = 0.;
+   // }
 
    // write the field data regardless of feedback being on or off  
    unsigned long time_of_update = (unsigned long)gFieldUpdateTime;
    if (gWriteTestData) rc = write_to_file("field-update",time_of_update,avg_field);   
 
-   double field_change     = avg_field - gLastAvgField; 
-   double abs_field_change = fabs(field_change); 
-
-   char msg[200];  
-   
-   double err_term     = theSetpoint - avg_field; 
-   double abs_err_term = fabs(err_term); 
-
-   bool IsSmallFieldCorr = false;  
-   double delta=0;    
-   if (abs_err_term>gSmallFieldLimit) {
-      // if the change in the field is bigger than the small field limit
-      // apply a small correction that is the small field limit (with the correct sign)  
-      delta = (abs_err_term/abs_err_term)*gSmallFieldLimit*pidLoop->GetScaleFactor();   // scale factor puts us in Amps 
-      IsSmallFieldCorr = true;  
-   } 
-
    // Update the current to set 
    // check if feedback is on and the average field value changed
    if (gIsFeedbackOn) {
       if (IsFieldUpdated) {
-         // the field was updated; so we try to change the current
-         // otherwise, leave the current as is for now  
-	 if( (abs_field_change>=gFieldLimit) && gCounter>1 ) { 
-	    // change in field is too large and it's not the first time we try to change 
-	    // the current on the yokogawa. 
-	    sprintf(msg,"The field changed by %.3lf Hz!  Will NOT change the current on the Yokogawa",field_change); 
-	    cm_msg(MERROR,"update_current",msg);
-	    eps = 0.; 
-	 } else { 
-            // ok, the field change is smaller than the field limit.  let's use the PID loop. 
-	    // send in the average field (in Hz); compares to setpoint 
-	    // eps = pidLoop->Update(time_sec,avg_field);    
-	 }
-	 // gTotalCurrent = eps;
-         if(IsSmallFieldCorr){
-            strcpy(msg,""); 
-	    sprintf(msg,"Accumulating small change of %.3lf A",delta); 
-	    cm_msg(MINFO,"update_current",msg);
-	    gTotalCurrent += delta;
-         } 
+	 gTotalCurrent = pidLoop->Update(time_sec,avg_field);    
 	 gCounter++;                    // count the update since we possibly changed the current 
       } 
       lvl = gTotalCurrent;              // assign the total current to the level we'll set  
@@ -915,10 +883,8 @@ int update_current(BOOL IsFieldUpdated,double current_setpoint,double avg_field)
 }
 //______________________________________________________________________________
 unsigned long get_utc_time(){
+   // get the time in nanoseconds 
    unsigned long utc = hw::systime_us()*1E+3; 
-   // struct timeb now; 
-   // int rc = ftime(&now); 
-   // unsigned long utc = now.time + now.millitm;
    return utc; 
 }
 //______________________________________________________________________________
@@ -928,7 +894,7 @@ int check_yokogawa_comms(int rc,const char *func){
    char err_msg[512],myStr[512]; 
    if (rc!=0) {
       err_code = yokogawa_interface::error_check(err_msg); 
-      sprintf(myStr,"Yokogawa communication FAILED.  Error code: %d, message: %s \n",err_code,err_msg); 
+      sprintf(myStr,"Yokogawa communication problem!  Error code: %d, message: %s \n",err_code,err_msg); 
       cm_msg(MERROR,func,myStr);
       RC2 = yokogawa_interface::clear_errors();
       RC  = err_code; 

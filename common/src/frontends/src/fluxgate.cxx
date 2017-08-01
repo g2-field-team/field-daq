@@ -91,7 +91,7 @@ namespace {
   //--- Timing Parameters -----------------------------------------------------//
   float64 aqRate = AQ_RATE;
   float64 aqTime = AQ_TIME;
-  uInt64 sampsPerChanToAcquire = AQ_SAMPSPERCHAN;
+  uInt32 sampsPerChanToAcquire = AQ_SAMPSPERCHAN;
   //--- Readout Parameters ---------------------------------------//
   uInt32 arraySizeInSamps = AQ_TOTALSAMPS;
   float64 readOut[AQ_TOTALSAMPS]; //vector for writing DAQ buffer into, fixing runtime allocation for testing
@@ -103,6 +103,10 @@ namespace {
   uInt32 effArraySize = AQ_TOTALSAMPS/FILT_BINSIZE;
   //--- ODB Parameters --------------------------------------------//
   HNDLE hDB, hkey;
+  int boolSize = sizeof(writeDebug);
+  //--- Output settings -------------------------------------------//
+  BOOL writeDebug = TRUE;
+  BOOL writeMidas = TRUE;
 } //end anonymous namespace
 //====================== END GLOBALS ===========================================================//
 
@@ -154,8 +158,8 @@ INT begin_of_run(INT run_number, char *err){
       
 //  setup channel and timing parameters
 //  create DC channels
-//  db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/minVolDC",&minVolDC,sizeof(minVolDC),TID_FLOAT, 0);
-//  db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/maxVolDC",&maxVolDC,sizeof(maxVolDC),TID_FLOAT, 0);
+  db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/minVolDC",&minVolDC,sizeof(minVolDC),TID_DOUBLE, 0);
+  db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/maxVolDC",&maxVolDC,sizeof(maxVolDC),TID_DOUBLE, 0);
 //  db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/physicalChannelDC",&physicalChannelDC,sizeof(physicalChannelDC),1,TID_STRING);
   DAQerr = DAQmxBaseCreateAIVoltageChan(taskHandle, physicalChannelDC, "Voltage", DAQmx_Val_Cfg_Default, minVolDC, maxVolDC, DAQmx_Val_Volts, NULL);
   NIERRORCHECK_SUCCESSMSG("begin_of_run","error creating fluxgate DC channels","fluxgate DC channels created");
@@ -169,8 +173,8 @@ INT begin_of_run(INT run_number, char *err){
 
 //setup timing
 
-  db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/aqRate",&aqRate,sizeof(aqRate),1,TID_FLOAT);
-  db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/aqTime",&aqTime,sizeof(aqTime),1,TID_FLOAT);
+  db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/aqRate",&aqRate,sizeof(aqRate),1,TID_DOUBLE);
+  db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/aqTime",&aqTime,sizeof(aqTime),1,TID_DOUBLE);
   db_set_value(hDB,0,"/Equipment/Fluxgate/Settings/sampsPerChanToAcquire", &sampsPerChanToAcquire, sizeof(sampsPerChanToAcquire), 1, TID_INT);
   DAQerr = DAQmxBaseCfgSampClkTiming(taskHandle, "", aqRate, DAQmx_Val_Rising, DAQmx_Val_FiniteSamps, sampsPerChanToAcquire);
   NIERRORCHECK_SUCCESSMSG("begin_of_run","error configuring fluxgate sample clock","fluxgate sample clock configured");
@@ -284,44 +288,40 @@ INT read_fluxgate_event(char *pevent, INT off){
 //-----  Copy the fluxgate data.
 
 //-----  Write to debug file
-  BOOL writeDebug = TRUE;
-  int writeDebugSize = sizeof(writeDebug);
-//  db_find_key(hDB,0,"/Equipment/Fluxgate/Settings/writeDebug",&hkey);
-//  if(!hkey){
-//    writeDebug = TRUE;
-//  }else{
-//    db_get_data(hDB,hkey,&writeDebug,&writeDebugSize,TID_BOOL);
-//  }
-  db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/writeDebug",&writeDebug,&writeDebugSize,TID_BOOL,0);
+  db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/writeDebug",&writeDebug,&boolSize,TID_BOOL,0);
   if(writeDebug){
-/*    time_t rawTime;
+    //make a filename/file based on time
+    time_t rawTime;
     struct tm * timeinfo;
     char timeBuffer[80];
     time(&rawTime);
     timeinfo = localtime(&rawTime);
     strftime(timeBuffer,sizeof(timeBuffer),"/home/newg2/aetb/flux_%d-%m-%Y_%H-%M-%S.csv",timeinfo);
     std::string debugFileName(timeBuffer);
-*/    std::string fileName = debugFileName();
+    std::string fileName = debugFileName();
     std::fstream debugFile;  
     debugFile.open(fileName,std::fstream::out);
-//write a csv style file
+    //write a csv style file
     for(int row = 0; row < sampsPerChanToAcquire; row++){
       for(int col = 0; col < numChannels; col++){
         debugFile << data.data[col*sampsPerChanToAcquire + row];
         if(col!=numChannels-1){debugFile << ",";}
-      }
+      } //end write cols
       debugFile << std::endl;
-    }
+    } //end write rows
     debugFile.close();
-  }
+  } //end if writeDebug
 
 //MIDAS output
-  bk_init32(pevent);
-  bk_create(pevent, bank_name, TID_DWORD, (void**)&pdata);
-  memcpy(pdata, &data, sizeof(data));
-  pdata += sizeof(data) / sizeof(DWORD);
-  bk_close(pevent, pdata);
-  return bk_size(pevent);
-//  return 0;
-
+  db_get_value(hDB,0,"/Equipment/Fluxgate/Settings/writeMidas",&writeMidas,&boolSize,TID_BOOL,0);
+  if (writeMidas){
+    bk_init32(pevent);
+    bk_create(pevent, bank_name, TID_DWORD, (void**)&pdata);
+    memcpy(pdata, &data, sizeof(data));
+    pdata += sizeof(data) / sizeof(DWORD);
+    bk_close(pevent, pdata);
+    return bk_size(pevent);
+  } else {
+    return 0;
+  } //end if writeMidas
 }
