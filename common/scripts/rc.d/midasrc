@@ -1,11 +1,21 @@
 #!/bin/bash
 # A short script setting up some MIDAS environment variables
 
-export MIDASHOME=~/Packages/gm2midas/midas
-export MIDASSYS=$MIDASHOME
-export MIDAS_ROOT=$MIDASHOME
-export MIDAS_EXPTAB=/etc/exptab
-export ROMESYS=~/Packages/gm2midas/rome
+export MIDASSELECT="local"
 
-LD_LIBRARY_PATH=$MIDASSYS/linux/lib:$LD_LIBRARY_PATH
-PATH=$MIDASSYS/linux/bin:$MIDASSYS/utils:$PATH
+if [ $MIDASSELECT = "local" ] ; then
+  export MIDASSYS=/home/newg2/Packages/gm2midas/midas
+  export MID_INC=$MIDASSYS/include
+  export MID_LIB=$MIDASSYS/linux/lib
+  export LD_LIBRARY_PATH=$MIDASSYS/linux/lib:$LD_LIBRARY_PATH
+  export PATH=$MIDASSYS/linux/bin:$PATH
+else
+  export MIDASSYS=$GM2MIDAS_BASE
+  export MID_INC=$MIDASSYS/include
+  export MID_LIB=$MIDASSYS/lib
+  export LD_LIBRARY_PATH=$MIDASSYS/lib:$LD_LIBRARY_PATH
+  export PATH=$MIDASSYS/bin:$PATH
+fi
+export MIDAS_EXPTAB=/etc/exptab
+#export MIDAS_SERVER_HOST=g2field-be-priv:1175
+

@@ -1,1 +1,6 @@
-export PATH=/home/newg2/Applications/field-daq/common/bin:$PATH
+export G2FIELD_DAQ_DIR=/home/newg2/Gm2FieldOnline/gm2fielddaq
+export FRONTEND_DIR=$G2FIELD_DAQ_DIR/frontends
+export FIELD_HARDWARE_DIR=$G2FIELD_DAQ_DIR/hardware-interfaces
+export LD_LIBRARY_PATH=$FIELDHARDWARELIBDIR/lib:$LD_LIBRARY_PATH
+export PATH=$FRONTEND_DIR/bin:$PATH
+export PATH=$FRONTEND_DIR/online/bin:$PATH
