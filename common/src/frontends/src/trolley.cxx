@@ -986,10 +986,10 @@ void ReadFromDevice(){
       //Calculate Pressure
       Pressure = CalculatePressure(TrlyMonitorDataUnit->PMonitorVal,TrlyMonitorDataUnit->PMonitorTemp,PressureSensorCal,PressureTemperature);
 
-      Vmin1 = TrlyMonitorDataUnit->V1Min/65536.0*10;
-      Vmax1 = TrlyMonitorDataUnit->V1Max/65536.0*10;
-      Vmin2 = TrlyMonitorDataUnit->V2Min/65536.0*5;
-      Vmax2 = TrlyMonitorDataUnit->V2Max/65536.0*5;
+      Vmin1 = TrlyMonitorDataUnit->V1Min/65535.0*10;
+      Vmax1 = TrlyMonitorDataUnit->V1Max/65535.0*10;
+      Vmin2 = TrlyMonitorDataUnit->V2Min/65535.0*5;
+      Vmax2 = TrlyMonitorDataUnit->V2Max/65535.0*5;
 
       //Update odb error monitors and sending messages
       mlock.lock();
@@ -1115,7 +1115,7 @@ void ReadFromDevice(){
     db_get_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Source",SourceName,&SourceName_size,TID_STRING,0);
     double GalilTime = 0.0;
     INT GalilTime_size = sizeof(GalilTime);
-    db_get_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Time Stamp",&GalilTime,&GalilTime_size,TID_INT, 0);
+    db_get_value(hDB,0,"/Equipment/TrolleyInterface/Monitors/Extra/Time Stamp",&GalilTime,&GalilTime_size,TID_DOUBLE, 0);
     INT GalilPositions[6];
     INT GalilVelocities[6];
     INT GalilPos_size = sizeof(GalilPositions);

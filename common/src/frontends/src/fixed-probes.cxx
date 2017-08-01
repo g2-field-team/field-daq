@@ -23,6 +23,7 @@ About:  Implements a MIDAS frontend that is aware of the
 #include <cmath>
 #include <ctime>
 #include <random>
+#include <fstream>
 using std::string;
 
 //--- other includes --------------------------------------------------------//
@@ -130,6 +131,9 @@ g2field::FixedProbeSequencer *event_manager;
 
 const int nprobes = g2field::kNmrNumFixedProbes;
 const char *const mbank_name = (char *)"FXPR";
+
+std::vector<int> PSFB_probe; 
+
 }
 
 void trigger_loop();
@@ -138,6 +142,7 @@ int load_device_classes();
 int simulate_fixed_probe_event();
 void update_feedback_params();
 void systems_check();
+int load_psfb_probes(); 
 
 void set_json_tmpfiles()
 {
@@ -260,6 +265,9 @@ INT frontend_init()
     return rc;
   }
 
+  // load probes for field avg (PS feedback stuff) 
+  load_psfb_probes();
+ 
   run_in_progress = false;
 
   cm_msg(MINFO, "init", "Fixed Probe initialization complete");
@@ -273,6 +281,7 @@ INT frontend_exit()
 
   event_manager->EndOfRun();
   delete event_manager;
+  event_manager = nullptr;
 
   cm_msg(MINFO, "exit", "Fixed Probe teardown complete");
   return SUCCESS;
@@ -340,7 +349,7 @@ INT begin_of_run(INT run_number, char *error)
   write_full_waveform = conf.get<bool>("output.write_full_waveform");
   full_waveform_subsampling = conf.get<int>("output.full_waveform_subsampling");
 
-  cm_msg(MINFO, "fixed-probes", "loading root file");
+  cm_msg(MDEBUG, "fixed-probes", "loading root file");
   // Set up the ROOT data output.
   if (write_root) {
   
@@ -378,6 +387,11 @@ INT begin_of_run(INT run_number, char *error)
 //--- End of Run ----------------------------------------------------*/
 INT end_of_run(INT run_number, char *error)
 {
+  // Destroy the event manager.
+  event_manager->EndOfRun();
+  delete event_manager;
+  event_manager = nullptr;
+
   // Make sure we write the ROOT data.
   if (run_in_progress && write_root) {
 
@@ -490,12 +504,12 @@ INT read_fixed_probe_event(char *pevent, INT off)
 
   } else if (triggered && !event_manager->HasEvent()) {
     // No event yet.
-    cm_msg(MDEBUG, "read_fixed_probe_event", "no data yet");
+    //cm_msg(MDEBUG, "read_fixed_probe_event", "no data yet");
     return 0;
 
   } else {
 
-    cm_msg(MDEBUG, "read_fixed_probe_event", "got real data event");
+    cm_msg(MDEBUG, "read_fixed_probe_event", "got event data event");
 
     auto fp_data = event_manager->GetCurrentEvent();
     event_manager->PopCurrentEvent();
@@ -515,7 +529,7 @@ INT read_fixed_probe_event(char *pevent, INT off)
 
     data_mutex.lock();
 
-    cm_msg(MINFO, frontend_name, "copying the data from event");
+    // cm_msg(MINFO, frontend_name, "copying the data from event");
     std::copy(fp_data.clock_sys_ns.begin(),
 	      fp_data.clock_sys_ns.begin() + nprobes,
 	      &data.clock_sys_ns[0]);
@@ -605,7 +619,6 @@ INT read_fixed_probe_event(char *pevent, INT off)
   }
 
   if (write_root && run_in_progress) {
-    cm_msg(MINFO, "read_fixed_event", "Filling TTree");
     // Now that we have a copy of the latest event, fill the tree.
     pt->Fill();
 
@@ -617,7 +630,6 @@ INT read_fixed_probe_event(char *pevent, INT off)
 
     if (num_events % 10 == 1) {
 
-      cm_msg(MINFO, frontend_name, "flushing TTree.");
       pt->AutoSave("SaveSelf,FlushBaskets");
 
       if (write_full_waveform) {
@@ -643,7 +655,7 @@ INT read_fixed_probe_event(char *pevent, INT off)
   }
 
   // Pop the event now that we are done copying it.
-  cm_msg(MINFO, "read_fixed_event", "Updating PS Feedback variables");
+  cm_msg(MDEBUG, "read_fixed_event", "Updating PS Feedback variables");
   update_feedback_params();
 
   // Let the front-end know we are ready for another trigger.
@@ -661,7 +673,7 @@ INT simulate_fixed_probe_event()
   static std::default_random_engine gen(hw::systime_us()); 
   static std::normal_distribution<double> norm(0.0, 0.1);
   
-  cm_msg(MINFO, "read_fixed_event", "simulating data");
+  cm_msg(MDEBUG, "read_fixed_event", "simulating data");
 
   // Set the time vector.
   if (tm.size() == 0) {
@@ -713,7 +725,7 @@ INT simulate_fixed_probe_event()
   }
 
   // Pop the event now that we are done copying it.
-  cm_msg(MINFO, "read_fixed_event", "Finished simulating event");
+  cm_msg(MDEBUG, "read_fixed_event", "Finished simulating event");
 }
 
 void update_feedback_params()
@@ -725,9 +737,17 @@ void update_feedback_params()
   BOOL flag;
   double freq[nprobes] = {0};
   double ferr[nprobes] = {0};
+  double fid_snr[nprobes] = {0};
+  double fid_len[nprobes] = {0};
   double health_thresh = 10.0;
   double uniform_mean_freq = 0.0;
   double weighted_mean_freq = 0.0;
+  double filtered_mean_freq = 0.0;
+  double time_of_update = 0.0; 
+  double fid_snr_avg = 0.0;
+  double fid_snr_stdev = 0.0;
+  double fid_len_avg = 0.0;
+  double fid_len_stdev = 0.0;
 
   std::string outfile = "/home/newg2/Applications/PSFeedback/input/fixed-probe-data.csv";
   std::string lockfile = "/home/newg2/Applications/PSFeedback/input/fixed-probe-data.lock";
@@ -750,6 +770,12 @@ void update_feedback_params()
     db_create_key(hDB, 0, str, TID_DOUBLE);
 
     snprintf(str, sizeof(str), "%s/weighted_mean_nmr_freq", stub);
+    db_create_key(hDB, 0, str, TID_DOUBLE);
+
+    snprintf(str, sizeof(str), "%s/filtered_mean_nmr_freq", stub);
+    db_create_key(hDB, 0, str, TID_DOUBLE);
+
+    snprintf(str, sizeof(str), "%s/time_of_update", stub);
     db_create_key(hDB, 0, str, TID_DOUBLE);
 
     snprintf(str, sizeof(str), "%s/using_freq_zc", stub);
@@ -779,6 +805,7 @@ void update_feedback_params()
   
   double w_sum = 0.0;
   double u_sum = 0.0;
+  double f_sum = 0.0;
 
   for (int i = 0; i < nprobes; ++i) {
     
@@ -792,6 +819,9 @@ void update_feedback_params()
       ferr[i] = data.ferr[i];
     }
 
+    fid_snr[i] = data.fid_snr[i];
+    fid_len[i] = data.fid_len[i];
+   
     if (data.health[i] > health_thresh) {
       uniform_mean_freq += freq[i];
       weighted_mean_freq += freq[i] / (ferr[i] + 0.001);
@@ -801,11 +831,49 @@ void update_feedback_params()
     }
   }
 
-  uniform_mean_freq /= nprobes;
-  weighted_mean_freq /= w_sum;
-
-  out << uniform_mean_freq << ",";
+  uniform_mean_freq /= u_sum;                                                                              
+  weighted_mean_freq /= w_sum;                                                                                        
+                                                                                                                  
+  out << uniform_mean_freq << ",";                                                                                
   out << 1.0 << ",";
+
+  //Calculate mean and st. dev of fid length and snr
+  fid_snr_avg = fid::mean_arr<double[nprobes]>(fid_snr);
+  fid_len_avg = fid::mean_arr<double[nprobes]>(fid_len);
+  
+  fid_snr_stdev = fid::stdev_arr<double[nprobes]>(fid_snr);
+  fid_len_stdev = fid::stdev_arr<double[nprobes]>(fid_len);
+
+  /*for(int i = 0;i < nprobes; i++){
+    BOOL freq_check = freq[i] >= 10.0 && freq[i] <= 100.0;
+    BOOL ferr_check = ferr[i] <= 0.1;
+    BOOL snr_check = fid_snr[i] >= fid_snr_avg - 3*fid_snr_stdev && fid_snr[i] <= fid_snr_avg + 3*fid_snr_stdev;
+    BOOL len_check = fid_len[i] >= fid_len_avg - 3*fid_len_stdev && fid_len[i] <= fid_len_avg + 3*fid_len_stdev;
+    
+    if(freq_check && ferr_check && snr_check && len_check){
+      filtered_mean_freq += freq[i];
+      f_sum += 1.0;
+    }
+    }
+  */
+
+  //Calculate the mean of the selected fixed probes for PS Feedback
+  for(int i=0;i<PSFB_probe.size();i++){
+    int j = PSFB_probe[i];
+
+    BOOL freq_check = freq[j] >= 10.0 && freq[j] <= 100.0;                                                              
+    BOOL ferr_check = ferr[j] <= 0.1;                                                                                             
+    BOOL snr_check = fid_snr[j] >= fid_snr_avg - 3*fid_snr_stdev && fid_snr[j] <= fid_snr_avg + 3*fid_snr_stdev;                       
+    BOOL len_check = fid_len[j] >= fid_len_avg - 3*fid_len_stdev && fid_len[j] <= fid_len_avg + 3*fid_len_stdev; 
+    
+    filtered_mean_freq += freq[PSFB_probe[i]];
+    f_sum += 1.0;
+    
+  }
+
+  filtered_mean_freq /= f_sum;
+
+  time_of_update = (hw::systime_us() * 1000)/1E+9;   // convert to seconds 
 
   snprintf(str, sizeof(str), "%s/weighted_mean_nmr_freq", stub);
   db_set_value(hDB, 0, str, 
@@ -818,6 +886,18 @@ void update_feedback_params()
 	       &uniform_mean_freq, 
 	       sizeof(uniform_mean_freq), 
 	       1, TID_DOUBLE);
+
+  snprintf(str, sizeof(str), "%s/filtered_mean_nmr_freq", stub);
+  db_set_value(hDB, 0, str,
+	       &filtered_mean_freq,
+	       sizeof(filtered_mean_freq),
+	       1, TID_DOUBLE);
+
+  snprintf(str, sizeof(str), "%s/time_of_update", stub); 
+  db_set_value(hDB, 0, str,
+               &time_of_update,
+               sizeof(time_of_update),
+               1,TID_DOUBLE); 
 
   snprintf(str, sizeof(str), "%s/nmr_freq_array", stub);
   db_set_value(hDB, 0, str, &freq, sizeof(freq), 
@@ -859,4 +939,26 @@ void systems_check()
     al_msg.assign("Fixed Probe System: Meinberg software not found");
     al_trigger_class("Failure", al_msg.c_str(), false);
   }
+}
+
+int load_psfb_probes(){
+   // read in probes to use in determining the field average 
+   // (to pass to the PS Feedback frontend) 
+   int iprobe=0;
+   std::string path   = "/home/newg2/Applications/field-daq/online/ps-feedback/";
+   std::string inpath = path + "probes.txt";
+   std::ifstream infile; 
+   infile.open( inpath.c_str() ); 
+   if ( infile.fail() ){
+      cm_msg(MINFO,"init","Cannot read in probes to use for field average (for PS Feedback)");
+      return 1;
+   } else {
+      while( !infile.eof() ){
+	 infile >> iprobe;
+         PSFB_probe.push_back(iprobe);  
+      }
+      PSFB_probe.pop_back(); 
+      cm_msg(MINFO,"init","Read in probes to use for field average (for PS Feedback)");
+   }
+   return 0; 
 }
