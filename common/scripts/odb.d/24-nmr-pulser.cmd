@@ -12,3 +12,5 @@ set dio_trg_mask 0xff
 
 cd ..
 cp template 0
+cp template 1
+cp template 2

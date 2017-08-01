@@ -1,17 +1,6 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
-<!-- created by MXML on Sun Apr 30 23:03:16 2017 -->
+<!-- created by MXML on Sat Jun 10 17:46:41 2017 -->
 <odb root="/Programs" filename="ProgramsInit.xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="/home/newg2/Packages/gm2midas/midas/odb.xsd">
-  <dir name="ODBEdit">
-    <key name="Required" type="BOOL">n</key>
-    <key name="Watchdog timeout" type="INT">10000</key>
-    <key name="Check interval" type="DWORD">180000</key>
-    <key name="Start command" type="STRING" size="256"></key>
-    <key name="Auto start" type="BOOL">n</key>
-    <key name="Auto stop" type="BOOL">n</key>
-    <key name="Auto restart" type="BOOL">n</key>
-    <key name="Alarm class" type="STRING" size="32"></key>
-    <key name="First failed" type="DWORD">0</key>
-  </dir>
   <dir name="mhttpd">
     <key name="Required" type="BOOL">n</key>
     <key name="Watchdog timeout" type="INT">10000</key>
@@ -32,54 +21,7 @@
     <key name="Auto stop" type="BOOL">n</key>
     <key name="Auto restart" type="BOOL">n</key>
     <key name="Alarm class" type="STRING" size="32"></key>
-    <key name="First failed" type="DWORD">0</key>
-  </dir>
-  <dir name="Trolley Interface">
-    <key name="Required" type="BOOL">y</key>
-    <key name="Watchdog timeout" type="INT">60000</key>
-    <key name="Check interval" type="DWORD">180000</key>
-    <key name="Start command" type="STRING" size="256">ssh fe1 trolley</key>
-    <key name="Auto start" type="BOOL">n</key>
-    <key name="Auto stop" type="BOOL">n</key>
-    <key name="Auto restart" type="BOOL">n</key>
-    <key name="Alarm class" type="STRING" size="32"></key>
-    <key name="First failed" type="DWORD">1493600613</key>
-  </dir>
-  <dir name="Fixed Probes">
-    <key name="Required" type="BOOL">y</key>
-    <key name="Watchdog timeout" type="INT">60000</key>
-    <key name="Check interval" type="DWORD">180000</key>
-    <key name="Start command" type="STRING" size="256">fixed_probes</key>
-    <key name="Auto start" type="BOOL">n</key>
-    <key name="Auto stop" type="BOOL">n</key>
-    <key name="Auto restart" type="BOOL">n</key>
-    <key name="Alarm class" type="STRING" size="32"></key>
-    <key name="First failed" type="DWORD">1493411735</key>
-  </dir>
-  <dir name="Galil Motion Control">
-    <key name="Required" type="BOOL">y</key>
-    <key name="Watchdog timeout" type="INT">60000</key>
-    <key name="Check interval" type="DWORD">180000</key>
-    <key name="Start command" type="STRING" size="256">ssh fe1 galil-fermi</key>
-    <key name="Auto start" type="BOOL">n</key>
-    <key name="Auto stop" type="BOOL">n</key>
-    <key name="Auto restart" type="BOOL">n</key>
-    <key name="Alarm class" type="STRING" size="32"></key>
-    <key name="First failed" type="DWORD">1493411185</key>
-  </dir>
-  <key name="Execute on start run" type="STRING" size="256"></key>
-  <key name="Execute on start abort" type="STRING" size="256"></key>
-  <key name="Execute on stop run" type="STRING" size="256">/home/newg2/Applications/field-daq/online/bin/end_run.sh</key>
-  <dir name="mtransition">
-    <key name="Required" type="BOOL">n</key>
-    <key name="Watchdog timeout" type="INT">10000</key>
-    <key name="Check interval" type="DWORD">180000</key>
-    <key name="Start command" type="STRING" size="256"></key>
-    <key name="Auto start" type="BOOL">n</key>
-    <key name="Auto stop" type="BOOL">n</key>
-    <key name="Auto restart" type="BOOL">n</key>
-    <key name="Alarm class" type="STRING" size="32"></key>
-    <key name="First failed" type="DWORD">1484611427</key>
+    <key name="First failed" type="DWORD">1497132216</key>
   </dir>
   <dir name="mserver">
     <key name="Required" type="BOOL">n</key>
@@ -90,62 +32,84 @@
     <key name="Auto stop" type="BOOL">n</key>
     <key name="Auto restart" type="BOOL">n</key>
     <key name="Alarm class" type="STRING" size="32"></key>
-    <key name="First failed" type="DWORD">0</key>
-  </dir>
-  <dir name="MidasToArt">
-    <key name="Required" type="BOOL">y</key>
-    <key name="Watchdog timeout" type="INT">10000</key>
-    <key name="Check interval" type="DWORD">180000</key>
-    <key name="Start command" type="STRING" size="256"></key>
-    <key name="Auto start" type="BOOL">n</key>
-    <key name="Auto stop" type="BOOL">n</key>
-    <key name="Auto restart" type="BOOL">n</key>
-    <key name="Alarm class" type="STRING" size="32"></key>
-    <key name="First failed" type="DWORD">1492662663</key>
-  </dir>
-  <dir name="mdump">
-    <key name="Required" type="BOOL">n</key>
-    <key name="Watchdog timeout" type="INT">10000</key>
-    <key name="Check interval" type="DWORD">180000</key>
-    <key name="Start command" type="STRING" size="256"></key>
-    <key name="Auto start" type="BOOL">n</key>
-    <key name="Auto stop" type="BOOL">n</key>
-    <key name="Auto restart" type="BOOL">n</key>
-    <key name="Alarm class" type="STRING" size="32"></key>
-    <key name="First failed" type="DWORD">1490940827</key>
-  </dir>
-  <dir name="Surface Coils">
-    <key name="Required" type="BOOL">y</key>
-    <key name="Watchdog timeout" type="INT">60000</key>
-    <key name="Check interval" type="DWORD">180000</key>
-    <key name="Start command" type="STRING" size="256">ssh fe1 surface_coils</key>
-    <key name="Auto start" type="BOOL">n</key>
-    <key name="Auto stop" type="BOOL">n</key>
-    <key name="Auto restart" type="BOOL">n</key>
-    <key name="Alarm class" type="STRING" size="32"></key>
-    <key name="First failed" type="DWORD">1493409348</key>
-  </dir>
-  <dir name="Lazy_ToServer">
-    <key name="Required" type="BOOL">y</key>
-    <key name="Watchdog timeout" type="INT">60000</key>
-    <key name="Check interval" type="DWORD">180000</key>
-    <key name="Start command" type="STRING" size="256">lazylogger -c ToServer</key>
-    <key name="Auto start" type="BOOL">n</key>
-    <key name="Auto stop" type="BOOL">n</key>
-    <key name="Auto restart" type="BOOL">n</key>
-    <key name="Alarm class" type="STRING" size="32"></key>
-    <key name="First failed" type="DWORD">1493608974</key>
+    <key name="First failed" type="DWORD">1497132326</key>
   </dir>
   <dir name="Lazy_ToRaid">
     <key name="Required" type="BOOL">y</key>
     <key name="Watchdog timeout" type="INT">60000</key>
     <key name="Check interval" type="DWORD">180000</key>
-    <key name="Start command" type="STRING" size="256">lazylogger -c ToRaid</key>
+    <key name="Start command" type="STRING" size="256">restart_lazylogger ToRaid</key>
     <key name="Auto start" type="BOOL">n</key>
     <key name="Auto stop" type="BOOL">n</key>
     <key name="Auto restart" type="BOOL">n</key>
     <key name="Alarm class" type="STRING" size="32"></key>
-    <key name="First failed" type="DWORD">1493610507</key>
+    <key name="First failed" type="DWORD">1497132216</key>
+  </dir>
+  <dir name="Fixed Probes">
+    <key name="Required" type="BOOL">y</key>
+    <key name="Watchdog timeout" type="INT">60000</key>
+    <key name="Check interval" type="DWORD">180000</key>
+    <key name="Start command" type="STRING" size="256">restart_frontend g2field-fe2-priv fixed-probes</key>
+    <key name="Auto start" type="BOOL">n</key>
+    <key name="Auto stop" type="BOOL">n</key>
+    <key name="Auto restart" type="BOOL">n</key>
+    <key name="Alarm class" type="STRING" size="32"></key>
+    <key name="First failed" type="DWORD">1497014959</key>
+  </dir>
+  <dir name="Trolley Interface">
+    <key name="Required" type="BOOL">y</key>
+    <key name="Watchdog timeout" type="INT">60000</key>
+    <key name="Check interval" type="DWORD">180000</key>
+    <key name="Start command" type="STRING" size="256">restart_frontend g2field-fe1-priv trolley</key>
+    <key name="Auto start" type="BOOL">n</key>
+    <key name="Auto stop" type="BOOL">n</key>
+    <key name="Auto restart" type="BOOL">n</key>
+    <key name="Alarm class" type="STRING" size="32"></key>
+    <key name="First failed" type="DWORD">1496845909</key>
+  </dir>
+  <dir name="Galil Motion Control">
+    <key name="Required" type="BOOL">y</key>
+    <key name="Watchdog timeout" type="INT">60000</key>
+    <key name="Check interval" type="DWORD">180000</key>
+    <key name="Start command" type="STRING" size="256">restart_frontend g2field-fe1-priv galil-fermi</key>
+    <key name="Auto start" type="BOOL">n</key>
+    <key name="Auto stop" type="BOOL">n</key>
+    <key name="Auto restart" type="BOOL">n</key>
+    <key name="Alarm class" type="STRING" size="32"></key>
+    <key name="First failed" type="DWORD">1497130979</key>
+  </dir>
+  <dir name="PS Feedback">
+    <key name="Required" type="BOOL">y</key>
+    <key name="Watchdog timeout" type="INT">60000</key>
+    <key name="Check interval" type="DWORD">180000</key>
+    <key name="Start command" type="STRING" size="256">restart_frontend g2field-fe2-priv yokogawa</key>
+    <key name="Auto start" type="BOOL">n</key>
+    <key name="Auto stop" type="BOOL">n</key>
+    <key name="Auto restart" type="BOOL">n</key>
+    <key name="Alarm class" type="STRING" size="32"></key>
+    <key name="First failed" type="DWORD">1497120724</key>
+  </dir>
+  <dir name="Surface Coils">
+    <key name="Required" type="BOOL">y</key>
+    <key name="Watchdog timeout" type="INT">60000</key>
+    <key name="Check interval" type="DWORD">180000</key>
+    <key name="Start command" type="STRING" size="256">restart_frontend g2field-fe1-priv surface_coils</key>
+    <key name="Auto start" type="BOOL">n</key>
+    <key name="Auto stop" type="BOOL">n</key>
+    <key name="Auto restart" type="BOOL">n</key>
+    <key name="Alarm class" type="STRING" size="32"></key>
+    <key name="First failed" type="DWORD">1496844724</key>
+  </dir>
+  <dir name="Fluxgate">
+    <key name="Required" type="BOOL">y</key>
+    <key name="Watchdog timeout" type="INT">60000</key>
+    <key name="Check interval" type="DWORD">180000</key>
+    <key name="Start command" type="STRING" size="256">restart_frontend g2field-fe1-priv fluxgate</key>
+    <key name="Auto start" type="BOOL">n</key>
+    <key name="Auto stop" type="BOOL">n</key>
+    <key name="Auto restart" type="BOOL">n</key>
+    <key name="Alarm class" type="STRING" size="32"></key>
+    <key name="First failed" type="DWORD">1495505126</key>
   </dir>
   <dir name="Monitor">
     <key name="Required" type="BOOL">y</key>
@@ -158,4 +122,29 @@
     <key name="Alarm class" type="STRING" size="32"></key>
     <key name="First failed" type="DWORD">1493611350</key>
   </dir>
+  <dir name="FPS DQM">
+    <key name="Required" type="BOOL">y</key>
+    <key name="Watchdog timeout" type="INT">30000</key>
+    <key name="Check interval" type="DWORD">180000</key>
+    <key name="Start command" type="STRING" size="256">restart_dqm fps indexFixedProbes</key>
+    <key name="Auto start" type="BOOL">n</key>
+    <key name="Auto stop" type="BOOL">n</key>
+    <key name="Auto restart" type="BOOL">n</key>
+    <key name="Alarm class" type="STRING" size="32"></key>
+    <key name="First failed" type="DWORD">1497132271</key>
+  </dir>
+  <dir name="Trolley DQM">
+    <key name="Required" type="BOOL">y</key>
+    <key name="Watchdog timeout" type="INT">10000</key>
+    <key name="Check interval" type="DWORD">180000</key>
+    <key name="Start command" type="STRING" size="256">restart_dqm trolley indexTrolley</key>
+    <key name="Auto start" type="BOOL">n</key>
+    <key name="Auto stop" type="BOOL">n</key>
+    <key name="Auto restart" type="BOOL">n</key>
+    <key name="Alarm class" type="STRING" size="32"></key>
+    <key name="First failed" type="DWORD">1496337670</key>
+  </dir>
+  <key name="Execute on start run" type="STRING" size="256"></key>
+  <key name="Execute on start abort" type="STRING" size="256"></key>
+  <key name="Execute on stop run" type="STRING" size="256">/home/newg2/Applications/field-daq/online/bin/end_run.sh</key>
 </odb>

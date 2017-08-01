@@ -122,7 +122,7 @@ inline uint64_t parse_mbg_string_ns(std::string ts="")
 
   // If necessary, grab a timestamp, and push result into stringstream.
   if (ts == "") {
-    ss.str(exec("mgbfasttstamp"));
+    ss.str(exec("/usr/bin/mgbfasttstamp"));
   } else {
     ss.str(ts);
   }

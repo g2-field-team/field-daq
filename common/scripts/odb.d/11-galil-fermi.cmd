@@ -1,8 +1,10 @@
 mkdir "/Equipment/GalilFermi/Settings"
 mkdir "/Equipment/GalilFermi/Monitors"
+mkdir "/Equipment/GalilFermi/Alarms"
 mkdir "/Equipment/GalilFermi/Settings/Auto Control"
 mkdir "/Equipment/GalilFermi/Settings/Manual Control"
 mkdir "/Equipment/GalilFermi/Settings/Emergency"
+mkdir "/Equipment/GalilFermi/Settings/Interlock"
 
 cd "/Equipment/GalilFermi/Settings/Emergency"
 create INT Abort
@@ -23,7 +25,7 @@ set "Simulation Mode" false
 cd "/Equipment/GalilFermi/Monitors"
 create BOOL "Monitor Thread Active"
 create BOOL "Control Thread Active"
-create INT "Time Stamp"
+create DOUBLE "Time Stamp"
 create INT "Positions[6]"
 create INT "Velocities[6]"
 create INT "Control Voltages[6]"
@@ -37,14 +39,10 @@ create FLOAT "Motor Temperature Fish"
 create FLOAT "Motor Temperature Sig"
 create FLOAT "Motor Tension Fish"
 create FLOAT "Motor Tension Sig"
+create BOOL "Trolley Motion Allowed"
+create BOOL "Garage Motion Allowed"
+create BOOL "Trolley Parked"
 set "Auto Motion Finished" 1
-
-mkdir "/Equipment/GalilFermi/Monitors/Trolley"
-cd "/Equipment/GalilFermi/Monitors/Trolley"
-create DOUBLE "Position"
-create DOUBLE "Velocity"
-create DOUBLE "Tensions[2]"
-
 
 cd "/Equipment/GalilFermi/Settings/Manual Control"
 create INT "Cmd"
@@ -104,3 +102,13 @@ cd "/Equipment/GalilFermi/Settings/Auto Control/Plunging Probe"
 create INT "Plunging Probe Rel Pos[3]"
 create INT "Plunging Probe Step Number[3]"
 
+cd "/Equipment/GalilFermi/Settings/Interlock"
+create BOOL "Expert Approve"
+create BOOL "Garage In"
+create BOOL "Garage Out"
+create BOOL "Trolley and Garage Aligned"
+create BOOL "Collimator and Fiber Harps Out"
+
+cd "/Equipment/GalilFermi/Alarms"
+create BOOL "Motion Trip"
+create BOOL "Bad Motion Attempt"
