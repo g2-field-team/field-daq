@@ -66,7 +66,8 @@ bin/%: src/%.cxx $(MID_LIB)/mfe.o $(OBJECTS)
 RHLIBS += -L$(MID_LIB) -Lcore/lib -L/usr/lib64/mysql -L/usr/local/lib 
 RHLIBS += -L/usr/lib -L$(BOOST_LIB) -L$(PQXX_LIB)
 RHLIBS += -lmidas-shared  -lmysqlclient -lsqlite3
-RHLIBS += -lboost_system -lboost_filesystem -lpqxx
+#RHLIBS += -lboost_system -lboost_filesystem -lpqxx
+RHLIBS += -lboost_system -lboost_filesystem
 RHLIBS += -lm -lz -lpthread -lodbc -lrt
 RHLIBS += -lgclib -lgclibo -ltrolleyinterface -lsg382interface
 RHCPPFLAGS = -fpermissive -O2
@@ -134,7 +135,7 @@ bin/abs-probe: src/abs-probe.cxx $(MID_LIB)/mfe.o
 		$(RHLIBS) $(ROOTLIBS)
 	ln -sf $(shell pwd)/$@ ../../bin/
 
-bin/galil-platform: src/galil-platform.cxx $(MID_LIB)/mfe.o
+bin/galil-argonne: src/galil-argonne.cxx $(MID_LIB)/mfe.o
 	$(CXX) -o $@ $+ $(RHCPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	        $(RHLIBS) $(ROOTLIBS)
 	ln -sf $(shell pwd)/$@ ../../bin/

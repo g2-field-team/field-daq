@@ -1,0 +1,208 @@
+
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <title> ANL Test Magnet Platfrom Control and Monitor</title>
+   <link rel="stylesheet" type="text/css" href="controlpage.css">
+   <script src='mhttpd.js'></script>
+   <script src='Platform.js'></script>
+</head>
+
+<body>
+<script>
+update();
+</script>
+
+<form name=" form1" method="Get" action="/CS/Platform Control&">
+
+<header>
+<h3>ANL Test Magnet Platfrom Control and Monitor</h3>
+</header>
+
+<nav>
+<ul>
+<li ><input name="cmd" value="Status" type="submit"></li>
+<li ><input name="cmd" value="Start" type="submit"></li>
+<li ><input name="cmd" value="Pause" type="submit"></li>
+<li ><input name="cmd" value="Stop" type="submit"></li>
+<li ><input name="cmd" value="ODB" type="submit"></li>
+<li ><input name="cmd" value="Messages" type="submit"></li>
+</ul>
+
+</nav>
+<br>
+
+<aside>
+<table class="table-fill" id="MotorMonitor">
+<tr>
+<th colspan="5" class="text-center"> Platform1 Motor Monitor</th>
+</tr>
+<tr>
+<td colspan="1" class="text-center"></td>
+<td colspan="1" class="text-center">Axis X</td>
+<td colspan="1" class="text-center">Axis Y</td>
+<td colspan="1" class="text-center">Axis Z</td>
+<td colspan="1" class="text-center">Axis S</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Position (Enc counts)</td>
+<td colspan="1" class="ODB-Monitor" id="PX">000</td>
+<td colspan="1" class="ODB-Monitor" id="PY">000</td>
+<td colspan="1" class="ODB-Monitor" id="PZ">000</td>
+<td colspan="1" class="ODB-Monitor" id="PS">000</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Velocity (Counts/sec)</td>
+<td colspan="1" class="ODB-Monitor" id="VX">000</td>
+<td colspan="1" class="ODB-Monitor" id="VY">000</td>
+<td colspan="1" class="ODB-Monitor" id="VZ">000</td>
+<td colspan="1" class="ODB-Monitor" id="VS">000</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Control Voltage  (V)</td>
+<td colspan="1" class="ODB-Monitor" id="CX">000</td>
+<td colspan="1" class="ODB-Monitor" id="CY">000</td>
+<td colspan="1" class="ODB-Monitor" id="CZ">000</td>
+<td colspan="1" class="ODB-Monitor" id="CS">000</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Forward limit status (0: at limit)</td>
+<td colspan="1" class="ODB-Monitor" id="FX">0</td>
+<td colspan="1" class="ODB-Monitor" id="FY">0</td>
+<td colspan="1" class="ODB-Monitor" id="FZ">0</td>
+<td colspan="1" class="ODB-Monitor" id="FS">0</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Reverse limit status (0: at limit)</td>
+<td colspan="1" class="ODB-Monitor" id="RX">0</td>
+<td colspan="1" class="ODB-Monitor" id="RY">0</td>
+<td colspan="1" class="ODB-Monitor" id="RZ">0</td>
+<td colspan="1" class="ODB-Monitor" id="RS">0</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Motor status</td>
+<td colspan="1" class="ODB-Monitor" id="MOX">OFF</td>
+<td colspan="1" class="ODB-Monitor" id="MOY">OFF</td>
+<td colspan="1" class="ODB-Monitor" id="MOZ">OFF</td>
+<td colspan="1" class="ODB-Monitor" id="MOS">OFF</td>
+</tr>
+<tr>
+<th colspan="5" class="text-center"> Platform2 Motor Monitor</th>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Position (Enc counts)</td>
+<td colspan="4" class="ODB-Monitor" id="PPF2">000</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Velocity (Counts/sec)</td>
+<td colspan="4" class="ODB-Monitor" id="VPF2">000</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Control Voltage  (V)</td>
+<td colspan="4" class="ODB-Monitor" id="CPF2">000</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Forward limit status (0: at limit)</td>
+<td colspan="4" class="ODB-Monitor" id="FPF2">0</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Reverse limit status (0: at limit)</td>
+<td colspan="4" class="ODB-Monitor" id="RPF2">0</td>
+</tr>
+<tr>
+<td colspan="1" class="text-center">Motor status</td>
+<td colspan="4" class="ODB-Monitor" id="MOPF2">OFF</td>
+</tr>
+</table>
+</aside>
+
+<section id="MotorControl">
+<table class="table-fill" id="MotorConfig">
+<th colspan="6"> Platform1 Manual Motor Control
+<button type="button" onclick="AbortMotion()" id="AbortButton">Abort</button>
+</th>
+<tr>
+<td colspan="1" >Motor Switches</td>
+<td colspan="1" ><button type="button" onclick="MotorsON()" id="MotorsONButton">Motors ON</button>
+<td colspan="1" ><button type="button" onclick="MotorsOFF()" id="MotorsOFFButton">Motors OFF</button>
+<td colspan="3" ></td>
+</tr>
+<tr>
+<td colspan="1" ></td>
+<td colspan="1" >Axis X</td>
+<td colspan="1" >Axis Y</td>
+<td colspan="1" >Axis Z</td>
+<td colspan="1" >Axis S</td>
+<td colspan="1" >Command</td>
+</tr>
+<tr>
+<td colspan="1" >Abs Pos. (enc counts)</td>
+<td colspan="1" ><input id="ManAbsX" type="number" value=0></input></td>
+<td colspan="1" ><input id="ManAbsY" type="number" value=0></input></td>
+<td colspan="1" ><input id="ManAbsZ" type="number" value=0></input></td>
+<td colspan="1" ><input id="ManAbsS" type="number" value=0></input></td>
+<td colspan="1" >
+<button type="button" onclick="ManualMotorControlAbs()">Run</button>
+</td>
+</tr>
+<tr>
+<td colspan="1" >Rel Pos. (enc counts)</td>
+<td colspan="1" ><input id="ManRelX" type="number" value=0></input></td>
+<td colspan="1" ><input id="ManRelY" type="number" value=0></input></td>
+<td colspan="1" ><input id="ManRelZ" type="number" value=0></input></td>
+<td colspan="1" ><input id="ManRelS" type="number" value=0></input></td>
+<td colspan="1" ><button type="button" onclick="ManualMotorControlRel()">Run</button></td>
+</tr>
+<tr>
+<td colspan="1" >Def Pos. (enc counts)</td>
+<td colspan="1" ><input id="DefX" type="number" value=0></input></td>
+<td colspan="1" ><input id="DefY" type="number" value=0></input></td>
+<td colspan="1" ><input id="DefZ" type="number" value=0></input></td>
+<td colspan="1" ><input id="DefS" type="number" value=0></input></td>
+<td colspan="1" ><button type="button" onclick="ManualDefinePosition()">Define Position</button></td>
+
+</tr>
+<th colspan="6"> Platform1 Auto Motor Control <button type="button" onclick="SetAutoMotorControl()" id="AutoCtrlButton">Set</button></th>
+<tr>
+<td colspan="1" ></td>
+<td colspan="1" >Axis X</td>
+<td colspan="1" >Axis Y</td>
+<td colspan="1" >Axis Z</td>
+<td colspan="1" >Axis S</td>
+<td colspan="1" id="SetConfirm" style="color:red"></td>
+</tr>
+<tr>
+<td colspan="1" >Step size (enc counts)</td>
+<td colspan="1" ><input id="SetAutoCtrlX" type="number" value=0></input>
+<p id="ValAutoCtrlX">0</p></td>
+<td colspan="1" ><input id="SetAutoCtrlY" type="number" value=0></input>
+<p id="ValAutoCtrlY">0</p></td>
+<td colspan="1" ><input id="SetAutoCtrlZ" type="number" value=0></input>
+<p id="ValAutoCtrlZ">0</p></td>
+<td colspan="1" ><input id="SetAutoCtrlS" type="number" value=0></input>
+<p id="ValAutoCtrlS">0</p></td>
+<td></td>
+</tr>
+
+<tr>
+<td colspan="1" >Number of steps</td>
+<td colspan="1" ><input id="StepNumberX" type="number" value=0></input>
+<p id="ValStepNumberX">0</p></td>
+<td colspan="1" ><input id="StepNumberY" type="number" value=0></input>
+<p id="ValStepNumberY">0</p></td>
+<td colspan="1" ><input id="StepNumberZ" type="number" value=0></input>
+<p id="ValStepNumberZ">0</p></td>
+<td colspan="1" ><input id="StepNumberS" type="number" value=0></input>
+<p id="ValStepNumberS">0</p></td>
+<td></td>
+</tr>
+</table> 
+</section>
+
+<br>
+
+
+</form>
+</body>
+
+</html>	
